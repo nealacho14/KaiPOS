@@ -16,7 +16,8 @@ pnpm install
 pnpm dev
 
 # Or use Docker (includes MongoDB :27017)
-docker compose up
+pnpm docker:up
+pnpm docker:down
 
 # Build all packages
 pnpm build
@@ -57,7 +58,7 @@ No test framework is configured yet.
 ### Backend Pattern
 
 The backend has two execution modes:
-1. **Local**: Hono server (`src/index.ts`) with `tsx watch` for hot reload
+1. **Local**: Hono server (`src/index.ts`) with `@hono/node-server` + `tsx watch` for hot reload
 2. **Production**: Individual Lambda handlers in `src/functions/` typed as `APIGatewayProxyHandlerV2`, bundled by tsup
 
 Database access goes through `src/db/client.ts` (MongoDB singleton) and `src/db/collections.ts` (typed collection getters for `products`, `orders`, `users`).

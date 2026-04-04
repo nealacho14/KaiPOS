@@ -1,14 +1,13 @@
 import { MongoClient, type Db } from "mongodb";
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/kaipos";
-const DB_NAME = process.env.DB_NAME || "kaipos";
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/kaipos";
 
 let client: MongoClient | null = null;
 let db: Db | null = null;
 
 export async function getClient(): Promise<MongoClient> {
   if (!client) {
-    client = new MongoClient(MONGODB_URI, {
+    client = new MongoClient(MONGO_URI, {
       maxPoolSize: 10,
       minPoolSize: 1,
       maxIdleTimeMS: 30000,
@@ -21,7 +20,7 @@ export async function getClient(): Promise<MongoClient> {
 export async function getDb(): Promise<Db> {
   if (!db) {
     const mongoClient = await getClient();
-    db = mongoClient.db(DB_NAME);
+    db = mongoClient.db();
   }
   return db;
 }

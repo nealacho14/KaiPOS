@@ -12,10 +12,10 @@ KaiPOS is a cloud-native Point of Sale platform. Monorepo managed with pnpm work
 # Install dependencies
 pnpm install
 
-# Development (starts backend :4000 + frontend :3000)
+# Development with Atlas/external MongoDB (backend :4000, frontend :3000)
 pnpm dev
 
-# Or use Docker (includes MongoDB :27017)
+# Development with Docker + local MongoDB (backend :4001, frontend :3001)
 pnpm docker:up
 pnpm docker:down
 
@@ -62,6 +62,11 @@ The backend has two execution modes:
 2. **Production**: Individual Lambda handlers in `src/functions/` typed as `APIGatewayProxyHandlerV2`, bundled by tsup
 
 Database access goes through `src/db/client.ts` (MongoDB singleton) and `src/db/collections.ts` (typed collection getters for `products`, `orders`, `users`).
+
+### Environment Variables
+
+- `MONGO_URI` — MongoDB connection string. For `pnpm dev`, loaded from root `.env` via dotenv. For Docker, set in `docker-compose.yml`.
+- Root `.env` is loaded by the backend dev script using `DOTENV_CONFIG_PATH=../../.env`.
 
 ### Key Conventions
 

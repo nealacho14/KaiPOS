@@ -9,18 +9,19 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/node-server": "^1.19.12",
     "@kaipos/shared": "workspace:*",
-    "mongodb": "^6.12.0",
-    "hono": "^4.7.0"
+    "hono": "^4.7.0",
+    "mongodb": "^6.12.0"
   },
   "devDependencies": {
-    "@kaipos/tsconfig": "workspace:*",
     "@kaipos/eslint-config": "workspace:*",
+    "@kaipos/tsconfig": "workspace:*",
     "@types/aws-lambda": "^8.10.145",
     "@types/node": "^22.0.0",
-    "tsx": "^4.19.0",
+    "eslint": "^9.0.0",
     "tsup": "^8.4.0",
-    "typescript": "^5.7.0",
-    "eslint": "^9.0.0"
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
   }
 }

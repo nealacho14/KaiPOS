@@ -1,0 +1,24 @@
+{
+  "name": "@kaipos/infra",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "cdk": "cdk",
+    "synth": "cdk synth",
+    "deploy:staging": "cdk deploy --all -c stage=staging",
+    "deploy:prod": "cdk deploy --all -c stage=prod"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.178.0",
+    "constructs": "^10.4.0",
+    "@kaipos/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@kaipos/tsconfig": "workspace:*",
+    "@types/node": "^22.0.0",
+    "aws-cdk": "^2.178.0",
+    "typescript": "^5.7.0"
+  }
+}

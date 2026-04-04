@@ -12,7 +12,14 @@ export async function getClient(): Promise<MongoClient> {
       minPoolSize: 1,
       maxIdleTimeMS: 30000,
     });
-    await client.connect();
+    try {
+      await client.connect();
+      console.log("MongoDB connected successfully");
+    } catch (error) {
+      client = null;
+      console.error("MongoDB connection error:", error);
+      throw error;
+    }
   }
   return client;
 }

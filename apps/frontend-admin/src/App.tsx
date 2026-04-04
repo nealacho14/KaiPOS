@@ -6,6 +6,7 @@ interface HealthData {
   service: string;
   version: string;
   database: string;
+  databaseError?: string;
   timestamp: string;
 }
 
@@ -33,6 +34,9 @@ export function App() {
         <div>
           <p>API Status: {health.service}</p>
           <p>Database: {health.database}</p>
+          {health.databaseError && (
+            <p style={{ color: "red" }}>DB Error: {health.databaseError}</p>
+          )}
           <p>Timestamp: {health.timestamp}</p>
         </div>
       )}

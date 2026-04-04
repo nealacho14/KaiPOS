@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "DOTENV_CONFIG_PATH=../../.env tsx watch --require dotenv/config src/index.ts",
     "build": "tsup src/functions/**/*.ts --format esm --dts --outDir dist",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit"
@@ -11,6 +11,7 @@
   "dependencies": {
     "@hono/node-server": "^1.19.12",
     "@kaipos/shared": "workspace:*",
+    "dotenv": "^17.4.0",
     "hono": "^4.7.0",
     "mongodb": "^6.12.0"
   },

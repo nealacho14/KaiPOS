@@ -4,14 +4,13 @@ services:
       context: .
       dockerfile: docker/backend.Dockerfile
     ports:
-      - "4000:4000"
+      - "4001:4000"
     volumes:
       - ./apps/backend/src:/app/apps/backend/src
       - ./packages/shared/src:/app/packages/shared/src
     environment:
       - NODE_ENV=development
-      - MONGODB_URI=mongodb://mongo:27017/kaipos
-      - DB_NAME=kaipos
+      - MONGO_URI=mongodb://mongo:27017/kaipos
       - PORT=4000
     depends_on:
       - mongo
@@ -21,7 +20,7 @@ services:
       context: .
       dockerfile: docker/frontend.Dockerfile
     ports:
-      - "3000:3000"
+      - "3001:3000"
     volumes:
       - ./apps/frontend-admin/src:/app/apps/frontend-admin/src
       - ./packages/shared/src:/app/packages/shared/src

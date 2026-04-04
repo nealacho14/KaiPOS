@@ -19,40 +19,52 @@ cd KaiPOS
 # Install all dependencies (single command)
 pnpm install
 
+# Copy .env.example and configure your MongoDB URI
+cp .env.example .env
+
 # Start all apps in development mode
 pnpm dev
 ```
 
 ## Available Commands
 
-| Command             | Description                                     |
-| ------------------- | ----------------------------------------------- |
-| `pnpm dev`          | Start all apps in dev mode (backend + frontend) |
-| `pnpm build`        | Build all packages                              |
-| `pnpm lint`         | Lint all packages                               |
-| `pnpm typecheck`    | Type-check all packages                         |
-| `pnpm format`       | Format all files with Prettier                  |
-| `pnpm format:check` | Check formatting without writing                |
+| Command             | Description                                        |
+| ------------------- | -------------------------------------------------- |
+| `pnpm dev`          | Start all apps in dev mode (backend + frontend)    |
+| `pnpm build`        | Build all packages                                 |
+| `pnpm lint`         | Lint all packages                                  |
+| `pnpm typecheck`    | Type-check all packages                            |
+| `pnpm format`       | Format all files with Prettier                     |
+| `pnpm format:check` | Check formatting without writing                   |
+| `pnpm docker:up`    | Start all services with Docker Compose (with build)|
+| `pnpm docker:down`  | Stop Docker Compose services                       |
 
-## Docker (Local Development)
+## Environment Variables
 
-Start the full stack with Docker Compose:
+Copy `.env.example` to `.env` and set your values:
 
-```bash
-docker compose up
-```
+| Variable    | Description                  | Default                              |
+| ----------- | ---------------------------- | ------------------------------------ |
+| `MONGO_URI` | MongoDB connection string    | `mongodb://localhost:27017/kaipos`   |
 
-This starts:
+## Development Modes
+
+### Local (`pnpm dev`)
+
+Uses MongoDB Atlas (or any external MongoDB) configured via `MONGO_URI` in `.env`.
 
 - **Backend API** on http://localhost:4000
 - **Frontend Admin** on http://localhost:3000
+
+### Docker (`pnpm docker:up`)
+
+Uses a local MongoDB container. No `.env` needed — connection is configured in `docker-compose.yml`.
+
+- **Backend API** on http://localhost:4001
+- **Frontend Admin** on http://localhost:3001
 - **MongoDB** on localhost:27017
 
-Stop services:
-
-```bash
-docker compose down
-```
+Both modes can run simultaneously without port conflicts.
 
 ## Project Structure
 
@@ -87,7 +99,8 @@ KaiPOS/
 
 KaiPOS uses **MongoDB** with the native Node.js driver (`mongodb` package).
 
-- **Local**: MongoDB 7 via Docker Compose
+- **Local (pnpm dev)**: MongoDB Atlas or any external MongoDB via `MONGO_URI`
+- **Local (Docker)**: MongoDB 7 via Docker Compose
 - **Staging/Production**: AWS DocumentDB (MongoDB-compatible) or MongoDB Atlas
 
 ## Deployment

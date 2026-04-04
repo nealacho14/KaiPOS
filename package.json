@@ -11,7 +11,9 @@
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yaml,yml}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,yaml,yml}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,yaml,yml}\"",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down"
   },
   "devDependencies": {
     "turbo": "^2.9.0",

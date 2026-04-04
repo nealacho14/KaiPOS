@@ -26,7 +26,7 @@ services:
       - ./apps/frontend-admin/src:/app/apps/frontend-admin/src
       - ./packages/shared/src:/app/packages/shared/src
     environment:
-      - VITE_API_URL=http://localhost:4000
+      - VITE_API_URL=http://backend:4000
     depends_on:
       - backend
 

@@ -10,13 +10,15 @@ app.use("/*", cors());
 
 app.get("/api/health", async (c) => {
   let dbStatus = "disconnected";
+  let dbError: string | undefined;
 
   try {
     const client = await getClient();
     await client.db().command({ ping: 1 });
     dbStatus = "connected";
-  } catch {
+  } catch (error) {
     dbStatus = "error";
+    dbError = error instanceof Error ? error.message : String(error);
   }
 
   return c.json({
@@ -25,6 +27,7 @@ app.get("/api/health", async (c) => {
       service: "kaipos-api",
       version: API_VERSION,
       database: dbStatus,
+      ...(dbError && { databaseError: dbError }),
       timestamp: new Date().toISOString(),
     },
   });

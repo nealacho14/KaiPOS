@@ -101,7 +101,7 @@ KaiPOS uses **MongoDB** with the native Node.js driver (`mongodb` package).
 
 - **Local (pnpm dev)**: MongoDB Atlas or any external MongoDB via `MONGO_URI`
 - **Local (Docker)**: MongoDB 7 via Docker Compose
-- **Staging/Production**: AWS DocumentDB (MongoDB-compatible) or MongoDB Atlas
+- **Staging/Production**: MongoDB Atlas
 
 ## Deployment
 
@@ -125,6 +125,6 @@ pnpm deploy:prod
 - **Frontend**: React 19, Vite 6
 - **Backend**: Hono (local), AWS Lambda (production)
 - **Database**: MongoDB (native driver)
-- **Infrastructure**: AWS CDK v2 (API Gateway, Lambda, DocumentDB, S3, CloudFront)
+- **Infrastructure**: AWS CDK v2 (API Gateway, Lambda, S3, CloudFront)
 - **Monorepo**: pnpm workspaces + Turborepo
 - **Linting**: ESLint 9 (flat config) + Prettier

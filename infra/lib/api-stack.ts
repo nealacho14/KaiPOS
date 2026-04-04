@@ -6,14 +6,13 @@ import type { Construct } from "constructs";
 
 interface ApiStackProps extends cdk.StackProps {
   stage: string;
-  mongoUri: string;
 }
 
 export class ApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
-    const { stage, mongoUri } = props;
+    const { stage } = props;
     const isProd = stage === "prod";
 
     const healthFunction = new lambda.Function(this, "HealthFunction", {
@@ -24,8 +23,7 @@ export class ApiStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30),
       environment: {
         NODE_ENV: stage,
-        MONGODB_URI: mongoUri,
-        DB_NAME: "kaipos",
+        MONGO_URI: process.env.MONGO_URI || "",
       },
     });
 

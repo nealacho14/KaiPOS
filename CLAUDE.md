@@ -53,7 +53,7 @@ No test framework is configured yet.
 - **packages/shared** — Domain types (`Product`, `Order`, `User`) and utilities (`formatCurrency`, `generateOrderNumber`, `calculateOrderTotal`). Importable as `@kaipos/shared`, `@kaipos/shared/types`, `@kaipos/shared/utils`.
 - **packages/tsconfig** — Shared TS configs: `base.json`, `node.json`, `react.json`. All use ES2022, strict mode, bundler module resolution.
 - **packages/eslint-config** — Shared ESLint flat configs: base, `./node` (console allowed), `./react` (console warned).
-- **infra** — AWS CDK v2 stacks: `DatabaseStack` (DocumentDB), `ApiStack` (API Gateway + Lambda), `FrontendStack` (S3 + CloudFront). Stage context (`staging`/`prod`) controls instance sizing and HA.
+- **infra** — AWS CDK v2 stacks: `ApiStack` (API Gateway + Lambda), `FrontendStack` (S3 + CloudFront). Stage context (`staging`/`prod`) controls instance sizing. Database is MongoDB Atlas (external).
 
 ### Backend Pattern
 

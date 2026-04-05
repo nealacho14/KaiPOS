@@ -22,6 +22,6 @@ COPY packages/shared/ packages/shared/
 COPY packages/tsconfig/ packages/tsconfig/
 COPY packages/eslint-config/ packages/eslint-config/
 
-EXPOSE 3000
+EXPOSE 3001
 
 CMD ["pnpm", "--filter", "@kaipos/frontend-admin", "dev", "--host"]

@@ -22,6 +22,6 @@ COPY packages/shared/ packages/shared/
 COPY packages/tsconfig/ packages/tsconfig/
 COPY packages/eslint-config/ packages/eslint-config/
 
-EXPOSE 4000
+EXPOSE 4001
 
 CMD ["pnpm", "--filter", "@kaipos/backend", "dev"]

@@ -11,6 +11,8 @@ export async function getClient(): Promise<MongoClient> {
       maxPoolSize: 10,
       minPoolSize: 1,
       maxIdleTimeMS: 30000,
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
     });
     try {
       await client.connect();

@@ -38,6 +38,9 @@ pnpm dev
 | `pnpm format:check` | Check formatting without writing                   |
 | `pnpm docker:up`    | Start all services with Docker Compose (with build)|
 | `pnpm docker:down`  | Stop Docker Compose services                       |
+| `pnpm deploy:prod`          | Build apps and deploy all AWS CDK stacks to prod |
+| `pnpm deploy:prod:api`      | Build backend and deploy only the API stack     |
+| `pnpm deploy:prod:frontend` | Build frontend and deploy only the frontend stack |
 
 ## Environment Variables
 
@@ -93,31 +96,57 @@ KaiPOS/
 | `@kaipos/shared`         | Shared TypeScript types and utility functions                         |
 | `@kaipos/tsconfig`       | Shared TypeScript configurations (base, node, react)                  |
 | `@kaipos/eslint-config`  | Shared ESLint flat config (base, node, react)                         |
-| `@kaipos/infra`          | AWS CDK stacks for staging and production deployment                  |
+| `@kaipos/infra`          | AWS CDK stacks for the production deployment                          |
 
 ## Database
 
 KaiPOS uses **MongoDB** with the native Node.js driver (`mongodb` package).
 
-- **Local (pnpm dev)**: MongoDB Atlas or any external MongoDB via `MONGO_URI`
+- **Local (pnpm dev)**: MongoDB Atlas or any external MongoDB via `MONGO_URI` in `.env`
 - **Local (Docker)**: MongoDB 7 via Docker Compose
-- **Staging/Production**: MongoDB Atlas
+- **Production (AWS)**: MongoDB Atlas. The connection URI is stored in AWS
+  Secrets Manager (`kaipos/prod/mongo-uri`); the Lambda resolves it at cold
+  start via `MONGO_SECRET_ARN`. No URI is ever hardcoded in source or
+  CloudFormation templates.
 
 ## Deployment
 
-### Staging
+KaiPOS has **one AWS-deployed environment: `prod`**. Local development
+(`pnpm dev` / `pnpm docker:up`) is the "dev" environment.
+
+### One-command deploy (from repo root)
 
 ```bash
-cd infra
-pnpm deploy:staging
-```
-
-### Production
-
-```bash
-cd infra
+# Full deploy (backend + frontend + all stacks)
 pnpm deploy:prod
+
+# Targeted deploys (faster when you only touched one side)
+pnpm deploy:prod:api
+pnpm deploy:prod:frontend
 ```
+
+### Stacks (region `us-east-1`)
+
+| Stack                 | What it creates                                                        |
+| --------------------- | ---------------------------------------------------------------------- |
+| `kaipos-prod-secrets` | Secrets Manager secret `kaipos/prod/mongo-uri` (populated out-of-band) |
+| `kaipos-prod-assets`  | Private versioned S3 bucket (`kaipos-assets-prod`)                     |
+| `kaipos-prod-api`     | API Gateway HTTP API + Lambda (no VPC, talks to Atlas over the net)    |
+| `kaipos-prod-frontend`| S3 + CloudFront serving the SPA; proxies `/api/*` to the API Gateway   |
+
+### Architecture notes
+
+- **No VPC / NAT Gateway.** The Lambda runs outside any VPC and reaches
+  MongoDB Atlas directly. Atlas IP allowlist controls network access. This
+  keeps monthly cost near zero (~$1/month).
+- **Same-origin frontend.** CloudFront has a `/api/*` behavior that proxies
+  to API Gateway. The SPA calls `/api/health` (relative), so there is no
+  CORS and the API Gateway URL is never exposed in the browser bundle.
+- **Secrets.** `MONGO_URI` lives only in Secrets Manager, read by the Lambda
+  at cold start. It never appears in source, env vars, or CloudFormation.
+
+See [`infra/DEPLOYMENT.md`](infra/DEPLOYMENT.md) for the full first-time
+setup (bootstrap, secret population, Atlas allowlist, verification, rotation).
 
 ## Tech Stack
 

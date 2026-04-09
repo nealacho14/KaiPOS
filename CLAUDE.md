@@ -37,9 +37,10 @@ pnpm --filter @kaipos/frontend-admin dev
 # Lint a single package
 pnpm --filter @kaipos/backend lint
 
-# Infrastructure deployment
-cd infra && pnpm deploy:staging
-cd infra && pnpm deploy:prod
+# Infrastructure deployment (from repo root)
+pnpm deploy:prod               # full deploy: backend + frontend + all stacks
+pnpm deploy:prod:api           # targeted: backend build + api stack only
+pnpm deploy:prod:frontend      # targeted: frontend build + frontend stack only
 ```
 
 No test framework is configured yet.
@@ -48,12 +49,12 @@ No test framework is configured yet.
 
 ### Monorepo Structure
 
-- **apps/backend** — Hono HTTP server (local dev) + AWS Lambda handlers (production). Entry: `src/index.ts`. Lambda functions built from `src/functions/**/*.ts` via tsup (ESM output).
-- **apps/frontend-admin** — React 19 SPA built with Vite. Dev server proxies `/api` requests to backend at localhost:4000.
+- **apps/backend** — Hono HTTP server (local dev) + AWS Lambda handlers (production). Entry: `src/index.ts`. Lambda functions built from `src/functions/**/*.ts` via tsup (ESM, config at `apps/backend/tsup.config.ts`). The config bundles workspace packages and `mongodb` into the Lambda zip, leaves `@aws-sdk/*` external (provided by the Node 20 Lambda runtime), emits `dist/package.json` with `type: "module"`, and injects a `createRequire` banner for `mongodb`'s dynamic requires.
+- **apps/frontend-admin** — React 19 SPA built with Vite. In dev the Vite server proxies `/api` to the local backend; in prod CloudFront proxies `/api/*` to API Gateway, so the SPA always uses **relative** `fetch("/api/...")` — no `VITE_API_URL` needed in the browser.
 - **packages/shared** — Domain types (`Product`, `Order`, `User`) and utilities (`formatCurrency`, `generateOrderNumber`, `calculateOrderTotal`). Importable as `@kaipos/shared`, `@kaipos/shared/types`, `@kaipos/shared/utils`.
 - **packages/tsconfig** — Shared TS configs: `base.json`, `node.json`, `react.json`. All use ES2022, strict mode, bundler module resolution.
 - **packages/eslint-config** — Shared ESLint flat configs: base, `./node` (console allowed), `./react` (console warned).
-- **infra** — AWS CDK v2 stacks: `ApiStack` (API Gateway + Lambda), `FrontendStack` (S3 + CloudFront). Stage context (`staging`/`prod`) controls instance sizing. Database is MongoDB Atlas (external).
+- **infra** — AWS CDK v2. Four stacks under prefix `kaipos-prod-`: `SecretsStack` (Secrets Manager secret for Mongo URI), `AssetsStack` (private S3 bucket), `ApiStack` (API Gateway HTTP API + Lambda, no VPC), `FrontendStack` (S3 + CloudFront with `/api/*` behavior that proxies to API Gateway). Stage config in `infra/lib/config.ts` — only `prod` is supported in IaC; local dev is `pnpm dev` / `pnpm docker:up`.
 
 ### Backend Pattern
 
@@ -61,12 +62,25 @@ The backend has two execution modes:
 1. **Local**: Hono server (`src/index.ts`) with `@hono/node-server` + `tsx watch` for hot reload
 2. **Production**: Individual Lambda handlers in `src/functions/` typed as `APIGatewayProxyHandlerV2`, bundled by tsup
 
-Database access goes through `src/db/client.ts` (MongoDB singleton) and `src/db/collections.ts` (typed collection getters for `products`, `orders`, `users`).
+Database access goes through `src/db/client.ts` (MongoDB singleton) and `src/db/collections.ts` (typed collection getters for `products`, `orders`, `users`). The client resolves the connection URI in this order at cold start:
+1. If `MONGO_SECRET_ARN` is set (AWS prod), it fetches the URI from AWS Secrets Manager using `@aws-sdk/client-secrets-manager` and caches it in module scope.
+2. Otherwise it falls back to `MONGO_URI` env var (local dev / Docker).
 
 ### Environment Variables
 
-- `MONGO_URI` — MongoDB connection string. For `pnpm dev`, loaded from root `.env` via dotenv. For Docker, set in `docker-compose.yml`.
+- `MONGO_URI` — MongoDB connection string. For `pnpm dev`, loaded from root `.env` via dotenv. For Docker, set in `docker-compose.yml`. **Not used in AWS prod.**
+- `MONGO_SECRET_ARN` — ARN of the Secrets Manager secret holding the Atlas URI. Injected by CDK into the Lambda only in AWS prod. Never set locally.
 - Root `.env` is loaded by the backend dev script using `DOTENV_CONFIG_PATH=../../.env`.
+
+### Infrastructure & secrets
+
+- **One AWS stage: `prod`** in `us-east-1`. `dev` is local only. CDK validates `-c stage=prod`; any other value throws.
+- **No VPC.** Lambda runs outside any VPC and reaches MongoDB Atlas directly over the internet. Atlas IP allowlist is set to `0.0.0.0/0` (security is enforced by DB credentials stored in Secrets Manager). Keeps cost near zero (~$1/month) by avoiding a NAT Gateway.
+- **Secrets.** `MONGO_URI` lives only in Secrets Manager (`kaipos/prod/mongo-uri`). CDK creates the secret empty; populate it out-of-band with `aws secretsmanager put-secret-value`. The connection string never touches git or CloudFormation templates.
+- **CloudFront proxies `/api/*` to API Gateway.** The SPA uses same-origin relative fetches, so there's no CORS and the API Gateway URL is not exposed in the browser bundle. API Gateway itself has no `corsPreflight` and is still technically reachable directly — add a shared-secret header check in the Lambda before exposing endpoints with real data.
+- **Lambda logs** have `RetentionDays.ONE_MONTH`.
+- **S3 buckets** (`kaipos-assets-prod`, `kaipos-frontend-prod`) are `BLOCK_ALL` public access, SSE-S3 encrypted, with `enforceSSL` and `RemovalPolicy.RETAIN` in prod.
+- Full deployment runbook in `infra/DEPLOYMENT.md`.
 
 ### Key Conventions
 

@@ -7,8 +7,14 @@
     "typecheck": "tsc --noEmit",
     "cdk": "cdk",
     "synth": "cdk synth",
-    "deploy:staging": "cdk deploy --all -c stage=staging",
-    "deploy:prod": "cdk deploy --all -c stage=prod"
+    "synth:prod": "cdk synth --all -c stage=prod",
+    "diff:prod": "cdk diff --all -c stage=prod",
+    "deploy:prod": "cdk deploy --all -c stage=prod",
+    "deploy:prod:api": "cdk deploy kaipos-prod-api -c stage=prod",
+    "deploy:prod:frontend": "cdk deploy kaipos-prod-frontend -c stage=prod",
+    "deploy:prod:secrets": "cdk deploy kaipos-prod-secrets -c stage=prod",
+    "deploy:prod:assets": "cdk deploy kaipos-prod-assets -c stage=prod",
+    "destroy:prod": "cdk destroy --all -c stage=prod"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.178.0",
@@ -19,6 +25,7 @@
     "@kaipos/tsconfig": "workspace:*",
     "@types/node": "^22.0.0",
     "aws-cdk": "^2.178.0",
+    "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }
 }

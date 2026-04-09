@@ -15,6 +15,8 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Same-origin: in dev, Vite proxies /api to the backend; in prod,
+    // CloudFront proxies /api/* to API Gateway. No CORS, no absolute URL.
     fetch("/api/health")
       .then((res) => res.json())
       .then((data: ApiResponse<HealthData>) => {

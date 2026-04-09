@@ -1,13 +1,32 @@
 import { MongoClient, type Db } from "mongodb";
-
-const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/kaipos";
+import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-secrets-manager";
 
 let client: MongoClient | null = null;
 let db: Db | null = null;
+let cachedUri: string | null = null;
+
+async function resolveMongoUri(): Promise<string> {
+  if (cachedUri) return cachedUri;
+
+  const secretArn = process.env.MONGO_SECRET_ARN;
+  if (secretArn) {
+    const sm = new SecretsManagerClient({});
+    const res = await sm.send(new GetSecretValueCommand({ SecretId: secretArn }));
+    if (!res.SecretString) {
+      throw new Error(`Secret ${secretArn} has no SecretString value`);
+    }
+    cachedUri = res.SecretString;
+    return cachedUri;
+  }
+
+  cachedUri = process.env.MONGO_URI || "mongodb://localhost:27017/kaipos";
+  return cachedUri;
+}
 
 export async function getClient(): Promise<MongoClient> {
   if (!client) {
-    client = new MongoClient(MONGO_URI, {
+    const uri = await resolveMongoUri();
+    client = new MongoClient(uri, {
       maxPoolSize: 10,
       minPoolSize: 1,
       maxIdleTimeMS: 30000,

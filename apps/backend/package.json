@@ -4,11 +4,12 @@
   "type": "module",
   "scripts": {
     "dev": "DOTENV_CONFIG_PATH=../../.env tsx watch --require dotenv/config src/index.ts",
-    "build": "tsup src/functions/**/*.ts --format esm --dts --outDir dist",
+    "build": "tsup && node -e \"require('fs').writeFileSync('dist/package.json', JSON.stringify({type:'module'}))\"",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.693.0",
     "@hono/node-server": "^1.19.12",
     "@kaipos/shared": "workspace:*",
     "dotenv": "^17.4.0",

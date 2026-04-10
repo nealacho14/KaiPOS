@@ -2,6 +2,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { ApiStack } from '../lib/api-stack.js';
 import { FrontendStack } from '../lib/frontend-stack.js';
+import { GithubOidcStack } from '../lib/github-oidc-stack.js';
 import { SecretsStack } from '../lib/secrets-stack.js';
 import { AssetsStack } from '../lib/assets-stack.js';
 import { getStageConfig } from '../lib/config.js';
@@ -19,6 +20,12 @@ const env: cdk.Environment = {
 
 cdk.Tags.of(app).add('Project', 'kaipos');
 cdk.Tags.of(app).add('Stage', config.stage);
+
+new GithubOidcStack(app, `${prefix}-github-oidc`, {
+  env,
+  config,
+  githubRepo: 'nealacho14/KaiPOS',
+});
 
 const secrets = new SecretsStack(app, `${prefix}-secrets`, { env, config });
 const assets = new AssetsStack(app, `${prefix}-assets`, { env, config });

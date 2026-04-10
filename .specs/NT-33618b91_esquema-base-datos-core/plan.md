@@ -63,11 +63,11 @@
 
 ## QA Plan
 
-- [ ] Run `pnpm typecheck` across the monorepo — no type errors
-- [ ] Run `pnpm lint` — no lint errors
-- [ ] Run `pnpm build` — backend builds successfully (tsup bundles new types)
-- [ ] Start local dev (`pnpm docker:up` + `pnpm dev`) — health endpoint still works
-- [ ] Run `pnpm --filter @kaipos/backend db:setup` on a clean local MongoDB — all 9 collections created with validators and indexes
-- [ ] Run `db:setup` again — idempotent, no errors, no duplicate seed data
-- [ ] Inspect MongoDB collections via `mongosh` or Compass: confirm validators are attached, indexes exist, seed data is realistic
-- [ ] Verify `collections.ts` exports all 9 typed collection getters
+- [x] Run `pnpm typecheck` across the monorepo — no type errors
+- [x] Run `pnpm lint` — no lint errors
+- [x] Run `pnpm build` — backend builds successfully (tsup bundles new types)
+- [x] Start local dev (`pnpm docker:up` + `pnpm dev`) — health endpoint still works
+- [x] Run `pnpm --filter @kaipos/backend db:setup` on a clean local MongoDB — all 9 collections created with validators and indexes
+- [x] Run `db:setup` again — idempotent, no errors, no duplicate seed data
+- [x] Inspect MongoDB collections via `mongosh` or Compass: confirm validators are attached, indexes exist, seed data is realistic
+- [x] Verify `collections.ts` exports all 9 typed collection getters

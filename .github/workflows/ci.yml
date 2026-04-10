@@ -48,10 +48,32 @@ jobs:
       - name: Test
         run: pnpm test
 
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for app changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            app:
+              - 'apps/**'
+              - 'packages/**'
+              - 'infra/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+
   deploy:
     name: Deploy to Production
-    needs: [quality]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [quality, changes]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-prod

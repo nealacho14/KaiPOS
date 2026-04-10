@@ -6,7 +6,8 @@
     "dev": "DOTENV_CONFIG_PATH=../../.env tsx watch --require dotenv/config src/index.ts",
     "build": "tsup && node -e \"require('fs').writeFileSync('dist/package.json', JSON.stringify({type:'module'}))\"",
     "lint": "eslint src/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.693.0",
@@ -24,6 +25,7 @@
     "eslint": "^9.0.0",
     "tsup": "^8.4.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.4"
   }
 }

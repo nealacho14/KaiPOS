@@ -59,10 +59,12 @@ No test framework is configured yet.
 ### Backend Pattern
 
 The backend has two execution modes:
+
 1. **Local**: Hono server (`src/index.ts`) with `@hono/node-server` + `tsx watch` for hot reload
 2. **Production**: Individual Lambda handlers in `src/functions/` typed as `APIGatewayProxyHandlerV2`, bundled by tsup
 
 Database access goes through `src/db/client.ts` (MongoDB singleton) and `src/db/collections.ts` (typed collection getters for `products`, `orders`, `users`). The client resolves the connection URI in this order at cold start:
+
 1. If `MONGO_SECRET_ARN` is set (AWS prod), it fetches the URI from AWS Secrets Manager using `@aws-sdk/client-secrets-manager` and caches it in module scope.
 2. Otherwise it falls back to `MONGO_URI` env var (local dev / Docker).
 

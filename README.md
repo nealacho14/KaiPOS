@@ -28,27 +28,27 @@ pnpm dev
 
 ## Available Commands
 
-| Command             | Description                                        |
-| ------------------- | -------------------------------------------------- |
-| `pnpm dev`          | Start all apps in dev mode (backend + frontend)    |
-| `pnpm build`        | Build all packages                                 |
-| `pnpm lint`         | Lint all packages                                  |
-| `pnpm typecheck`    | Type-check all packages                            |
-| `pnpm format`       | Format all files with Prettier                     |
-| `pnpm format:check` | Check formatting without writing                   |
-| `pnpm docker:up`    | Start all services with Docker Compose (with build)|
-| `pnpm docker:down`  | Stop Docker Compose services                       |
-| `pnpm deploy:prod`          | Build apps and deploy all AWS CDK stacks to prod |
-| `pnpm deploy:prod:api`      | Build backend and deploy only the API stack     |
-| `pnpm deploy:prod:frontend` | Build frontend and deploy only the frontend stack |
+| Command                     | Description                                         |
+| --------------------------- | --------------------------------------------------- |
+| `pnpm dev`                  | Start all apps in dev mode (backend + frontend)     |
+| `pnpm build`                | Build all packages                                  |
+| `pnpm lint`                 | Lint all packages                                   |
+| `pnpm typecheck`            | Type-check all packages                             |
+| `pnpm format`               | Format all files with Prettier                      |
+| `pnpm format:check`         | Check formatting without writing                    |
+| `pnpm docker:up`            | Start all services with Docker Compose (with build) |
+| `pnpm docker:down`          | Stop Docker Compose services                        |
+| `pnpm deploy:prod`          | Build apps and deploy all AWS CDK stacks to prod    |
+| `pnpm deploy:prod:api`      | Build backend and deploy only the API stack         |
+| `pnpm deploy:prod:frontend` | Build frontend and deploy only the frontend stack   |
 
 ## Environment Variables
 
 Copy `.env.example` to `.env` and set your values:
 
-| Variable    | Description                  | Default                              |
-| ----------- | ---------------------------- | ------------------------------------ |
-| `MONGO_URI` | MongoDB connection string    | `mongodb://localhost:27017/kaipos`   |
+| Variable    | Description               | Default                            |
+| ----------- | ------------------------- | ---------------------------------- |
+| `MONGO_URI` | MongoDB connection string | `mongodb://localhost:27017/kaipos` |
 
 ## Development Modes
 
@@ -127,12 +127,12 @@ pnpm deploy:prod:frontend
 
 ### Stacks (region `us-east-1`)
 
-| Stack                 | What it creates                                                        |
-| --------------------- | ---------------------------------------------------------------------- |
-| `kaipos-prod-secrets` | Secrets Manager secret `kaipos/prod/mongo-uri` (populated out-of-band) |
-| `kaipos-prod-assets`  | Private versioned S3 bucket (`kaipos-assets-prod`)                     |
-| `kaipos-prod-api`     | API Gateway HTTP API + Lambda (no VPC, talks to Atlas over the net)    |
-| `kaipos-prod-frontend`| S3 + CloudFront serving the SPA; proxies `/api/*` to the API Gateway   |
+| Stack                  | What it creates                                                        |
+| ---------------------- | ---------------------------------------------------------------------- |
+| `kaipos-prod-secrets`  | Secrets Manager secret `kaipos/prod/mongo-uri` (populated out-of-band) |
+| `kaipos-prod-assets`   | Private versioned S3 bucket (`kaipos-assets-prod`)                     |
+| `kaipos-prod-api`      | API Gateway HTTP API + Lambda (no VPC, talks to Atlas over the net)    |
+| `kaipos-prod-frontend` | S3 + CloudFront serving the SPA; proxies `/api/*` to the API Gateway   |
 
 ### Architecture notes
 

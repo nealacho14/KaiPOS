@@ -53,7 +53,8 @@ jobs:
     needs: [quality]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    environment: production
+    environment:
+      name: production
     concurrency:
       group: deploy-prod
       cancel-in-progress: false

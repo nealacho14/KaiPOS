@@ -1,30 +1,30 @@
-import { serve } from "@hono/node-server";
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { API_VERSION } from "@kaipos/shared";
-import { getClient } from "./db/client.js";
+import { serve } from '@hono/node-server';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { API_VERSION } from '@kaipos/shared';
+import { getClient } from './db/client.js';
 
 const app = new Hono();
 
-app.use("/*", cors());
+app.use('/*', cors());
 
-app.get("/api/health", async (c) => {
-  let dbStatus = "disconnected";
+app.get('/api/health', async (c) => {
+  let dbStatus = 'disconnected';
   let dbError: string | undefined;
 
   try {
     const client = await getClient();
     await client.db().command({ ping: 1 });
-    dbStatus = "connected";
+    dbStatus = 'connected';
   } catch (error) {
-    dbStatus = "error";
+    dbStatus = 'error';
     dbError = error instanceof Error ? error.message : String(error);
   }
 
   return c.json({
     success: true,
     data: {
-      service: "kaipos-api",
+      service: 'kaipos-api',
       version: API_VERSION,
       database: dbStatus,
       ...(dbError && { databaseError: dbError }),
@@ -35,7 +35,7 @@ app.get("/api/health", async (c) => {
 
 const port = Number(process.env.PORT) || 4000;
 
-serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => {
+serve({ fetch: app.fetch, port, hostname: '0.0.0.0' }, () => {
   console.log(`KaiPOS Backend running on http://localhost:${port}`);
 });
 

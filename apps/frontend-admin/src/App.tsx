@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import type { ApiResponse } from "@kaipos/shared";
-import { API_VERSION } from "@kaipos/shared";
+import { useState, useEffect } from 'react';
+import type { ApiResponse } from '@kaipos/shared';
+import { API_VERSION } from '@kaipos/shared';
 
 interface HealthData {
   service: string;
@@ -17,26 +17,26 @@ export function App() {
   useEffect(() => {
     // Same-origin: in dev, Vite proxies /api to the backend; in prod,
     // CloudFront proxies /api/* to API Gateway. No CORS, no absolute URL.
-    fetch("/api/health")
+    fetch('/api/health')
       .then((res) => res.json())
       .then((data: ApiResponse<HealthData>) => {
         if (data.success && data.data) {
           setHealth(data.data);
         }
       })
-      .catch(() => setError("Could not connect to API"));
+      .catch(() => setError('Could not connect to API'));
   }, []);
 
   return (
-    <div style={{ padding: "2rem", fontFamily: "system-ui, sans-serif" }}>
+    <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
       <h1>KaiPOS Admin</h1>
       <p>Version: {API_VERSION}</p>
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
       {health && (
         <div>
           <p>API Status: {health.service}</p>
           <p>Database: {health.database}</p>
-          {health.databaseError && <p style={{ color: "red" }}>DB Error: {health.databaseError}</p>}
+          {health.databaseError && <p style={{ color: 'red' }}>DB Error: {health.databaseError}</p>}
           <p>Timestamp: {health.timestamp}</p>
         </div>
       )}

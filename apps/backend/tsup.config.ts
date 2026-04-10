@@ -1,12 +1,12 @@
-import { defineConfig } from "tsup";
+import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ["src/functions/**/*.ts"],
-  format: ["esm"],
+  entry: ['src/functions/**/*.ts'],
+  format: ['esm'],
   dts: true,
-  outDir: "dist",
-  platform: "node",
-  target: "node20",
+  outDir: 'dist',
+  platform: 'node',
+  target: 'node20',
   // Bundle everything into the Lambda zip. Node runtime in Lambda only ships
   // @aws-sdk/* preinstalled, so we leave those external to keep the bundle small.
   noExternal: [/^(?!@aws-sdk\/).*/],

@@ -1,5 +1,5 @@
-import { MongoClient, type Db } from "mongodb";
-import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-secrets-manager";
+import { MongoClient, type Db } from 'mongodb';
+import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 
 let client: MongoClient | null = null;
 let db: Db | null = null;
@@ -19,7 +19,7 @@ async function resolveMongoUri(): Promise<string> {
     return cachedUri;
   }
 
-  cachedUri = process.env.MONGO_URI || "mongodb://localhost:27017/kaipos";
+  cachedUri = process.env.MONGO_URI || 'mongodb://localhost:27017/kaipos';
   return cachedUri;
 }
 
@@ -35,10 +35,10 @@ export async function getClient(): Promise<MongoClient> {
     });
     try {
       await client.connect();
-      console.log("MongoDB connected successfully");
+      console.log('MongoDB connected successfully');
     } catch (error) {
       client = null;
-      console.error("MongoDB connection error:", error);
+      console.error('MongoDB connection error:', error);
       throw error;
     }
   }

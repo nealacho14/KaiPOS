@@ -1,6 +1,6 @@
-import * as cdk from "aws-cdk-lib";
+import * as cdk from 'aws-cdk-lib';
 
-export type Stage = "prod";
+export type Stage = 'prod';
 
 export interface StageConfig {
   stage: Stage;
@@ -11,15 +11,15 @@ export interface StageConfig {
 }
 
 export function getStageConfig(rawStage: string | undefined): StageConfig {
-  if (rawStage !== "prod") {
+  if (rawStage !== 'prod') {
     throw new Error(
-      `Invalid stage "${rawStage ?? ""}". Only "prod" is supported in AWS IaC. ` +
+      `Invalid stage "${rawStage ?? ''}". Only "prod" is supported in AWS IaC. ` +
         `Local development runs via "pnpm dev" or "pnpm docker:up".`,
     );
   }
 
   return {
-    stage: "prod",
+    stage: 'prod',
     lambdaMemory: 1024,
     removalPolicy: cdk.RemovalPolicy.RETAIN,
     autoDeleteObjects: false,

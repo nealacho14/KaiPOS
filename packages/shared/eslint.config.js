@@ -1,3 +1,3 @@
-import base from "@kaipos/eslint-config";
+import base from '@kaipos/eslint-config';
 
 export default base;

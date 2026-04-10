@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: docker/backend.Dockerfile
     ports:
-      - "4001:4001"
+      - '4001:4001'
     volumes:
       - ./apps/backend/src:/app/apps/backend/src
       - ./packages/shared/src:/app/packages/shared/src
@@ -20,7 +20,7 @@ services:
       context: .
       dockerfile: docker/frontend.Dockerfile
     ports:
-      - "3001:3001"
+      - '3001:3001'
     volumes:
       - ./apps/frontend-admin/src:/app/apps/frontend-admin/src
       - ./packages/shared/src:/app/packages/shared/src
@@ -33,7 +33,7 @@ services:
   mongo:
     image: mongo:7
     ports:
-      - "27017:27017"
+      - '27017:27017'
     volumes:
       - mongo_data:/data/db
     environment:

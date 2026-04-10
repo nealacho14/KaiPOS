@@ -1,3 +1,3 @@
-import node from "@kaipos/eslint-config/node";
+import node from '@kaipos/eslint-config/node';
 
 export default node;

@@ -17,10 +17,22 @@
     "docker:down": "docker compose down",
     "deploy:prod": "pnpm --filter @kaipos/backend build && pnpm --filter @kaipos/frontend-admin build && pnpm --filter @kaipos/infra deploy:prod --require-approval never",
     "deploy:prod:api": "pnpm --filter @kaipos/backend build && pnpm --filter @kaipos/infra deploy:prod:api --require-approval never",
-    "deploy:prod:frontend": "pnpm --filter @kaipos/frontend-admin build && pnpm --filter @kaipos/infra deploy:prod:frontend --require-approval never"
+    "deploy:prod:frontend": "pnpm --filter @kaipos/frontend-admin build && pnpm --filter @kaipos/infra deploy:prod:frontend --require-approval never",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yaml,yml}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
-    "turbo": "^2.9.0",
-    "prettier": "^3.5.0"
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.5.0",
+    "turbo": "^2.9.0"
   }
 }

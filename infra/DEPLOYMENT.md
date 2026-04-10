@@ -20,6 +20,7 @@ Single AWS environment: **`prod`**. Local development (`dev`) runs via `pnpm dev
 ## First-time setup
 
 1. **Install and build**
+
    ```bash
    pnpm install
    pnpm --filter @kaipos/backend build
@@ -27,25 +28,31 @@ Single AWS environment: **`prod`**. Local development (`dev`) runs via `pnpm dev
    ```
 
 2. **CDK bootstrap (once per account/region)**
+
    ```bash
    pnpm --filter @kaipos/infra cdk bootstrap
    ```
 
 3. **Synth and review**
+
    ```bash
    pnpm --filter @kaipos/infra synth:prod
    ```
+
    Sanity-check: the generated template under `infra/cdk.out/` must **not** contain the
    Atlas connection string. Only `MONGO_SECRET_ARN` should appear.
 
 4. **Deploy**
+
    ```bash
    pnpm --filter @kaipos/infra deploy:prod
    ```
+
    Note the outputs: `ApiUrl`, `DistributionUrl`, `MongoSecretArn`, `VpcId`, `AssetsBucketName`.
 
 5. **Populate the Mongo secret**
    The secret is created empty so the Atlas URI never touches source or CloudFormation.
+
    ```bash
    aws secretsmanager put-secret-value \
      --secret-id kaipos/prod/mongo-uri \
@@ -68,6 +75,7 @@ Single AWS environment: **`prod`**. Local development (`dev`) runs via `pnpm dev
 curl "$(aws cloudformation describe-stacks --stack-name kaipos-prod-api \
   --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' --output text)api/health"
 ```
+
 Expect HTTP 200 with `"database": "connected"`.
 
 ## Redeploy
@@ -86,6 +94,7 @@ aws secretsmanager put-secret-value \
   --secret-id kaipos/prod/mongo-uri \
   --secret-string '<new-uri>'
 ```
+
 Next Lambda cold start picks it up. To force immediately, update the function env or
 redeploy.
 

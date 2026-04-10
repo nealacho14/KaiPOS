@@ -33,9 +33,9 @@ export interface Order {
   updatedAt: Date;
 }
 
-export type OrderStatus = "pending" | "completed" | "cancelled" | "refunded";
+export type OrderStatus = 'pending' | 'completed' | 'cancelled' | 'refunded';
 
-export type PaymentMethod = "cash" | "card" | "transfer" | "other";
+export type PaymentMethod = 'cash' | 'card' | 'transfer' | 'other';
 
 export interface User {
   _id?: string;
@@ -47,7 +47,7 @@ export interface User {
   updatedAt: Date;
 }
 
-export type UserRole = "admin" | "cashier" | "manager";
+export type UserRole = 'admin' | 'cashier' | 'manager';
 
 export interface ApiResponse<T = unknown> {
   success: boolean;

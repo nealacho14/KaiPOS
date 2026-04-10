@@ -5,6 +5,7 @@ deployment of KaiPOS: what exists, why it exists, how the pieces fit
 together, and what the trade-offs are.
 
 Complementary docs:
+
 - [`infra/DEPLOYMENT.md`](../infra/DEPLOYMENT.md) — step-by-step deployment
   runbook (bootstrap, secret, allowlist, verify, rollback).
 - [`README.md`](../README.md) — repo overview and local development.
@@ -16,10 +17,10 @@ Complementary docs:
 
 KaiPOS has two "environments", but only one of them lives in AWS.
 
-| Environment | Where it runs | How to start it | Purpose |
-| --- | --- | --- | --- |
-| **dev (local)** | Your laptop | `pnpm dev` or `pnpm docker:up` | Day-to-day development. Uses MongoDB Atlas via `.env` (pnpm dev) or a local Mongo container (Docker). |
-| **prod (AWS)** | AWS `us-east-1` | `pnpm deploy:prod` | The deployed public application. Uses MongoDB Atlas with the URI stored in AWS Secrets Manager. |
+| Environment     | Where it runs   | How to start it                | Purpose                                                                                               |
+| --------------- | --------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| **dev (local)** | Your laptop     | `pnpm dev` or `pnpm docker:up` | Day-to-day development. Uses MongoDB Atlas via `.env` (pnpm dev) or a local Mongo container (Docker). |
+| **prod (AWS)**  | AWS `us-east-1` | `pnpm deploy:prod`             | The deployed public application. Uses MongoDB Atlas with the URI stored in AWS Secrets Manager.       |
 
 There is **no staging environment** and no VPC. This is a deliberate
 simplification to keep the monthly cost under $1 USD and the mental model
@@ -118,6 +119,7 @@ The backend: an API Gateway HTTP API in front of one Lambda (today just
 `/api/health`; more to come).
 
 Lambda:
+
 - **Runtime**: Node.js 20.
 - **Memory**: 1024 MB (from `config.lambdaMemory`).
 - **Timeout**: 30s.
@@ -134,6 +136,7 @@ Lambda:
   `s3:GetObject`/`s3:PutObject` on the assets bucket.
 
 API Gateway:
+
 - **Type**: HTTP API (v2) — cheaper and simpler than REST API.
 - **CORS**: **none**. The SPA reaches the API through CloudFront
   (same-origin), so no preflight is ever needed. The raw API Gateway URL
@@ -150,11 +153,13 @@ S3 + CloudFront serving the React SPA, with a second behavior that proxies
 `/api/*` to the API Gateway.
 
 S3 bucket (`kaipos-frontend-prod`):
+
 - `BlockPublicAccess.BLOCK_ALL`, SSE-S3, `enforceSSL`, `RETAIN`.
 - Access via a CloudFront Origin Access Identity (OAI) — the bucket is
   not reachable directly; only CloudFront can read it.
 
 CloudFront distribution:
+
 - **Price class**: `PRICE_CLASS_100` (US, Canada, Europe) — cheapest tier
   that covers the expected audience.
 - **Default behavior** → S3 bucket via OAI, cache policy
@@ -283,17 +288,17 @@ Mitigations:
 Expected monthly cost at low traffic (hobby / POC usage), region
 `us-east-1`:
 
-| Resource | Cost | Notes |
-| --- | --- | --- |
-| Lambda | $0 | 1M requests + 400k GB-seconds/month free forever. |
-| API Gateway HTTP API | $0 | 1M requests/month free in year 1; $1/M after. |
-| S3 (frontend + assets) | ~$0.01 | A few hundred KB total. |
-| CloudFront (`PRICE_CLASS_100`) | $0 | 1 TB/month + 10M requests/month free. |
-| Secrets Manager | **$0.40** | Fixed: $0.40/secret/month. Only fixed cost. |
-| CloudWatch Logs | ~$0.10 | Low volume + 30-day retention. |
-| KMS (AWS-managed keys) | $0 | AWS-managed keys are free. |
-| VPC / NAT Gateway | $0 | **Not provisioned.** |
-| Route 53 / ACM | $0 | Not configured (placeholder in `config.ts`). |
+| Resource                       | Cost      | Notes                                             |
+| ------------------------------ | --------- | ------------------------------------------------- |
+| Lambda                         | $0        | 1M requests + 400k GB-seconds/month free forever. |
+| API Gateway HTTP API           | $0        | 1M requests/month free in year 1; $1/M after.     |
+| S3 (frontend + assets)         | ~$0.01    | A few hundred KB total.                           |
+| CloudFront (`PRICE_CLASS_100`) | $0        | 1 TB/month + 10M requests/month free.             |
+| Secrets Manager                | **$0.40** | Fixed: $0.40/secret/month. Only fixed cost.       |
+| CloudWatch Logs                | ~$0.10    | Low volume + 30-day retention.                    |
+| KMS (AWS-managed keys)         | $0        | AWS-managed keys are free.                        |
+| VPC / NAT Gateway              | $0        | **Not provisioned.**                              |
+| Route 53 / ACM                 | $0        | Not configured (placeholder in `config.ts`).      |
 
 **Total: ~$0.50 – $1.00 USD per month** while inside the free tier.
 
@@ -371,6 +376,7 @@ bundle is identical to the dev bundle.
 Common changes and how to apply them safely:
 
 ### Rotate the Mongo password
+
 ```bash
 # Update in Atlas, then:
 aws secretsmanager put-secret-value \
@@ -380,6 +386,7 @@ aws secretsmanager put-secret-value \
 ```
 
 ### Add a new Lambda function
+
 1. Create `apps/backend/src/functions/<name>.ts`.
 2. `pnpm --filter @kaipos/backend build` will pick it up automatically
    (tsup uses `src/functions/**/*.ts` as entry).
@@ -388,14 +395,17 @@ aws secretsmanager put-secret-value \
 4. `pnpm deploy:prod:api`.
 
 ### Add a new CloudFront path pattern
+
 Edit `additionalBehaviors` in `infra/lib/frontend-stack.ts`.
 Deploy with `pnpm deploy:prod:frontend`. CloudFront propagation takes a
 few minutes.
 
 ### Tear everything down
+
 ```bash
 pnpm --filter @kaipos/infra destroy:prod
 ```
+
 The buckets and the secret have `RETAIN` removal policies, so they
 survive. Delete them manually in the console if you really want a
 clean slate.

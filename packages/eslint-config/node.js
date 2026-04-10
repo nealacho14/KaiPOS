@@ -1,11 +1,11 @@
-import base from "./base.js";
+import base from './base.js';
 
 export default [
   ...base,
   {
-    files: ["**/*.ts"],
+    files: ['**/*.ts'],
     rules: {
-      "no-console": "off",
+      'no-console': 'off',
     },
   },
 ];

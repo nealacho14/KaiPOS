@@ -1,8 +1,8 @@
-export const API_VERSION = "1.0.1";
+export const API_VERSION = '1.0.1';
 
-export function formatCurrency(amount: number, currency = "USD", locale = "en-US"): string {
+export function formatCurrency(amount: number, currency = 'USD', locale = 'en-US'): string {
   return new Intl.NumberFormat(locale, {
-    style: "currency",
+    style: 'currency',
     currency,
   }).format(amount);
 }

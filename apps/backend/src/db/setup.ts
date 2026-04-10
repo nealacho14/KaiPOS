@@ -333,14 +333,23 @@ async function setupCollections(db: Db): Promise<void> {
 
   for (const col of collections) {
     if (existing.has(col.name)) {
-      // Update validator on existing collection
-      await db.command({
-        collMod: col.name,
-        validator: col.validator,
-        validationLevel: 'moderate',
-        validationAction: 'error',
-      });
-      console.log(`  Updated validator for "${col.name}"`);
+      // Try to update validator on existing collection (requires collMod privilege)
+      try {
+        await db.command({
+          collMod: col.name,
+          validator: col.validator,
+          validationLevel: 'moderate',
+          validationAction: 'error',
+        });
+        console.log(`  Updated validator for "${col.name}"`);
+      } catch (err) {
+        const code = (err as { code?: number }).code;
+        if (code === 8000) {
+          console.log(`  Skipped validator update for "${col.name}" (insufficient privileges)`);
+        } else {
+          throw err;
+        }
+      }
     } else {
       await db.createCollection(col.name, {
         validator: col.validator,

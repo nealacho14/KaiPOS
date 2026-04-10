@@ -1,5 +1,86 @@
+export interface Business {
+  _id: string;
+  name: string;
+  slug: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Branch {
+  _id: string;
+  businessId: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+}
+
+export interface Category {
+  _id: string;
+  businessId: string;
+  name: string;
+  description?: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+}
+
+export interface ModifierOption {
+  name: string;
+  price: number;
+}
+
+export interface Modifier {
+  _id: string;
+  businessId: string;
+  name: string;
+  options: ModifierOption[];
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+}
+
+export type TableStatus = 'available' | 'occupied' | 'reserved' | 'out-of-service';
+
+export interface Table {
+  _id: string;
+  branchId: string;
+  number: number;
+  capacity: number;
+  status: TableStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+}
+
+export type TransactionStatus = 'pending' | 'completed' | 'failed' | 'refunded';
+
+export interface Transaction {
+  _id: string;
+  businessId: string;
+  orderId: string;
+  amount: number;
+  method: PaymentMethod;
+  status: TransactionStatus;
+  reference?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+}
+
 export interface Product {
-  _id?: string;
+  _id: string;
+  businessId: string;
   name: string;
   description: string;
   price: number;
@@ -9,6 +90,14 @@ export interface Product {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  createdBy: string;
+}
+
+export interface AppliedModifier {
+  modifierId: string;
+  name: string;
+  optionName: string;
+  price: number;
 }
 
 export interface OrderItem {
@@ -17,10 +106,13 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  modifiers: AppliedModifier[];
 }
 
 export interface Order {
-  _id?: string;
+  _id: string;
+  businessId: string;
+  branchId: string;
   orderNumber: string;
   items: OrderItem[];
   subtotal: number;
@@ -29,8 +121,10 @@ export interface Order {
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   customerId?: string;
+  tableId?: string;
   createdAt: Date;
   updatedAt: Date;
+  createdBy: string;
 }
 
 export type OrderStatus = 'pending' | 'completed' | 'cancelled' | 'refunded';
@@ -38,13 +132,16 @@ export type OrderStatus = 'pending' | 'completed' | 'cancelled' | 'refunded';
 export type PaymentMethod = 'cash' | 'card' | 'transfer' | 'other';
 
 export interface User {
-  _id?: string;
+  _id: string;
+  businessId: string;
   email: string;
   name: string;
+  passwordHash: string;
   role: UserRole;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  createdBy: string;
 }
 
 export type UserRole = 'admin' | 'cashier' | 'manager';

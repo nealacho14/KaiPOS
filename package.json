@@ -12,6 +12,7 @@
     "typecheck": "turbo typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yaml,yml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,yaml,yml}\"",
+    "test": "echo \"No tests configured yet\"",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
     "deploy:prod": "pnpm --filter @kaipos/backend build && pnpm --filter @kaipos/frontend-admin build && pnpm --filter @kaipos/infra deploy:prod --require-approval never",

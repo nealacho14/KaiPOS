@@ -20,7 +20,7 @@ describe('App', () => {
           success: true,
           data: {
             service: 'kaipos-api',
-            version: '1.0.1',
+            version: '1.0.2',
             database: 'connected',
             timestamp: '2026-01-01T00:00:00.000Z',
           },

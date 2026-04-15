@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as apigw from 'aws-cdk-lib/aws-apigatewayv2';
 import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import type * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
@@ -40,12 +41,22 @@ export class ApiStack extends cdk.Stack {
         JWT_SECRET_ARN: jwtSecret.secretArn,
         ASSETS_BUCKET_NAME: assetsBucket.bucketName,
         CLOUDFRONT_SECRET: config.cloudfrontSecret,
+        SES_SENDER_EMAIL: config.sesSenderEmail,
+        PASSWORD_RESET_BASE_URL: config.passwordResetBaseUrl,
       },
     });
 
     mongoSecret.grantRead(apiFunction);
     jwtSecret.grantRead(apiFunction);
     assetsBucket.grantReadWrite(apiFunction);
+
+    // Allow sending password-reset emails via SES
+    apiFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['ses:SendEmail'],
+        resources: ['*'],
+      }),
+    );
 
     // No corsPreflight: the API is fronted by CloudFront (same origin as the
     // SPA), so browser requests never need CORS. The API Gateway URL is still

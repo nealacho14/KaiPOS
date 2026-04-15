@@ -362,6 +362,42 @@ const collections: CollectionSetup[] = [
     indexes: [{ key: { email: 1 }, options: { unique: true } }],
   },
 
+  // ---- auditLogs ----
+  {
+    name: 'auditLogs',
+    validator: {
+      $jsonSchema: {
+        bsonType: 'object',
+        required: ['action', 'target', 'createdAt'],
+        properties: {
+          businessId: { bsonType: 'string' },
+          userId: { bsonType: 'string' },
+          action: {
+            enum: [
+              'login',
+              'login_failed',
+              'logout',
+              'register',
+              'password_reset_request',
+              'password_reset_complete',
+              'token_refresh',
+            ],
+          },
+          target: { bsonType: 'string' },
+          ip: { bsonType: 'string' },
+          userAgent: { bsonType: 'string' },
+          metadata: { bsonType: 'object' },
+          createdAt: { bsonType: 'date' },
+        },
+      },
+    },
+    indexes: [
+      { key: { businessId: 1, createdAt: -1 } },
+      { key: { userId: 1, createdAt: -1 } },
+      { key: { createdAt: 1 }, options: { expireAfterSeconds: 90 * 24 * 60 * 60 } },
+    ],
+  },
+
   // ---- passwordResetTokens ----
   {
     name: 'passwordResetTokens',
@@ -482,14 +518,16 @@ async function seedData(db: Db): Promise<void> {
   logger.info('  Seeded branch: Sucursal Piantini');
 
   // Users (3 roles)
+  // Passwords: admin123, manager123, cashier123 (bcrypt 12 rounds, pre-computed)
   const users = [
     {
       _id: adminUserId as never,
       businessId,
       email: 'admin@lacocinadekai.com',
       name: 'Carlos Méndez',
-      passwordHash: '$2b$10$placeholder_admin_hash',
+      passwordHash: '$2b$12$4KnQfcCs9c8EcgdDI5clJelNBsFgjn/7FXNeSbaxONzDsZ6QT7eh2',
       role: 'admin',
+      branchIds: [branchId],
       isActive: true,
       createdAt: now,
       updatedAt: now,
@@ -500,8 +538,9 @@ async function seedData(db: Db): Promise<void> {
       businessId,
       email: 'manager@lacocinadekai.com',
       name: 'María Santos',
-      passwordHash: '$2b$10$placeholder_manager_hash',
+      passwordHash: '$2b$12$oHOe9YT2WvRh/P3kpCnTkeUW.ALu38wmPyq0PYRcSzqaqnVl77OM6',
       role: 'manager',
+      branchIds: [branchId],
       isActive: true,
       createdAt: now,
       updatedAt: now,
@@ -512,8 +551,9 @@ async function seedData(db: Db): Promise<void> {
       businessId,
       email: 'cajero@lacocinadekai.com',
       name: 'Juan Pérez',
-      passwordHash: '$2b$10$placeholder_cashier_hash',
+      passwordHash: '$2b$12$2yPSLNMBUMjASCaS0s4Aze4C0uOfC13Vz3R72cbtFKQjF.nxu0Kl.',
       role: 'cashier',
+      branchIds: [branchId],
       isActive: true,
       createdAt: now,
       updatedAt: now,

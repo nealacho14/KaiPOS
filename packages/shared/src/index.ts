@@ -28,6 +28,8 @@ export type {
   RefreshResponse,
   ForgotPasswordRequest,
   ResetPasswordRequest,
+  AuditAction,
+  AuditLog,
   ApiResponse,
   PaginatedResponse,
 } from './types/index.js';

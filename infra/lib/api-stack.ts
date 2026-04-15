@@ -37,6 +37,7 @@ export class ApiStack extends cdk.Stack {
         NODE_ENV: config.stage,
         MONGO_SECRET_ARN: mongoSecret.secretArn,
         ASSETS_BUCKET_NAME: assetsBucket.bucketName,
+        CLOUDFRONT_SECRET: config.cloudfrontSecret,
       },
     });
 

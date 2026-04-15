@@ -47,6 +47,9 @@ export class FrontendStack extends cdk.Stack {
         '/api/*': {
           origin: new origins.HttpOrigin(apiDomain, {
             protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
+            customHeaders: {
+              'x-origin-verify': config.cloudfrontSecret,
+            },
           }),
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,

@@ -43,7 +43,7 @@ pnpm deploy:prod:api           # targeted: backend build + api stack only
 pnpm deploy:prod:frontend      # targeted: frontend build + frontend stack only
 ```
 
-No test framework is configured yet.
+Vitest is configured in backend, frontend, and shared packages (`pnpm test` runs all). No test files exist in the backend yet.
 
 ## Architecture
 
@@ -61,7 +61,11 @@ No test framework is configured yet.
 The backend has two execution modes:
 
 1. **Local**: Hono server (`src/index.ts`) with `@hono/node-server` + `tsx watch` for hot reload
-2. **Production**: Individual Lambda handlers in `src/functions/` typed as `APIGatewayProxyHandlerV2`, bundled by tsup
+2. **Production**: A single unified Lambda handler (`src/functions/api.ts`) using `@hono/aws-lambda` — the same Hono app serves both modes. API Gateway uses a catch-all route (`ANY /api/{proxy+}`), so new endpoints don't require CDK changes.
+
+The Hono app is defined in `src/app.ts` (shared between local and Lambda). Middleware stack: CORS → origin verification → request logger → error handler. Validation middleware (`src/middleware/validation.ts`) is applied per-route via Zod schemas.
+
+Structured logging uses **Pino** (`src/lib/logger.ts`). In dev, `pino-pretty` provides human-readable colorized output via a Pino transport (no piping needed). In production, logs are JSON. Use `createLogger(context)` for child loggers with request-scoped bindings (e.g., `requestId`). No `console.log` — all logging goes through the Pino logger.
 
 Database access goes through `src/db/client.ts` (MongoDB singleton) and `src/db/collections.ts` (typed collection getters for `products`, `orders`, `users`). The client resolves the connection URI in this order at cold start:
 
@@ -72,6 +76,7 @@ Database access goes through `src/db/client.ts` (MongoDB singleton) and `src/db/
 
 - `MONGO_URI` — MongoDB connection string. For `pnpm dev`, loaded from root `.env` via dotenv. For Docker, set in `docker-compose.yml`. **Not used in AWS prod.**
 - `MONGO_SECRET_ARN` — ARN of the Secrets Manager secret holding the Atlas URI. Injected by CDK into the Lambda only in AWS prod. Never set locally.
+- `CLOUDFRONT_SECRET` — Shared secret for CloudFront origin verification. Injected by CDK into the Lambda in AWS prod. Not set locally (middleware skips the check).
 - Root `.env` is loaded by the backend dev script using `DOTENV_CONFIG_PATH=../../.env`.
 
 ### Infrastructure & secrets
@@ -79,7 +84,7 @@ Database access goes through `src/db/client.ts` (MongoDB singleton) and `src/db/
 - **One AWS stage: `prod`** in `us-east-1`. `dev` is local only. CDK validates `-c stage=prod`; any other value throws.
 - **No VPC.** Lambda runs outside any VPC and reaches MongoDB Atlas directly over the internet. Atlas IP allowlist is set to `0.0.0.0/0` (security is enforced by DB credentials stored in Secrets Manager). Keeps cost near zero (~$1/month) by avoiding a NAT Gateway.
 - **Secrets.** `MONGO_URI` lives only in Secrets Manager (`kaipos/prod/mongo-uri`). CDK creates the secret empty; populate it out-of-band with `aws secretsmanager put-secret-value`. The connection string never touches git or CloudFormation templates.
-- **CloudFront proxies `/api/*` to API Gateway.** The SPA uses same-origin relative fetches, so there's no CORS and the API Gateway URL is not exposed in the browser bundle. API Gateway itself has no `corsPreflight` and is still technically reachable directly — add a shared-secret header check in the Lambda before exposing endpoints with real data.
+- **CloudFront proxies `/api/*` to API Gateway.** The SPA uses same-origin relative fetches, so there's no CORS and the API Gateway URL is not exposed in the browser bundle. CloudFront attaches a shared-secret `x-origin-verify` custom header; the Lambda middleware (`src/middleware/origin-verify.ts`) validates it and returns 403 for requests that bypass CloudFront. The secret is configured in `infra/lib/config.ts` (`cloudfrontSecret`) and passed to both CloudFront (custom origin header) and Lambda (`CLOUDFRONT_SECRET` env var). In local dev the env var is unset, so the check is skipped.
 - **Lambda logs** have `RetentionDays.ONE_MONTH`.
 - **S3 buckets** (`kaipos-assets-prod`, `kaipos-frontend-prod`) are `BLOCK_ALL` public access, SSE-S3 encrypted, with `enforceSSL` and `RemovalPolicy.RETAIN` in prod.
 - Full deployment runbook in `infra/DEPLOYMENT.md`.

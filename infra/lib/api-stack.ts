@@ -11,6 +11,7 @@ import type { StageConfig } from './config.js';
 interface ApiStackProps extends cdk.StackProps {
   config: StageConfig;
   mongoSecret: secretsmanager.ISecret;
+  jwtSecret: secretsmanager.ISecret;
   assetsBucket: s3.IBucket;
 }
 
@@ -20,7 +21,7 @@ export class ApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
-    const { config, mongoSecret, assetsBucket } = props;
+    const { config, mongoSecret, jwtSecret, assetsBucket } = props;
 
     // Lambda runs outside any VPC and reaches MongoDB Atlas directly over the
     // public internet. Atlas access is restricted via its own IP allowlist.
@@ -36,12 +37,14 @@ export class ApiStack extends cdk.Stack {
       environment: {
         NODE_ENV: config.stage,
         MONGO_SECRET_ARN: mongoSecret.secretArn,
+        JWT_SECRET_ARN: jwtSecret.secretArn,
         ASSETS_BUCKET_NAME: assetsBucket.bucketName,
         CLOUDFRONT_SECRET: config.cloudfrontSecret,
       },
     });
 
     mongoSecret.grantRead(apiFunction);
+    jwtSecret.grantRead(apiFunction);
     assetsBucket.grantReadWrite(apiFunction);
 
     // No corsPreflight: the API is fronted by CloudFront (same origin as the

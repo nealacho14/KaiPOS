@@ -9,6 +9,9 @@ import type {
   Product,
   Order,
   User,
+  RefreshToken,
+  LoginAttempt,
+  PasswordResetToken,
 } from '@kaipos/shared';
 import { getDb } from './client.js';
 
@@ -55,4 +58,19 @@ export async function getOrdersCollection(): Promise<Collection<Order>> {
 export async function getUsersCollection(): Promise<Collection<User>> {
   const db = await getDb();
   return db.collection<User>('users');
+}
+
+export async function getRefreshTokensCollection(): Promise<Collection<RefreshToken>> {
+  const db = await getDb();
+  return db.collection<RefreshToken>('refreshTokens');
+}
+
+export async function getLoginAttemptsCollection(): Promise<Collection<LoginAttempt>> {
+  const db = await getDb();
+  return db.collection<LoginAttempt>('loginAttempts');
+}
+
+export async function getPasswordResetTokensCollection(): Promise<Collection<PasswordResetToken>> {
+  const db = await getDb();
+  return db.collection<PasswordResetToken>('passwordResetTokens');
 }

@@ -33,6 +33,20 @@ export class NotFoundError extends AppError {
   }
 }
 
+export class UnauthorizedError extends AppError {
+  constructor(message = 'Unauthorized') {
+    super(message, 401, 'UNAUTHORIZED');
+    this.name = 'UnauthorizedError';
+  }
+}
+
+export class ForbiddenError extends AppError {
+  constructor(message = 'Forbidden') {
+    super(message, 403, 'FORBIDDEN');
+    this.name = 'ForbiddenError';
+  }
+}
+
 export class InternalError extends AppError {
   constructor() {
     super('Internal server error', 500, 'INTERNAL_ERROR');

@@ -18,40 +18,40 @@
 
 ### Tasks
 
-- [ ] Add `jose` and `bcryptjs` (+ `@types/bcryptjs`) as backend dependencies
-- [ ] Extend `User` type in `packages/shared/src/types/index.ts` with `branchIds: string[]`
-- [ ] Add auth-related types to `packages/shared/src/types/index.ts`:
+- [x] Add `jose` and `bcryptjs` (+ `@types/bcryptjs`) as backend dependencies
+- [x] Extend `User` type in `packages/shared/src/types/index.ts` with `branchIds: string[]`
+- [x] Add auth-related types to `packages/shared/src/types/index.ts`:
   - `TokenPayload` — `{ userId: string; businessId: string; role: UserRole }`
   - `RefreshToken` — DB document: `{ _id: string; userId: string; token: string; expiresAt: Date; createdAt: Date }`
   - `LoginAttempt` — DB document: `{ _id: string; email: string; attempts: number; lockedUntil: Date | null; lastAttemptAt: Date }`
   - `PasswordResetToken` — DB document: `{ _id: string; userId: string; token: string; expiresAt: Date; createdAt: Date; usedAt: Date | null }`
   - `LoginRequest`, `LoginResponse`, `RegisterRequest`, `RegisterResponse`, `RefreshRequest`, `RefreshResponse`, `ForgotPasswordRequest`, `ResetPasswordRequest` — API request/response shapes
-- [ ] Export all new types from `packages/shared/src/index.ts`
-- [ ] Create `apps/backend/src/lib/auth-config.ts` with constants:
+- [x] Export all new types from `packages/shared/src/index.ts`
+- [x] Create `apps/backend/src/lib/auth-config.ts` with constants:
   - `ACCESS_TOKEN_TTL = '15m'`
   - `REFRESH_TOKEN_TTL_DAYS = 7`
   - `MAX_LOGIN_ATTEMPTS = 5`
   - `LOCKOUT_DURATION_MINUTES = 15`
   - `PASSWORD_RESET_TTL_HOURS = 1`
   - `BCRYPT_SALT_ROUNDS = 12`
-- [ ] Create `apps/backend/src/lib/password.ts` — `hashPassword(plain)` and `verifyPassword(plain, hash)` using bcryptjs
-- [ ] Create `apps/backend/src/lib/jwt.ts` — `signAccessToken(payload)`, `signRefreshToken(userId)`, `verifyAccessToken(token)`, `verifyRefreshToken(token)` using jose. Read `JWT_SECRET` from env var; throw on missing secret in production.
-- [ ] Add `UnauthorizedError` (401, `UNAUTHORIZED`) and `ForbiddenError` (403, `FORBIDDEN`) to `apps/backend/src/lib/errors.ts`
-- [ ] Add collection getters in `apps/backend/src/db/collections.ts`:
+- [x] Create `apps/backend/src/lib/password.ts` — `hashPassword(plain)` and `verifyPassword(plain, hash)` using bcryptjs
+- [x] Create `apps/backend/src/lib/jwt.ts` — `signAccessToken(payload)`, `generateRefreshToken()`, `verifyAccessToken(token)` using jose. JWT_SECRET resolved from Secrets Manager (`JWT_SECRET_ARN`) in prod, env var locally; throws on missing secret in production.
+- [x] Add `UnauthorizedError` (401, `UNAUTHORIZED`) and `ForbiddenError` (403, `FORBIDDEN`) to `apps/backend/src/lib/errors.ts`
+- [x] Add collection getters in `apps/backend/src/db/collections.ts`:
   - `getRefreshTokensCollection()` — index on `userId`, TTL index on `expiresAt`
   - `getLoginAttemptsCollection()` — unique index on `email`
   - `getPasswordResetTokensCollection()` — index on `userId`, TTL index on `expiresAt`
-- [ ] Add collection schemas and indexes to `apps/backend/src/db/setup.ts` for the three new collections
-- [ ] Update `apps/backend/src/db/setup.ts` to add `branchIds` to the users collection JSON schema (as optional array of strings)
-- [ ] Add `JWT_SECRET` to `.env.example` with a dev-only placeholder value
-- [ ] Add `JWT_SECRET` env var to Lambda environment in `infra/lib/api-stack.ts` — source from a new Secrets Manager secret or from `StageConfig`
+- [x] Add collection schemas and indexes to `apps/backend/src/db/setup.ts` for the three new collections
+- [x] Update `apps/backend/src/db/setup.ts` to add `branchIds` to the users collection JSON schema (as optional array of strings)
+- [x] Add `JWT_SECRET` to `.env.example` with a dev-only placeholder value
+- [x] Add `JWT_SECRET` env var to Lambda environment in `infra/lib/api-stack.ts` — source from a new Secrets Manager secret (`kaipos/prod/jwt-secret`)
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
 - [ ] Manual verification: `import { TokenPayload, RefreshToken } from '@kaipos/shared/types'` resolves correctly; `hashPassword` and `signAccessToken` can be called without runtime errors in a scratch test
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->

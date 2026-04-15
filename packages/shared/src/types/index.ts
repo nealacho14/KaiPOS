@@ -138,6 +138,7 @@ export interface User {
   name: string;
   passwordHash: string;
   role: UserRole;
+  branchIds?: string[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -145,6 +146,84 @@ export interface User {
 }
 
 export type UserRole = 'admin' | 'cashier' | 'manager';
+
+// ---------------------------------------------------------------------------
+// Auth types
+// ---------------------------------------------------------------------------
+
+export interface TokenPayload {
+  userId: string;
+  businessId: string;
+  role: UserRole;
+}
+
+export interface RefreshToken {
+  _id: string;
+  userId: string;
+  token: string;
+  expiresAt: Date;
+  createdAt: Date;
+}
+
+export interface LoginAttempt {
+  _id: string;
+  email: string;
+  attempts: number;
+  lockedUntil: Date | null;
+  lastAttemptAt: Date;
+}
+
+export interface PasswordResetToken {
+  _id: string;
+  userId: string;
+  token: string;
+  expiresAt: Date;
+  createdAt: Date;
+  usedAt: Date | null;
+}
+
+// Auth API request/response shapes
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: Omit<User, 'passwordHash'>;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  name: string;
+  role: UserRole;
+  branchIds?: string[];
+}
+
+export interface RegisterResponse {
+  user: Omit<User, 'passwordHash'>;
+}
+
+export interface RefreshRequest {
+  refreshToken: string;
+}
+
+export interface RefreshResponse {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+}
 
 export interface ApiErrorDetail {
   field: string;

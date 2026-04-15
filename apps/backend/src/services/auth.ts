@@ -3,6 +3,7 @@ import {
   getUsersCollection,
   getRefreshTokensCollection,
   getLoginAttemptsCollection,
+  getPasswordResetTokensCollection,
 } from '../db/collections.js';
 import { hashPassword, verifyPassword } from '../lib/password.js';
 import { signAccessToken, generateRefreshToken } from '../lib/jwt.js';
@@ -10,6 +11,7 @@ import {
   REFRESH_TOKEN_TTL_DAYS,
   MAX_LOGIN_ATTEMPTS,
   LOCKOUT_DURATION_MINUTES,
+  PASSWORD_RESET_TTL_HOURS,
 } from '../lib/auth-config.js';
 import { UnauthorizedError, ForbiddenError, AppError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
@@ -182,4 +184,61 @@ export async function refresh(
 export async function logout(refreshTokenValue: string): Promise<void> {
   const refreshTokens = await getRefreshTokensCollection();
   await refreshTokens.deleteOne({ token: refreshTokenValue });
+}
+
+export async function forgotPassword(email: string): Promise<void> {
+  const users = await getUsersCollection();
+  const user = await users.findOne({ email });
+
+  // Always return success to prevent email enumeration
+  if (!user) {
+    log.info({ email }, 'Password reset requested for unknown email');
+    return;
+  }
+
+  const token = crypto.randomUUID();
+  const passwordResetTokens = await getPasswordResetTokensCollection();
+
+  await passwordResetTokens.insertOne({
+    _id: crypto.randomUUID(),
+    userId: user._id,
+    token,
+    expiresAt: new Date(Date.now() + PASSWORD_RESET_TTL_HOURS * 60 * 60 * 1000),
+    createdAt: new Date(),
+    usedAt: null,
+  });
+
+  // TODO: Send email via SES. For now, log the token.
+  log.info({ userId: user._id, resetToken: token }, 'Password reset token generated');
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  const passwordResetTokens = await getPasswordResetTokensCollection();
+
+  const stored = await passwordResetTokens.findOne({ token });
+  if (!stored) {
+    throw new AppError('Invalid or expired reset token', 400, 'INVALID_RESET_TOKEN');
+  }
+
+  if (stored.expiresAt < new Date()) {
+    throw new AppError('Reset token has expired', 400, 'EXPIRED_RESET_TOKEN');
+  }
+
+  if (stored.usedAt) {
+    throw new AppError('Reset token has already been used', 400, 'USED_RESET_TOKEN');
+  }
+
+  const users = await getUsersCollection();
+  const passwordHash = await hashPassword(newPassword);
+
+  await users.updateOne({ _id: stored.userId }, { $set: { passwordHash, updatedAt: new Date() } });
+
+  // Mark token as used
+  await passwordResetTokens.updateOne({ _id: stored._id }, { $set: { usedAt: new Date() } });
+
+  // Invalidate all refresh tokens to force re-login
+  const refreshTokens = await getRefreshTokensCollection();
+  await refreshTokens.deleteMany({ userId: stored.userId });
+
+  log.info({ userId: stored.userId }, 'Password reset completed, all sessions invalidated');
 }

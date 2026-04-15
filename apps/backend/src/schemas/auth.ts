@@ -20,3 +20,12 @@ export const refreshSchema = z.object({
 export const logoutSchema = z.object({
   refreshToken: z.string(),
 });
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string(),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});

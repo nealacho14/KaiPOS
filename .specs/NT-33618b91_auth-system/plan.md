@@ -111,30 +111,30 @@
 
 ### Tasks
 
-- [ ] Add password reset methods to `apps/backend/src/services/auth.ts`:
+- [x] Add password reset methods to `apps/backend/src/services/auth.ts`:
   - `forgotPassword(email)` — find user by email, generate a crypto-random token, store in `passwordResetTokens` collection with 1-hour TTL, log the token (placeholder for SES email). Return success even if email not found (prevent enumeration).
   - `resetPassword(token, newPassword)` — validate token from DB, check expiry and `usedAt`, hash new password, update user's `passwordHash`, mark token as used, delete all user's refresh tokens (force re-login)
-- [ ] Add Zod schemas to `apps/backend/src/schemas/auth.ts`:
+- [x] Add Zod schemas to `apps/backend/src/schemas/auth.ts`:
   - `forgotPasswordSchema` — `{ email: z.string().email() }`
   - `resetPasswordSchema` — `{ token: z.string(), password: z.string().min(8) }`
-- [ ] Add password reset routes to `apps/backend/src/routes/auth.ts`:
+- [x] Add password reset routes to `apps/backend/src/routes/auth.ts`:
   - `POST /api/auth/forgot-password` — public, validates with `forgotPasswordSchema`, calls `auth.forgotPassword()`
   - `POST /api/auth/reset-password` — public, validates with `resetPasswordSchema`, calls `auth.resetPassword()`
-- [ ] Create `apps/backend/src/middleware/branch-access.ts` — Hono middleware factory:
+- [x] Create `apps/backend/src/middleware/branch-access.ts` — Hono middleware factory:
   - Takes a param name (e.g., `'branchId'`) that specifies where in the request the branchId is
   - Reads `c.get('user')` to get the authenticated user's `TokenPayload`
   - Looks up the user in DB to get `branchIds` (or caches on first lookup per request)
   - If user's role is `admin`, allow access to all branches in their business
   - Otherwise, checks if `branchIds` includes the requested branchId
   - Throws `ForbiddenError` if access denied
-- [ ] Export `requireBranchAccess` middleware from `apps/backend/src/middleware/branch-access.ts` for use on future branch-scoped routes
+- [x] Export `requireBranchAccess` middleware from `apps/backend/src/middleware/branch-access.ts` for use on future branch-scoped routes
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
 - [ ] Manual verification: test password reset flow and branch middleware via curl:
   - `POST /api/auth/forgot-password` with valid email logs a reset token
   - `POST /api/auth/forgot-password` with unknown email still returns 200 (no enumeration)

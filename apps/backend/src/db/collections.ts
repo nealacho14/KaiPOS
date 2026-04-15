@@ -1,6 +1,46 @@
 import type { Collection } from 'mongodb';
-import type { Product, Order, User } from '@kaipos/shared';
+import type {
+  Business,
+  Branch,
+  Category,
+  Modifier,
+  Table,
+  Transaction,
+  Product,
+  Order,
+  User,
+} from '@kaipos/shared';
 import { getDb } from './client.js';
+
+export async function getBusinessesCollection(): Promise<Collection<Business>> {
+  const db = await getDb();
+  return db.collection<Business>('businesses');
+}
+
+export async function getBranchesCollection(): Promise<Collection<Branch>> {
+  const db = await getDb();
+  return db.collection<Branch>('branches');
+}
+
+export async function getCategoriesCollection(): Promise<Collection<Category>> {
+  const db = await getDb();
+  return db.collection<Category>('categories');
+}
+
+export async function getModifiersCollection(): Promise<Collection<Modifier>> {
+  const db = await getDb();
+  return db.collection<Modifier>('modifiers');
+}
+
+export async function getTablesCollection(): Promise<Collection<Table>> {
+  const db = await getDb();
+  return db.collection<Table>('tables');
+}
+
+export async function getTransactionsCollection(): Promise<Collection<Transaction>> {
+  const db = await getDb();
+  return db.collection<Transaction>('transactions');
+}
 
 export async function getProductsCollection(): Promise<Collection<Product>> {
   const db = await getDb();

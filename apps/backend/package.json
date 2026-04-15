@@ -7,7 +7,8 @@
     "build": "tsup && node -e \"require('fs').writeFileSync('dist/package.json', JSON.stringify({type:'module'}))\"",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:setup": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/setup.ts"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.693.0",

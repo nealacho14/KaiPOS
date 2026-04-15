@@ -4,6 +4,7 @@ import { requestLogger } from './middleware/request-logger.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { originVerify } from './middleware/origin-verify.js';
 import { checkHealth } from './services/health.js';
+import authRoutes from './routes/auth.js';
 import type { AppEnv } from './types.js';
 
 const app = new Hono<AppEnv>();
@@ -17,5 +18,7 @@ app.get('/api/health', async (c) => {
   const data = await checkHealth();
   return c.json({ success: true, data });
 });
+
+app.route('/', authRoutes);
 
 export default app;

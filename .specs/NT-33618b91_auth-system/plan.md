@@ -148,11 +148,11 @@
 
 ## QA Plan
 
-- [ ] Full auth lifecycle: register user → login → access protected route → refresh token → logout → verify refresh token invalidated
-- [ ] Rate limiting: 5 failed logins → lockout → wait or verify lockout expires → successful login resets counter
-- [ ] Password reset lifecycle: forgot-password → use logged token → reset-password → login with new password → old password rejected
-- [ ] Token validation: expired access token returns 401; tampered token returns 401; missing `Authorization` header returns 401
-- [ ] Branch access: user with `branchIds: ['b1']` can access branch `b1` but not `b2`; admin can access all branches in their business
-- [ ] Edge cases: login with inactive user (`isActive: false`) returns 401; register duplicate email returns 409; refresh with already-deleted token returns 401
-- [ ] Verify JWT_SECRET is required in production (app fails fast if missing)
-- [ ] Verify `pnpm build` produces a working Lambda bundle with jose and bcryptjs included
+- [x] Full auth lifecycle: register user → login → access protected route → refresh token → logout → verify refresh token invalidated
+- [x] Rate limiting: 5 failed logins → lockout → wait or verify lockout expires → successful login resets counter
+- [x] Password reset lifecycle: forgot-password → use logged token → reset-password → login with new password → old password rejected
+- [x] Token validation: expired access token returns 401; tampered token returns 401; missing `Authorization` header returns 401
+- [x] Branch access: user with `branchIds: ['b1']` can access branch `b1` but not `b2`; admin can access all branches in their business
+- [x] Edge cases: login with inactive user (`isActive: false`) returns 401; register duplicate email returns 409; refresh with already-deleted token returns 401
+- [x] Verify JWT_SECRET is required in production (app fails fast if missing)
+- [x] Verify `pnpm build` produces a working Lambda bundle with jose and bcryptjs included

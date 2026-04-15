@@ -1,5 +1,6 @@
 import { MongoClient, type Db } from 'mongodb';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+import { logger } from '../lib/logger.js';
 
 let client: MongoClient | null = null;
 let db: Db | null = null;
@@ -35,10 +36,10 @@ export async function getClient(): Promise<MongoClient> {
     });
     try {
       await client.connect();
-      console.log('MongoDB connected successfully');
+      logger.info('MongoDB connected successfully');
     } catch (error) {
       client = null;
-      console.error('MongoDB connection error:', error);
+      logger.error({ err: error }, 'MongoDB connection error');
       throw error;
     }
   }

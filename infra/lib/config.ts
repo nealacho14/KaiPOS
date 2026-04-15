@@ -8,6 +8,8 @@ export interface StageConfig {
   removalPolicy: cdk.RemovalPolicy;
   autoDeleteObjects: boolean;
   domainName?: string;
+  /** Shared secret for CloudFront → API Gateway origin verification. */
+  cloudfrontSecret: string;
 }
 
 export function getStageConfig(rawStage: string | undefined): StageConfig {
@@ -25,5 +27,9 @@ export function getStageConfig(rawStage: string | undefined): StageConfig {
     autoDeleteObjects: false,
     // Placeholder — set when Route53 hosted zone + ACM cert are ready.
     domainName: undefined,
+    // Shared secret attached by CloudFront as a custom origin header and verified
+    // by the Lambda middleware. Not a credential — just prevents direct API Gateway
+    // access bypassing CloudFront. Rotate by changing this value and redeploying.
+    cloudfrontSecret: 'kaipos-cf-origin-a7f3e9b1c4d2',
   };
 }

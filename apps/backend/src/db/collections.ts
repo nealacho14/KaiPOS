@@ -12,6 +12,7 @@ import type {
   RefreshToken,
   LoginAttempt,
   PasswordResetToken,
+  AuditLog,
 } from '@kaipos/shared';
 import { getDb } from './client.js';
 
@@ -73,4 +74,9 @@ export async function getLoginAttemptsCollection(): Promise<Collection<LoginAtte
 export async function getPasswordResetTokensCollection(): Promise<Collection<PasswordResetToken>> {
   const db = await getDb();
   return db.collection<PasswordResetToken>('passwordResetTokens');
+}
+
+export async function getAuditLogsCollection(): Promise<Collection<AuditLog>> {
+  const db = await getDb();
+  return db.collection<AuditLog>('auditLogs');
 }

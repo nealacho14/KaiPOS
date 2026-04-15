@@ -225,6 +225,35 @@ export interface ResetPasswordRequest {
   password: string;
 }
 
+// ---------------------------------------------------------------------------
+// Audit log types
+// ---------------------------------------------------------------------------
+
+export type AuditAction =
+  | 'login'
+  | 'login_failed'
+  | 'logout'
+  | 'register'
+  | 'password_reset_request'
+  | 'password_reset_complete'
+  | 'token_refresh';
+
+export interface AuditLog {
+  _id: string;
+  businessId?: string;
+  userId?: string;
+  action: AuditAction;
+  target: string;
+  ip?: string;
+  userAgent?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: Date;
+}
+
+// ---------------------------------------------------------------------------
+// API error/response types
+// ---------------------------------------------------------------------------
+
 export interface ApiErrorDetail {
   field: string;
   message: string;

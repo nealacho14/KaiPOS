@@ -15,6 +15,8 @@ import {
 } from '../lib/auth-config.js';
 import { UnauthorizedError, ForbiddenError, AppError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
+import { sendPasswordResetEmail } from '../lib/ses.js';
+import { logAuditEvent } from './audit.js';
 
 const log = createLogger({ module: 'auth-service' });
 
@@ -63,6 +65,7 @@ export async function login(
       );
     }
 
+    logAuditEvent({ action: 'login_failed', target: email });
     throw new UnauthorizedError('Invalid email or password');
   }
 
@@ -90,6 +93,13 @@ export async function login(
     token: refreshToken,
     expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000),
     createdAt: new Date(),
+  });
+
+  logAuditEvent({
+    action: 'login',
+    target: email,
+    userId: user._id,
+    businessId: user.businessId,
   });
 
   return { accessToken, refreshToken, user: stripPasswordHash(user) };
@@ -134,6 +144,14 @@ export async function register(
 
   await users.insertOne(newUser);
   log.info({ userId: newUser._id, email: newUser.email }, 'User registered');
+
+  logAuditEvent({
+    action: 'register',
+    target: newUser.email,
+    userId: adminUser.userId,
+    businessId: adminUser.businessId,
+    metadata: { registeredUserId: newUser._id, role: newUser.role },
+  });
 
   return stripPasswordHash(newUser);
 }
@@ -181,12 +199,26 @@ export async function refresh(
     createdAt: new Date(),
   });
 
+  logAuditEvent({
+    action: 'token_refresh',
+    target: user.email,
+    userId: user._id,
+    businessId: user.businessId,
+  });
+
   return { accessToken: newAccessToken, refreshToken: newRefreshToken };
 }
 
 export async function logout(refreshTokenValue: string): Promise<void> {
   const refreshTokens = await getRefreshTokensCollection();
+
+  // Look up the token to get userId for the audit log before deleting
+  const stored = await refreshTokens.findOne({ token: refreshTokenValue });
   await refreshTokens.deleteOne({ token: refreshTokenValue });
+
+  if (stored) {
+    logAuditEvent({ action: 'logout', target: stored.userId, userId: stored.userId });
+  }
 }
 
 export async function forgotPassword(email: string): Promise<void> {
@@ -211,8 +243,14 @@ export async function forgotPassword(email: string): Promise<void> {
     usedAt: null,
   });
 
-  // TODO: Send email via SES. For now, log the token.
-  log.info({ userId: user._id, resetToken: token }, 'Password reset token generated');
+  await sendPasswordResetEmail(email, token);
+
+  logAuditEvent({
+    action: 'password_reset_request',
+    target: email,
+    userId: user._id,
+    businessId: user.businessId,
+  });
 }
 
 export async function resetPassword(token: string, newPassword: string): Promise<void> {
@@ -244,4 +282,10 @@ export async function resetPassword(token: string, newPassword: string): Promise
   await refreshTokens.deleteMany({ userId: stored.userId });
 
   log.info({ userId: stored.userId }, 'Password reset completed, all sessions invalidated');
+
+  logAuditEvent({
+    action: 'password_reset_complete',
+    target: stored.userId,
+    userId: stored.userId,
+  });
 }

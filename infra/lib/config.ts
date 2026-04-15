@@ -10,6 +10,10 @@ export interface StageConfig {
   domainName?: string;
   /** Shared secret for CloudFront → API Gateway origin verification. */
   cloudfrontSecret: string;
+  /** Verified SES sender email for transactional emails (password reset, etc.). */
+  sesSenderEmail: string;
+  /** Base URL for password reset links (frontend URL). */
+  passwordResetBaseUrl: string;
 }
 
 export function getStageConfig(rawStage: string | undefined): StageConfig {
@@ -31,5 +35,8 @@ export function getStageConfig(rawStage: string | undefined): StageConfig {
     // by the Lambda middleware. Not a credential — just prevents direct API Gateway
     // access bypassing CloudFront. Rotate by changing this value and redeploying.
     cloudfrontSecret: 'kaipos-cf-origin-a7f3e9b1c4d2',
+    sesSenderEmail: 'noreply@kaipos.com',
+    // Placeholder — update when a custom domain is configured for the frontend.
+    passwordResetBaseUrl: 'https://kaipos.com',
   };
 }

@@ -95,20 +95,20 @@
 
 ### Tasks
 
-- [ ] Install `@hono/aws-lambda` (runtime) in `apps/backend`
-- [ ] Extract Hono app creation into `apps/backend/src/app.ts`
+- [x] Install `@hono/aws-lambda` (runtime) in `apps/backend`
+- [x] Extract Hono app creation into `apps/backend/src/app.ts`
   - Move route definitions, middleware wiring, and `app.onError` from `index.ts` into this module
   - Export the configured `app` instance
   - This module is shared between local dev (`index.ts`) and Lambda (`functions/api.ts`)
-- [ ] Update `apps/backend/src/index.ts` — import app from `./app.js`, keep only `serve()` call and startup log
-- [ ] Create `apps/backend/src/functions/api.ts` — unified Lambda handler
+- [x] Update `apps/backend/src/index.ts` — import app from `./app.js`, keep only `serve()` call and startup log
+- [x] Create `apps/backend/src/functions/api.ts` — unified Lambda handler
   - Import app from `../app.js`
   - Import `handle` from `@hono/aws-lambda`
   - Export `const handler = handle(app)`
-- [ ] Delete `apps/backend/src/functions/health.ts` — replaced by the unified handler
-- [ ] Update `apps/backend/tsup.config.ts`
+- [x] Delete `apps/backend/src/functions/health.ts` — replaced by the unified handler
+- [x] Update `apps/backend/tsup.config.ts`
   - Change entry from `src/functions/**/*.ts` to `['src/functions/api.ts']` (single entry point)
-- [ ] Update `infra/lib/api-stack.ts`
+- [x] Update `infra/lib/api-stack.ts`
   - Rename `HealthFunction` → `ApiFunction` (and update construct ID)
   - Change `handler` from `'health.handler'` to `'api.handler'`
   - Replace the single `/api/health` route with a catch-all pattern:
@@ -119,14 +119,14 @@
   - Also add a route for the exact `/api` path (API Gateway requires both `{proxy+}` and the bare path for full coverage)
   - Update `mongoSecret.grantRead()` and `assetsBucket.grantReadWrite()` to reference the renamed function
   - Update the `HealthIntegration` construct ID → `ApiIntegration`
-- [ ] Verify build output: `pnpm build` should produce `dist/api.js` (not `dist/health.js`)
+- [x] Verify build output: `pnpm build` should produce `dist/api.js` (not `dist/health.js`)
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds — `dist/api.js` exists, `dist/health.js` does not
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds — `dist/api.js` exists, `dist/health.js` does not
 - [ ] Manual verification: `pnpm --filter @kaipos/backend dev` — health check still works at `GET /api/health`
 - [ ] Manual verification: `cd infra && npx cdk synth -c stage=prod` succeeds and the CloudFormation template shows `ANY /api/{proxy+}` route
 

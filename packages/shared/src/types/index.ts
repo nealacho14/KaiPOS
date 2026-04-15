@@ -146,6 +146,19 @@ export interface User {
 
 export type UserRole = 'admin' | 'cashier' | 'manager';
 
+export interface ApiErrorDetail {
+  field: string;
+  message: string;
+  received?: unknown;
+}
+
+export interface ApiErrorResponse {
+  success: false;
+  error: string;
+  code: string;
+  details?: ApiErrorDetail[];
+}
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;

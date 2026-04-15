@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/functions/**/*.ts'],
+  entry: ['src/functions/api.ts'],
   format: ['esm'],
   dts: true,
   outDir: 'dist',

@@ -16,7 +16,9 @@
     "@kaipos/shared": "workspace:*",
     "dotenv": "^17.4.0",
     "hono": "^4.7.0",
-    "mongodb": "^6.12.0"
+    "mongodb": "^6.12.0",
+    "pino": "^10.3.1",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@kaipos/eslint-config": "workspace:*",

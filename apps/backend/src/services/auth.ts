@@ -70,6 +70,7 @@ export async function login(
   }
 
   if (!user.isActive) {
+    logAuditEvent({ action: 'login_failed', target: email, metadata: { reason: 'deactivated' } });
     throw new UnauthorizedError('Account is deactivated');
   }
 

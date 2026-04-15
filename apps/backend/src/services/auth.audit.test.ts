@@ -141,6 +141,22 @@ describe('auth service — audit and email side-effects', () => {
       );
     });
 
+    it('calls logAuditEvent with action "login_failed" when account is deactivated', async () => {
+      const inactiveUser = { ...adminUser, isActive: false };
+      mockLoginAttemptsCollection.findOne.mockResolvedValue(null);
+      mockUsersCollection.findOne.mockResolvedValue(inactiveUser);
+
+      await expect(login('admin@test.com', 'admin123')).rejects.toThrow('Account is deactivated');
+
+      expect(mockLogAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'login_failed',
+          target: 'admin@test.com',
+          metadata: { reason: 'deactivated' },
+        }),
+      );
+    });
+
     it('calls logAuditEvent with action "login_failed" when user does not exist', async () => {
       mockLoginAttemptsCollection.findOne.mockResolvedValue(null);
       mockUsersCollection.findOne.mockResolvedValue(null);

@@ -42,7 +42,7 @@
 - [x] `pnpm lint` passes
 - [x] `pnpm format:check` passes
 - [x] `pnpm build` succeeds
-- [ ] Manual verification: import logger and error classes in a scratch file, confirm Pino outputs JSON to stdout and error formatting produces the expected shape
+- [x] Manual verification: import logger and error classes in a scratch file, confirm Pino outputs JSON to stdout and error formatting produces the expected shape
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 
@@ -53,34 +53,34 @@
 
 ### Tasks
 
-- [ ] Create `apps/backend/src/middleware/request-logger.ts` — Hono middleware
+- [x] Create `apps/backend/src/middleware/request-logger.ts` — Hono middleware
   - Generate a `requestId` (use `crypto.randomUUID()`)
   - Create a child logger with `requestId` binding and store it in Hono context (`c.set('logger', ...)`)
   - On response, log: `requestId`, `method`, `path`, `statusCode`, `durationMs` (computed from `performance.now()`)
   - Log level: `info` for 2xx/3xx, `warn` for 4xx, `error` for 5xx
-- [ ] Create `apps/backend/src/middleware/error-handler.ts` — Hono `app.onError` handler
+- [x] Create `apps/backend/src/middleware/error-handler.ts` — Hono `app.onError` handler
   - If error is `AppError` (or subclass), use its `statusCode` and `formatErrorResponse()`
   - If error is a generic `Error`, log full stack trace at `error` level, return 500 with generic message `"Internal server error"` — never expose stack traces, DB messages, or credentials
   - Return JSON matching `ApiErrorResponse` shape
-- [ ] Create `apps/backend/src/middleware/validation.ts` — Zod validation middleware factory
+- [x] Create `apps/backend/src/middleware/validation.ts` — Zod validation middleware factory
   - Export `validate(schemas: { body?: ZodSchema; params?: ZodSchema; query?: ZodSchema })` that returns a Hono middleware
   - On validation failure, throw `ValidationError` with Zod issues mapped to `ApiErrorDetail[]`
   - Validation runs before the route handler
-- [ ] Wire up middleware in `apps/backend/src/index.ts`
+- [x] Wire up middleware in `apps/backend/src/index.ts`
   - Add request logger middleware before routes (`app.use('/*', requestLogger())`)
   - Add error handler (`app.onError(errorHandler)`)
   - Keep CORS middleware (order: CORS → request logger → routes)
-- [ ] Define Hono context type for the logger variable (`c.get('logger')`) — use Hono's `Variables` generic on the app instance
-- [ ] Replace `console.log` / `console.error` in `apps/backend/src/db/client.ts` with the root logger from `lib/logger.ts`
-- [ ] Replace `console.log` / `console.error` in `apps/backend/src/db/setup.ts` with the root logger (this is a CLI script — Pino JSON output is acceptable since CloudWatch parses it; for local readability, `pino-pretty` can be piped in dev)
-- [ ] Replace `console.log` in `apps/backend/src/index.ts` (startup message) with the root logger
+- [x] Define Hono context type for the logger variable (`c.get('logger')`) — use Hono's `Variables` generic on the app instance
+- [x] Replace `console.log` / `console.error` in `apps/backend/src/db/client.ts` with the root logger from `lib/logger.ts`
+- [x] Replace `console.log` / `console.error` in `apps/backend/src/db/setup.ts` with the root logger (this is a CLI script — Pino JSON output is acceptable since CloudWatch parses it; for local readability, `pino-pretty` can be piped in dev)
+- [x] Replace `console.log` in `apps/backend/src/index.ts` (startup message) with the root logger
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
 - [ ] Manual verification: `pnpm --filter @kaipos/backend dev`, then:
   - `GET /api/health` → 200 response + structured JSON log with requestId, method, path, statusCode, durationMs
   - `POST /api/health` (or any non-existent route) → structured log entry

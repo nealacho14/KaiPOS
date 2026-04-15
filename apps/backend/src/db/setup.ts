@@ -1,4 +1,5 @@
 import { type Db } from 'mongodb';
+import { logger } from '../lib/logger.js';
 import { getDb, closeConnection } from './client.js';
 
 // ---------------------------------------------------------------------------
@@ -341,11 +342,11 @@ async function setupCollections(db: Db): Promise<void> {
           validationLevel: 'moderate',
           validationAction: 'error',
         });
-        console.log(`  Updated validator for "${col.name}"`);
+        logger.info(`  Updated validator for "${col.name}"`);
       } catch (err) {
         const code = (err as { code?: number }).code;
         if (code === 8000) {
-          console.log(`  Skipped validator update for "${col.name}" (insufficient privileges)`);
+          logger.info(`  Skipped validator update for "${col.name}" (insufficient privileges)`);
         } else {
           throw err;
         }
@@ -356,7 +357,7 @@ async function setupCollections(db: Db): Promise<void> {
         validationLevel: 'moderate',
         validationAction: 'error',
       });
-      console.log(`  Created collection "${col.name}"`);
+      logger.info(`  Created collection "${col.name}"`);
     }
 
     // Create indexes (idempotent)
@@ -364,7 +365,7 @@ async function setupCollections(db: Db): Promise<void> {
     for (const idx of col.indexes) {
       await collection.createIndex(idx.key, idx.options);
     }
-    console.log(`  Ensured ${col.indexes.length} index(es) on "${col.name}"`);
+    logger.info(`  Ensured ${col.indexes.length} index(es) on "${col.name}"`);
   }
 }
 
@@ -378,7 +379,7 @@ async function seedData(db: Db): Promise<void> {
   // Check idempotency — skip if already seeded
   const existingBusiness = await businessesCol.findOne({ slug: 'la-cocina-de-kai' });
   if (existingBusiness) {
-    console.log('  Seed data already exists (business "la-cocina-de-kai" found). Skipping.');
+    logger.info('  Seed data already exists (business "la-cocina-de-kai" found). Skipping.');
     return;
   }
 
@@ -399,7 +400,7 @@ async function seedData(db: Db): Promise<void> {
     createdAt: now,
     updatedAt: now,
   });
-  console.log('  Seeded business: La Cocina de Kai');
+  logger.info('  Seeded business: La Cocina de Kai');
 
   // Branch
   await db.collection('branches').insertOne({
@@ -413,7 +414,7 @@ async function seedData(db: Db): Promise<void> {
     updatedAt: now,
     createdBy: adminUserId,
   });
-  console.log('  Seeded branch: Sucursal Piantini');
+  logger.info('  Seeded branch: Sucursal Piantini');
 
   // Users (3 roles)
   const users = [
@@ -455,7 +456,7 @@ async function seedData(db: Db): Promise<void> {
     },
   ];
   await db.collection('users').insertMany(users);
-  console.log('  Seeded 3 users (admin, manager, cashier)');
+  logger.info('  Seeded 3 users (admin, manager, cashier)');
 
   // Categories
   const categories = [
@@ -516,7 +517,7 @@ async function seedData(db: Db): Promise<void> {
     },
   ];
   await db.collection('categories').insertMany(categories);
-  console.log('  Seeded 5 categories');
+  logger.info('  Seeded 5 categories');
 
   // Products
   const products = [
@@ -652,7 +653,7 @@ async function seedData(db: Db): Promise<void> {
     },
   ];
   await db.collection('products').insertMany(products);
-  console.log('  Seeded 10 products');
+  logger.info('  Seeded 10 products');
 
   // Modifiers
   const modifiers = [
@@ -696,7 +697,7 @@ async function seedData(db: Db): Promise<void> {
     },
   ];
   await db.collection('modifiers').insertMany(modifiers);
-  console.log('  Seeded 3 modifiers');
+  logger.info('  Seeded 3 modifiers');
 
   // Tables
   const tables = [
@@ -708,7 +709,7 @@ async function seedData(db: Db): Promise<void> {
     { branchId, number: 6, capacity: 2, status: 'available' },
   ].map((t) => ({ ...t, createdAt: now, updatedAt: now, createdBy: adminUserId }));
   await db.collection('tables').insertMany(tables);
-  console.log('  Seeded 6 tables');
+  logger.info('  Seeded 6 tables');
 }
 
 // ---------------------------------------------------------------------------
@@ -716,22 +717,22 @@ async function seedData(db: Db): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  console.log('KaiPOS Database Setup');
-  console.log('=====================\n');
+  logger.info('KaiPOS Database Setup');
+  logger.info('=====================\n');
 
   const db = await getDb();
 
-  console.log('Setting up collections, validators, and indexes...');
+  logger.info('Setting up collections, validators, and indexes...');
   await setupCollections(db);
 
-  console.log('\nSeeding data...');
+  logger.info('\nSeeding data...');
   await seedData(db);
 
-  console.log('\nDone!');
+  logger.info('\nDone!');
   await closeConnection();
 }
 
 main().catch((err) => {
-  console.error('Setup failed:', err);
+  logger.error({ err }, 'Setup failed');
   process.exit(1);
 });

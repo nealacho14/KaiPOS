@@ -3,10 +3,16 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { API_VERSION } from '@kaipos/shared';
 import { getClient } from './db/client.js';
+import { logger } from './lib/logger.js';
+import { requestLogger } from './middleware/request-logger.js';
+import { errorHandler } from './middleware/error-handler.js';
+import type { AppEnv } from './types.js';
 
-const app = new Hono();
+const app = new Hono<AppEnv>();
 
 app.use('/*', cors());
+app.use('/*', requestLogger());
+app.onError(errorHandler);
 
 app.get('/api/health', async (c) => {
   let dbStatus = 'disconnected';
@@ -36,7 +42,7 @@ app.get('/api/health', async (c) => {
 const port = Number(process.env.PORT) || 4000;
 
 serve({ fetch: app.fetch, port, hostname: '0.0.0.0' }, () => {
-  console.log(`KaiPOS Backend running on http://localhost:${port}`);
+  logger.info({ port }, 'KaiPOS Backend running');
 });
 
 export default app;

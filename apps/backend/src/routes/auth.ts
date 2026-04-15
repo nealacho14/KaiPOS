@@ -2,7 +2,14 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../types.js';
 import { validate } from '../middleware/validation.js';
 import { requireAuth } from '../middleware/auth.js';
-import { loginSchema, registerSchema, refreshSchema, logoutSchema } from '../schemas/auth.js';
+import {
+  loginSchema,
+  registerSchema,
+  refreshSchema,
+  logoutSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+} from '../schemas/auth.js';
 import * as authService from '../services/auth.js';
 
 const auth = new Hono<AppEnv>();
@@ -30,6 +37,18 @@ auth.post('/api/auth/logout', validate({ body: logoutSchema }), async (c) => {
   const { refreshToken } = await c.req.json();
   await authService.logout(refreshToken);
   return c.json({ success: true });
+});
+
+auth.post('/api/auth/forgot-password', validate({ body: forgotPasswordSchema }), async (c) => {
+  const { email } = await c.req.json();
+  await authService.forgotPassword(email);
+  return c.json({ success: true, data: { message: 'If the email exists, a reset link was sent' } });
+});
+
+auth.post('/api/auth/reset-password', validate({ body: resetPasswordSchema }), async (c) => {
+  const { token, password } = await c.req.json();
+  await authService.resetPassword(token, password);
+  return c.json({ success: true, data: { message: 'Password reset successfully' } });
 });
 
 export default auth;

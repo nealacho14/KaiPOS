@@ -98,6 +98,18 @@ KaiPOS/
 | `@kaipos/eslint-config`  | Shared ESLint flat config (base, node, react)                         |
 | `@kaipos/infra`          | AWS CDK stacks for the production deployment                          |
 
+## Backend Middleware & Logging
+
+The backend includes a middleware stack applied to all requests:
+
+1. **CORS** (`hono/cors`) — allows cross-origin requests in dev
+2. **Origin verification** (`src/middleware/origin-verify.ts`) — in production, validates that requests come through CloudFront via a shared-secret `x-origin-verify` header. Skipped in local dev when `CLOUDFRONT_SECRET` is not set.
+3. **Request logger** (`src/middleware/request-logger.ts`) — generates a `requestId` per request, logs method, path, status code, and duration in ms as structured JSON (Pino)
+4. **Error handler** (`app.onError`) — catches unhandled errors, returns `ApiErrorResponse` without exposing internals
+5. **Validation** (`src/middleware/validation.ts`) — Zod schema validation for body, params, and query
+
+Logging uses **Pino** with structured JSON output. In local dev, `pino-pretty` provides colorized human-readable logs automatically (configured via Pino transport, no piping needed).
+
 ## Database
 
 KaiPOS uses **MongoDB** with the native Node.js driver (`mongodb` package).
@@ -142,6 +154,9 @@ pnpm deploy:prod:frontend
 - **Same-origin frontend.** CloudFront has a `/api/*` behavior that proxies
   to API Gateway. The SPA calls `/api/health` (relative), so there is no
   CORS and the API Gateway URL is never exposed in the browser bundle.
+- **Origin verification.** CloudFront attaches a shared-secret
+  `x-origin-verify` header to `/api/*` requests. The Lambda middleware
+  validates it, returning 403 for requests that bypass CloudFront.
 - **Secrets.** `MONGO_URI` lives only in Secrets Manager, read by the Lambda
   at cold start. It never appears in source, env vars, or CloudFormation.
 

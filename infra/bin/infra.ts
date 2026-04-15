@@ -34,6 +34,7 @@ const api = new ApiStack(app, `${prefix}-api`, {
   env,
   config,
   mongoSecret: secrets.mongoSecret,
+  jwtSecret: secrets.jwtSecret,
   assetsBucket: assets.assetsBucket,
 });
 

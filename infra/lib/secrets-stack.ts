@@ -9,6 +9,7 @@ interface SecretsStackProps extends cdk.StackProps {
 
 export class SecretsStack extends cdk.Stack {
   readonly mongoSecret: secretsmanager.Secret;
+  readonly jwtSecret: secretsmanager.Secret;
 
   constructor(scope: Construct, id: string, props: SecretsStackProps) {
     super(scope, id, props);
@@ -24,6 +25,15 @@ export class SecretsStack extends cdk.Stack {
       removalPolicy: config.removalPolicy,
     });
 
+    // JWT signing secret — set out-of-band via:
+    //   aws secretsmanager put-secret-value --secret-id kaipos/<stage>/jwt-secret --secret-string "<random-secret>"
+    this.jwtSecret = new secretsmanager.Secret(this, 'JwtSecret', {
+      secretName: `kaipos/${config.stage}/jwt-secret`,
+      description: `JWT signing secret for kaiPOS ${config.stage}`,
+      removalPolicy: config.removalPolicy,
+    });
+
     new cdk.CfnOutput(this, 'MongoSecretArn', { value: this.mongoSecret.secretArn });
+    new cdk.CfnOutput(this, 'JwtSecretArn', { value: this.jwtSecret.secretArn });
   }
 }

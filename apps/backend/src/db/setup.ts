@@ -86,6 +86,10 @@ const collections: CollectionSetup[] = [
           name: { bsonType: 'string' },
           passwordHash: { bsonType: 'string' },
           role: { enum: ['admin', 'cashier', 'manager'] },
+          branchIds: {
+            bsonType: 'array',
+            items: { bsonType: 'string' },
+          },
           isActive: { bsonType: 'bool' },
           createdAt: { bsonType: 'date' },
           updatedAt: { bsonType: 'date' },
@@ -317,6 +321,67 @@ const collections: CollectionSetup[] = [
       },
     },
     indexes: [{ key: { businessId: 1, orderId: 1 } }, { key: { businessId: 1, createdAt: -1 } }],
+  },
+
+  // ---- refreshTokens ----
+  {
+    name: 'refreshTokens',
+    validator: {
+      $jsonSchema: {
+        bsonType: 'object',
+        required: ['userId', 'token', 'expiresAt', 'createdAt'],
+        properties: {
+          userId: { bsonType: 'string' },
+          token: { bsonType: 'string' },
+          expiresAt: { bsonType: 'date' },
+          createdAt: { bsonType: 'date' },
+        },
+      },
+    },
+    indexes: [
+      { key: { userId: 1 } },
+      { key: { expiresAt: 1 }, options: { expireAfterSeconds: 0 } },
+    ],
+  },
+
+  // ---- loginAttempts ----
+  {
+    name: 'loginAttempts',
+    validator: {
+      $jsonSchema: {
+        bsonType: 'object',
+        required: ['email', 'attempts', 'lastAttemptAt'],
+        properties: {
+          email: { bsonType: 'string' },
+          attempts: { bsonType: 'int' },
+          lockedUntil: { bsonType: ['date', 'null'] },
+          lastAttemptAt: { bsonType: 'date' },
+        },
+      },
+    },
+    indexes: [{ key: { email: 1 }, options: { unique: true } }],
+  },
+
+  // ---- passwordResetTokens ----
+  {
+    name: 'passwordResetTokens',
+    validator: {
+      $jsonSchema: {
+        bsonType: 'object',
+        required: ['userId', 'token', 'expiresAt', 'createdAt'],
+        properties: {
+          userId: { bsonType: 'string' },
+          token: { bsonType: 'string' },
+          expiresAt: { bsonType: 'date' },
+          createdAt: { bsonType: 'date' },
+          usedAt: { bsonType: ['date', 'null'] },
+        },
+      },
+    },
+    indexes: [
+      { key: { userId: 1 } },
+      { key: { expiresAt: 1 }, options: { expireAfterSeconds: 0 } },
+    ],
   },
 ];
 

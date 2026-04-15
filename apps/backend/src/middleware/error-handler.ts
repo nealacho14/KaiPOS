@@ -7,7 +7,12 @@ export const errorHandler: ErrorHandler<AppEnv> = (err, c) => {
   const log = c.get('logger') ?? rootLogger;
 
   if (err instanceof AppError) {
-    log.error({ err, statusCode: err.statusCode, code: err.code }, err.message);
+    const logData = { err, statusCode: err.statusCode, code: err.code };
+    if (err.statusCode >= 500) {
+      log.error(logData, err.message);
+    } else {
+      log.warn(logData, err.message);
+    }
     return c.json(formatErrorResponse(err), err.statusCode as never);
   }
 

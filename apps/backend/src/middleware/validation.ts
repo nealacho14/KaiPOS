@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from 'hono';
 import type { ZodType } from 'zod';
-import { ValidationError } from '../lib/errors.js';
+import { AppError, ValidationError } from '../lib/errors.js';
 import type { AppEnv } from '../types.js';
 
 interface ValidationSchemas {
@@ -12,7 +12,12 @@ interface ValidationSchemas {
 export function validate(schemas: ValidationSchemas): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     if (schemas.body) {
-      const body = await c.req.json();
+      let body: unknown;
+      try {
+        body = await c.req.json();
+      } catch {
+        throw new AppError('Invalid JSON in request body', 400, 'BAD_REQUEST');
+      }
       const result = schemas.body.safeParse(body);
       if (!result.success) {
         throw new ValidationError(result.error.issues);

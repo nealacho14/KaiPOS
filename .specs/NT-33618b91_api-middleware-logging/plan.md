@@ -18,30 +18,30 @@
 
 ### Tasks
 
-- [ ] Install `pino` (runtime) and `zod` (runtime) in `apps/backend`
-- [ ] Create `apps/backend/src/lib/logger.ts` — Pino logger factory
+- [x] Install `pino` (runtime) and `zod` (runtime) in `apps/backend`
+- [x] Create `apps/backend/src/lib/logger.ts` — Pino logger factory
   - Export a `createLogger(context?: Record<string, unknown>)` function that returns a Pino instance
   - Base config: JSON output, timestamp via `pino`'s built-in ISO format, `service: "kaipos-api"` base binding
   - Log level: `info` in production, `debug` otherwise (driven by `NODE_ENV`)
   - Accept optional context bindings (e.g., `requestId`) via `child()` pattern
   - Export a default root logger instance for non-request contexts (startup, DB connection)
-- [ ] Create `apps/backend/src/lib/errors.ts` — Application error classes and error response helpers
+- [x] Create `apps/backend/src/lib/errors.ts` — Application error classes and error response helpers
   - `AppError` base class extending `Error` with `statusCode`, `code` (string enum), and optional `details` array
   - `ValidationError` subclass (400) — carries Zod issue details mapped to `{ field, message, received }` objects
   - `NotFoundError` subclass (404) — for future use
   - `InternalError` subclass (500) — generic, never exposes internals
   - `formatErrorResponse(error: AppError): ApiErrorResponse` — creates the standard error body
-- [ ] Extend API response types in `packages/shared/src/types/index.ts`
+- [x] Extend API response types in `packages/shared/src/types/index.ts`
   - Add `ApiErrorDetail` interface: `{ field: string; message: string; received?: unknown }`
   - Add `ApiErrorResponse` interface: `{ success: false; error: string; code: string; details?: ApiErrorDetail[] }`
   - Keep existing `ApiResponse<T>` unchanged for backward compatibility
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
 - [ ] Manual verification: import logger and error classes in a scratch file, confirm Pino outputs JSON to stdout and error formatting produces the expected shape
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->

@@ -63,35 +63,35 @@
 
 ### Tasks
 
-- [ ] Update `AppEnv` in `apps/backend/src/types.ts` to add `user?: TokenPayload` to `Variables`
-- [ ] Create `apps/backend/src/middleware/auth.ts` — Hono middleware that:
+- [x] Update `AppEnv` in `apps/backend/src/types.ts` to add `user?: TokenPayload` to `Variables`
+- [x] Create `apps/backend/src/middleware/auth.ts` — Hono middleware that:
   - Extracts Bearer token from `Authorization` header
   - Verifies with `verifyAccessToken()`
   - Sets `c.set('user', payload)` on success
   - Throws `UnauthorizedError` on missing/invalid/expired token
-- [ ] Create `apps/backend/src/services/auth.ts` — auth service with business logic:
+- [x] Create `apps/backend/src/services/auth.ts` — auth service with business logic:
   - `login(email, password)` — validate credentials, check rate limiting (query `loginAttempts` collection), increment failed attempts or reset on success, check `isActive`, return access + refresh tokens + user info (including `branchIds`). On successful login, store refresh token in DB.
   - `register(adminUser, data)` — verify caller is admin, create user with hashed password in the admin's `businessId`, return created user (without passwordHash)
   - `refresh(refreshToken)` — validate refresh token from DB, check expiry, issue new access token + new refresh token (rotate), delete old refresh token
   - `logout(refreshToken)` — delete refresh token from DB
-- [ ] Create `apps/backend/src/schemas/auth.ts` — Zod schemas for all auth request bodies:
+- [x] Create `apps/backend/src/schemas/auth.ts` — Zod schemas for all auth request bodies:
   - `loginSchema` — `{ email: z.string().email(), password: z.string().min(1) }`
   - `registerSchema` — `{ email, password (min 8), name, role, branchIds }`
   - `refreshSchema` — `{ refreshToken: z.string() }`
   - `logoutSchema` — `{ refreshToken: z.string() }`
-- [ ] Create `apps/backend/src/routes/auth.ts` — Hono router with endpoints:
+- [x] Create `apps/backend/src/routes/auth.ts` — Hono router with endpoints:
   - `POST /api/auth/login` — public, validates with `loginSchema`, calls `auth.login()`
   - `POST /api/auth/register` — protected (auth middleware), validates with `registerSchema`, calls `auth.register()`
   - `POST /api/auth/refresh` — public, validates with `refreshSchema`, calls `auth.refresh()`
   - `POST /api/auth/logout` — public, validates with `logoutSchema`, calls `auth.logout()`
-- [ ] Mount auth routes in `apps/backend/src/app.ts` via `app.route('/', authRoutes)`
+- [x] Mount auth routes in `apps/backend/src/app.ts` via `app.route('/', authRoutes)`
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
 - [ ] Manual verification: test login/register/refresh/logout flow via curl against local dev server. Verify:
   - Login with valid credentials returns access + refresh tokens
   - Login with wrong password returns 401

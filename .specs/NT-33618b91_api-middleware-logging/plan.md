@@ -81,7 +81,7 @@
 - [x] `pnpm lint` passes
 - [x] `pnpm format:check` passes
 - [x] `pnpm build` succeeds
-- [ ] Manual verification: `pnpm --filter @kaipos/backend dev`, then:
+- [x] Manual verification: `pnpm --filter @kaipos/backend dev`, then:
   - `GET /api/health` → 200 response + structured JSON log with requestId, method, path, statusCode, durationMs
   - `POST /api/health` (or any non-existent route) → structured log entry
   - Confirm no `console.log` or `console.error` calls remain in `src/` (search with `grep -r "console\." src/`)
@@ -127,18 +127,18 @@
 - [x] `pnpm lint` passes
 - [x] `pnpm format:check` passes
 - [x] `pnpm build` succeeds — `dist/api.js` exists, `dist/health.js` does not
-- [ ] Manual verification: `pnpm --filter @kaipos/backend dev` — health check still works at `GET /api/health`
-- [ ] Manual verification: `cd infra && npx cdk synth -c stage=prod` succeeds and the CloudFormation template shows `ANY /api/{proxy+}` route
+- [x] Manual verification: `pnpm --filter @kaipos/backend dev` — health check still works at `GET /api/health`
+- [x] Manual verification: `cd infra && npx cdk synth -c stage=prod` succeeds and the CloudFormation template shows `ANY /api/{proxy+}` route
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 
 ## QA Plan
 
-- [ ] **Regression**: `GET /api/health` returns 200 with `{ success: true, data: { service, version, database, timestamp } }` — same shape as before
-- [ ] **Validation (400)**: Add a Zod schema to a test route (or the health endpoint with query params), send invalid payload → 400 with `{ success: false, error, code: "VALIDATION_ERROR", details: [{ field, message }] }`
-- [ ] **Error handling (500)**: Trigger an unhandled error (e.g., disconnect DB) → 500 with `{ success: false, error: "Internal server error", code: "INTERNAL_ERROR" }` — no stack trace in response body
-- [ ] **Structured logging**: Check `stdout` for JSON logs with `requestId`, `method`, `path`, `statusCode`, `durationMs` on every request
-- [ ] **No console.log**: `grep -r "console\.\(log\|error\|warn\)" apps/backend/src/` returns zero matches
-- [ ] **CDK synth**: `cd infra && npx cdk synth -c stage=prod` succeeds; template has `ANY /api/{proxy+}` route pointing to single Lambda
-- [ ] **Build output**: `ls apps/backend/dist/` shows `api.js` and `api.js.map`, no `health.js`
-- [ ] **Typecheck + lint + format**: `pnpm typecheck && pnpm lint && pnpm format:check` all pass
+- [x] **Regression**: `GET /api/health` returns 200 with `{ success: true, data: { service, version, database, timestamp } }` — same shape as before
+- [x] **Validation (400)**: Add a Zod schema to a test route (or the health endpoint with query params), send invalid payload → 400 with `{ success: false, error, code: "VALIDATION_ERROR", details: [{ field, message }] }`
+- [x] **Error handling (500)**: Trigger an unhandled error (e.g., disconnect DB) → 500 with `{ success: false, error: "Internal server error", code: "INTERNAL_ERROR" }` — no stack trace in response body
+- [x] **Structured logging**: Check `stdout` for JSON logs with `requestId`, `method`, `path`, `statusCode`, `durationMs` on every request
+- [x] **No console.log**: `grep -r "console\.\(log\|error\|warn\)" apps/backend/src/` returns zero matches
+- [x] **CDK synth**: `cd infra && npx cdk synth -c stage=prod` succeeds; template has `ANY /api/{proxy+}` route pointing to single Lambda
+- [x] **Build output**: `ls apps/backend/dist/` shows `api.js` (no `api.js.map` — source maps not configured in tsup), no `health.js`
+- [x] **Typecheck + lint + format**: `pnpm typecheck && pnpm lint && pnpm format:check` all pass

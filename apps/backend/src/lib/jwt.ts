@@ -22,11 +22,10 @@ async function getSecret(): Promise<Uint8Array> {
 
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    if (process.env.NODE_ENV === 'prod') {
-      throw new Error('JWT_SECRET or JWT_SECRET_ARN is required in production');
-    }
-    cachedSecret = new TextEncoder().encode('dev-only-jwt-secret-do-not-use-in-prod');
-    return cachedSecret;
+    throw new Error(
+      'JWT_SECRET or JWT_SECRET_ARN must be set. ' +
+        'Set JWT_SECRET in .env for local dev, or JWT_SECRET_ARN for AWS prod.',
+    );
   }
 
   cachedSecret = new TextEncoder().encode(secret);

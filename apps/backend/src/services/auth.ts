@@ -45,21 +45,24 @@ export async function login(
   const user = await users.findOne({ email });
 
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
-    // Increment failed attempts
-    await loginAttempts.updateOne(
+    // Atomically increment and check threshold using the post-update value
+    const updated = await loginAttempts.findOneAndUpdate(
       { email },
       {
         $inc: { attempts: 1 },
-        $set: {
-          lastAttemptAt: new Date(),
-          lockedUntil:
-            (attempt?.attempts ?? 0) + 1 >= MAX_LOGIN_ATTEMPTS
-              ? new Date(Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000)
-              : null,
-        },
+        $set: { lastAttemptAt: new Date() },
       },
-      { upsert: true },
+      { upsert: true, returnDocument: 'after' },
     );
+
+    // Lock if threshold reached (uses the actual post-increment value)
+    if (updated && updated.attempts >= MAX_LOGIN_ATTEMPTS) {
+      await loginAttempts.updateOne(
+        { email },
+        { $set: { lockedUntil: new Date(Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000) } },
+      );
+    }
+
     throw new UnauthorizedError('Invalid email or password');
   }
 

@@ -98,7 +98,7 @@ const collections: CollectionSetup[] = [
       },
     },
     indexes: [
-      { key: { email: 1 }, options: { unique: true } },
+      { key: { businessId: 1, email: 1 }, options: { unique: true } },
       { key: { businessId: 1, role: 1 } },
     ],
   },

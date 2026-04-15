@@ -18,6 +18,7 @@ const mockRefreshTokensCollection = {
 
 const mockLoginAttemptsCollection = {
   findOne: vi.fn(),
+  findOneAndUpdate: vi.fn(),
   updateOne: vi.fn(),
   deleteOne: vi.fn(),
 };
@@ -96,7 +97,7 @@ describe('auth service', () => {
     it('throws UnauthorizedError on wrong password', async () => {
       mockLoginAttemptsCollection.findOne.mockResolvedValue(null);
       mockUsersCollection.findOne.mockResolvedValue(adminUser);
-      mockLoginAttemptsCollection.updateOne.mockResolvedValue({});
+      mockLoginAttemptsCollection.findOneAndUpdate.mockResolvedValue({ attempts: 1 });
 
       await expect(login('admin@test.com', 'wrong')).rejects.toThrow('Invalid email or password');
     });
@@ -104,7 +105,7 @@ describe('auth service', () => {
     it('throws UnauthorizedError for non-existent user', async () => {
       mockLoginAttemptsCollection.findOne.mockResolvedValue(null);
       mockUsersCollection.findOne.mockResolvedValue(null);
-      mockLoginAttemptsCollection.updateOne.mockResolvedValue({});
+      mockLoginAttemptsCollection.findOneAndUpdate.mockResolvedValue({ attempts: 1 });
 
       await expect(login('noone@test.com', 'pass')).rejects.toThrow('Invalid email or password');
     });

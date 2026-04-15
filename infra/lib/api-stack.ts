@@ -25,9 +25,9 @@ export class ApiStack extends cdk.Stack {
     // Lambda runs outside any VPC and reaches MongoDB Atlas directly over the
     // public internet. Atlas access is restricted via its own IP allowlist.
     // This avoids NAT Gateway costs (~$33/month fixed).
-    const healthFunction = new lambda.Function(this, 'HealthFunction', {
+    const apiFunction = new lambda.Function(this, 'ApiFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'health.handler',
+      handler: 'api.handler',
       code: lambda.Code.fromAsset('../apps/backend/dist'),
       memorySize: config.lambdaMemory,
       timeout: cdk.Duration.seconds(30),
@@ -40,8 +40,8 @@ export class ApiStack extends cdk.Stack {
       },
     });
 
-    mongoSecret.grantRead(healthFunction);
-    assetsBucket.grantReadWrite(healthFunction);
+    mongoSecret.grantRead(apiFunction);
+    assetsBucket.grantReadWrite(apiFunction);
 
     // No corsPreflight: the API is fronted by CloudFront (same origin as the
     // SPA), so browser requests never need CORS. The API Gateway URL is still
@@ -50,10 +50,18 @@ export class ApiStack extends cdk.Stack {
       apiName: `kaipos-api-${config.stage}`,
     });
 
+    const apiIntegration = new integrations.HttpLambdaIntegration('ApiIntegration', apiFunction);
+
     this.httpApi.addRoutes({
-      path: '/api/health',
-      methods: [apigw.HttpMethod.GET],
-      integration: new integrations.HttpLambdaIntegration('HealthIntegration', healthFunction),
+      path: '/api/{proxy+}',
+      methods: [apigw.HttpMethod.ANY],
+      integration: apiIntegration,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api',
+      methods: [apigw.HttpMethod.ANY],
+      integration: apiIntegration,
     });
 
     new cdk.CfnOutput(this, 'ApiUrl', {

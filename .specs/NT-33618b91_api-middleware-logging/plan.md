@@ -81,7 +81,7 @@
 - [x] `pnpm lint` passes
 - [x] `pnpm format:check` passes
 - [x] `pnpm build` succeeds
-- [ ] Manual verification: `pnpm --filter @kaipos/backend dev`, then:
+- [x] Manual verification: `pnpm --filter @kaipos/backend dev`, then:
   - `GET /api/health` → 200 response + structured JSON log with requestId, method, path, statusCode, durationMs
   - `POST /api/health` (or any non-existent route) → structured log entry
   - Confirm no `console.log` or `console.error` calls remain in `src/` (search with `grep -r "console\." src/`)
@@ -95,20 +95,20 @@
 
 ### Tasks
 
-- [ ] Install `@hono/aws-lambda` (runtime) in `apps/backend`
-- [ ] Extract Hono app creation into `apps/backend/src/app.ts`
+- [x] Install `@hono/aws-lambda` (runtime) in `apps/backend`
+- [x] Extract Hono app creation into `apps/backend/src/app.ts`
   - Move route definitions, middleware wiring, and `app.onError` from `index.ts` into this module
   - Export the configured `app` instance
   - This module is shared between local dev (`index.ts`) and Lambda (`functions/api.ts`)
-- [ ] Update `apps/backend/src/index.ts` — import app from `./app.js`, keep only `serve()` call and startup log
-- [ ] Create `apps/backend/src/functions/api.ts` — unified Lambda handler
+- [x] Update `apps/backend/src/index.ts` — import app from `./app.js`, keep only `serve()` call and startup log
+- [x] Create `apps/backend/src/functions/api.ts` — unified Lambda handler
   - Import app from `../app.js`
   - Import `handle` from `@hono/aws-lambda`
   - Export `const handler = handle(app)`
-- [ ] Delete `apps/backend/src/functions/health.ts` — replaced by the unified handler
-- [ ] Update `apps/backend/tsup.config.ts`
+- [x] Delete `apps/backend/src/functions/health.ts` — replaced by the unified handler
+- [x] Update `apps/backend/tsup.config.ts`
   - Change entry from `src/functions/**/*.ts` to `['src/functions/api.ts']` (single entry point)
-- [ ] Update `infra/lib/api-stack.ts`
+- [x] Update `infra/lib/api-stack.ts`
   - Rename `HealthFunction` → `ApiFunction` (and update construct ID)
   - Change `handler` from `'health.handler'` to `'api.handler'`
   - Replace the single `/api/health` route with a catch-all pattern:
@@ -119,26 +119,26 @@
   - Also add a route for the exact `/api` path (API Gateway requires both `{proxy+}` and the bare path for full coverage)
   - Update `mongoSecret.grantRead()` and `assetsBucket.grantReadWrite()` to reference the renamed function
   - Update the `HealthIntegration` construct ID → `ApiIntegration`
-- [ ] Verify build output: `pnpm build` should produce `dist/api.js` (not `dist/health.js`)
+- [x] Verify build output: `pnpm build` should produce `dist/api.js` (not `dist/health.js`)
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds — `dist/api.js` exists, `dist/health.js` does not
-- [ ] Manual verification: `pnpm --filter @kaipos/backend dev` — health check still works at `GET /api/health`
-- [ ] Manual verification: `cd infra && npx cdk synth -c stage=prod` succeeds and the CloudFormation template shows `ANY /api/{proxy+}` route
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds — `dist/api.js` exists, `dist/health.js` does not
+- [x] Manual verification: `pnpm --filter @kaipos/backend dev` — health check still works at `GET /api/health`
+- [x] Manual verification: `cd infra && npx cdk synth -c stage=prod` succeeds and the CloudFormation template shows `ANY /api/{proxy+}` route
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 
 ## QA Plan
 
-- [ ] **Regression**: `GET /api/health` returns 200 with `{ success: true, data: { service, version, database, timestamp } }` — same shape as before
-- [ ] **Validation (400)**: Add a Zod schema to a test route (or the health endpoint with query params), send invalid payload → 400 with `{ success: false, error, code: "VALIDATION_ERROR", details: [{ field, message }] }`
-- [ ] **Error handling (500)**: Trigger an unhandled error (e.g., disconnect DB) → 500 with `{ success: false, error: "Internal server error", code: "INTERNAL_ERROR" }` — no stack trace in response body
-- [ ] **Structured logging**: Check `stdout` for JSON logs with `requestId`, `method`, `path`, `statusCode`, `durationMs` on every request
-- [ ] **No console.log**: `grep -r "console\.\(log\|error\|warn\)" apps/backend/src/` returns zero matches
-- [ ] **CDK synth**: `cd infra && npx cdk synth -c stage=prod` succeeds; template has `ANY /api/{proxy+}` route pointing to single Lambda
-- [ ] **Build output**: `ls apps/backend/dist/` shows `api.js` and `api.js.map`, no `health.js`
-- [ ] **Typecheck + lint + format**: `pnpm typecheck && pnpm lint && pnpm format:check` all pass
+- [x] **Regression**: `GET /api/health` returns 200 with `{ success: true, data: { service, version, database, timestamp } }` — same shape as before
+- [x] **Validation (400)**: Add a Zod schema to a test route (or the health endpoint with query params), send invalid payload → 400 with `{ success: false, error, code: "VALIDATION_ERROR", details: [{ field, message }] }`
+- [x] **Error handling (500)**: Trigger an unhandled error (e.g., disconnect DB) → 500 with `{ success: false, error: "Internal server error", code: "INTERNAL_ERROR" }` — no stack trace in response body
+- [x] **Structured logging**: Check `stdout` for JSON logs with `requestId`, `method`, `path`, `statusCode`, `durationMs` on every request
+- [x] **No console.log**: `grep -r "console\.\(log\|error\|warn\)" apps/backend/src/` returns zero matches
+- [x] **CDK synth**: `cd infra && npx cdk synth -c stage=prod` succeeds; template has `ANY /api/{proxy+}` route pointing to single Lambda
+- [x] **Build output**: `ls apps/backend/dist/` shows `api.js` (no `api.js.map` — source maps not configured in tsup), no `health.js`
+- [x] **Typecheck + lint + format**: `pnpm typecheck && pnpm lint && pnpm format:check` all pass

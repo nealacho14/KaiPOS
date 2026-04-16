@@ -8,7 +8,8 @@
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "db:setup": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/setup.ts"
+    "db:setup": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/setup.ts",
+    "db:seed": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.693.0",

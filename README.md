@@ -28,27 +28,32 @@ pnpm dev
 
 ## Available Commands
 
-| Command                     | Description                                         |
-| --------------------------- | --------------------------------------------------- |
-| `pnpm dev`                  | Start all apps in dev mode (backend + frontend)     |
-| `pnpm build`                | Build all packages                                  |
-| `pnpm lint`                 | Lint all packages                                   |
-| `pnpm typecheck`            | Type-check all packages                             |
-| `pnpm format`               | Format all files with Prettier                      |
-| `pnpm format:check`         | Check formatting without writing                    |
-| `pnpm docker:up`            | Start all services with Docker Compose (with build) |
-| `pnpm docker:down`          | Stop Docker Compose services                        |
-| `pnpm deploy:prod`          | Build apps and deploy all AWS CDK stacks to prod    |
-| `pnpm deploy:prod:api`      | Build backend and deploy only the API stack         |
-| `pnpm deploy:prod:frontend` | Build frontend and deploy only the frontend stack   |
+| Command                                  | Description                                                             |
+| ---------------------------------------- | ----------------------------------------------------------------------- |
+| `pnpm dev`                               | Start all apps in dev mode (backend + frontend)                         |
+| `pnpm build`                             | Build all packages                                                      |
+| `pnpm lint`                              | Lint all packages                                                       |
+| `pnpm typecheck`                         | Type-check all packages                                                 |
+| `pnpm format`                            | Format all files with Prettier                                          |
+| `pnpm format:check`                      | Check formatting without writing                                        |
+| `pnpm docker:up`                         | Start all services with Docker Compose (with build)                     |
+| `pnpm docker:down`                       | Stop Docker Compose services                                            |
+| `pnpm --filter @kaipos/backend db:setup` | Create MongoDB collections, validators, indexes (safe against Atlas)    |
+| `pnpm --filter @kaipos/backend db:seed`  | Insert demo data into local/Docker Mongo (refuses to run against Atlas) |
+| `pnpm deploy:prod`                       | Build apps and deploy all AWS CDK stacks to prod                        |
+| `pnpm deploy:prod:api`                   | Build backend and deploy only the API stack                             |
+| `pnpm deploy:prod:frontend`              | Build frontend and deploy only the frontend stack                       |
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` and set your values:
+Copy `.env.example` to `.env` and set your values. The root `.env` is used both by `pnpm dev` (via `DOTENV_CONFIG_PATH`) and by Docker (via `env_file:` in `docker-compose.yml`).
 
-| Variable    | Description               | Default                            |
-| ----------- | ------------------------- | ---------------------------------- |
-| `MONGO_URI` | MongoDB connection string | `mongodb://localhost:27017/kaipos` |
+| Variable                  | Description                                               | Default                            |
+| ------------------------- | --------------------------------------------------------- | ---------------------------------- |
+| `MONGO_URI`               | MongoDB connection string (ignored inside Docker)         | `mongodb://localhost:27017/kaipos` |
+| `JWT_SECRET`              | HMAC secret for signing access tokens                     | _(required in dev)_                |
+| `PASSWORD_RESET_BASE_URL` | Frontend URL where password reset links point             | `http://localhost:3000`            |
+| `SES_SENDER_EMAIL`        | From-address for SES emails (if unset, tokens are logged) | _(unset)_                          |
 
 ## Development Modes
 
@@ -61,7 +66,7 @@ Uses MongoDB Atlas (or any external MongoDB) configured via `MONGO_URI` in `.env
 
 ### Docker (`pnpm docker:up`)
 
-Uses a local MongoDB container. No `.env` needed — connection is configured in `docker-compose.yml`.
+Uses a local MongoDB container. `MONGO_URI` is hardcoded to the Docker network (`mongodb://mongo:27017/kaipos`) inside the backend container, but the rest of the root `.env` (including `JWT_SECRET`) is still loaded via Compose's `env_file:` directive — so `.env` is still required.
 
 - **Backend API** on http://localhost:4001
 - **Frontend Admin** on http://localhost:3001
@@ -120,6 +125,29 @@ KaiPOS uses **MongoDB** with the native Node.js driver (`mongodb` package).
   Secrets Manager (`kaipos/prod/mongo-uri`); the Lambda resolves it at cold
   start via `MONGO_SECRET_ARN`. No URI is ever hardcoded in source or
   CloudFormation templates.
+
+### Schema setup and seeding
+
+Two separate scripts:
+
+- `pnpm --filter @kaipos/backend db:setup` — creates collections, `$jsonSchema` validators, and indexes. Idempotent. Safe to run against local, Docker, and Atlas prod.
+- `pnpm --filter @kaipos/backend db:seed` — inserts demo data (business, branch, users, categories, products, modifiers, tables). **Refuses to run against Atlas**: fails fast if `MONGO_URI` contains `mongodb+srv://` or if `MONGO_SECRET_ARN` is set. Docker/local only.
+
+Running inside Docker:
+
+```bash
+docker compose exec -w /app/apps/backend backend pnpm db:setup
+docker compose exec -w /app/apps/backend backend pnpm db:seed
+```
+
+Seeded users (local/Docker only):
+
+| Role    | Email                      | Password    |
+| ------- | -------------------------- | ----------- |
+| admin   | `admin@lacocinadekai.com`  | `admin123`  |
+| cashier | `cajero@lacocinadekai.com` | `cajero123` |
+
+Passwords are hashed at runtime with bcrypt (12 rounds).
 
 ## Deployment
 

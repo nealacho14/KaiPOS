@@ -37,6 +37,10 @@ pnpm --filter @kaipos/frontend-admin dev
 # Lint a single package
 pnpm --filter @kaipos/backend lint
 
+# Database setup (schema) and seed (demo data)
+pnpm --filter @kaipos/backend db:setup   # create collections, validators, indexes (safe for Atlas)
+pnpm --filter @kaipos/backend db:seed    # insert demo data (refuses to run against Atlas / MONGO_SECRET_ARN)
+
 # Infrastructure deployment (from repo root)
 pnpm deploy:prod               # full deploy: backend + frontend + all stacks
 pnpm deploy:prod:api           # targeted: backend build + api stack only
@@ -72,12 +76,18 @@ Database access goes through `src/db/client.ts` (MongoDB singleton) and `src/db/
 1. If `MONGO_SECRET_ARN` is set (AWS prod), it fetches the URI from AWS Secrets Manager using `@aws-sdk/client-secrets-manager` and caches it in module scope.
 2. Otherwise it falls back to `MONGO_URI` env var (local dev / Docker).
 
+### Database scripts
+
+- `src/db/setup.ts` — creates all collections with `$jsonSchema` validators and indexes (idempotent via `collMod` + `createIndex`). Runs anywhere: local, Docker, and Atlas prod. Exposed as `pnpm --filter @kaipos/backend db:setup`.
+- `src/db/seed.ts` — inserts demo data (1 business "La Cocina de Kai", 1 branch, 2 users, 5 categories, 10 products, 3 modifiers, 6 tables). **Guard: refuses to run if `MONGO_SECRET_ARN` is set or `MONGO_URI` contains `mongodb+srv://`** — Docker/local only. Passwords hashed at runtime via `src/lib/password.ts` (`hashPassword`). Seeded users: `admin@lacocinadekai.com` / `admin123` and `cajero@lacocinadekai.com` / `cajero123`. Idempotent: skips if business `la-cocina-de-kai` already exists. Exposed as `pnpm --filter @kaipos/backend db:seed`.
+
 ### Environment Variables
 
-- `MONGO_URI` — MongoDB connection string. For `pnpm dev`, loaded from root `.env` via dotenv. For Docker, set in `docker-compose.yml`. **Not used in AWS prod.**
-- `MONGO_SECRET_ARN` — ARN of the Secrets Manager secret holding the Atlas URI. Injected by CDK into the Lambda only in AWS prod. Never set locally.
+- `MONGO_URI` — MongoDB connection string. For `pnpm dev`, loaded from root `.env` via dotenv. For Docker, set in `docker-compose.yml` (the `environment:` block overrides `.env` so the container always uses `mongodb://mongo:27017/kaipos`). **Not used in AWS prod.**
+- `MONGO_SECRET_ARN` — ARN of the Secrets Manager secret holding the Atlas URI. Injected by CDK into the Lambda only in AWS prod. Never set locally. Also used as a signal by `db:seed` to refuse execution.
+- `JWT_SECRET` — HMAC secret for signing access tokens. Loaded from root `.env` in local dev and in Docker (via `env_file: .env` in `docker-compose.yml`). In AWS prod replaced by `JWT_SECRET_ARN` (Secrets Manager).
 - `CLOUDFRONT_SECRET` — Shared secret for CloudFront origin verification. Injected by CDK into the Lambda in AWS prod. Not set locally (middleware skips the check).
-- Root `.env` is loaded by the backend dev script using `DOTENV_CONFIG_PATH=../../.env`.
+- Root `.env` is loaded by the backend dev script using `DOTENV_CONFIG_PATH=../../.env`. In Docker, the same `.env` is loaded via Compose's `env_file:` directive on the backend service.
 
 ### Infrastructure & secrets
 

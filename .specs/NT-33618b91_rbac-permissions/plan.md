@@ -77,13 +77,13 @@ Adds the authorization middleware that all future protected routes will use. No 
 
 ### Tasks
 
-- [ ] Create `apps/backend/src/middleware/authorize.ts`:
+- [x] Create `apps/backend/src/middleware/authorize.ts`:
   - `export function requirePermission(permission: Permission): MiddlewareHandler<AppEnv>`.
   - Preconditions: `c.get('user')` must be set (if missing, throw `UnauthorizedError` — matches `requireAuth` behavior when chained incorrectly).
   - Happy path: `hasPermission(user.role, permission)` → `await next()`.
   - Deny path: fire-and-forget `logAuditEvent({ action: 'authorization_failed', target: user.userId, userId: user.userId, businessId: user.businessId, metadata: { permission, route: c.req.path, method: c.req.method } })`, then `throw new ForbiddenError('Insufficient permissions')`.
   - Follow the style of `middleware/branch-access.ts` (arrow returning `MiddlewareHandler<AppEnv>`).
-- [ ] Create `apps/backend/src/middleware/authorize.test.ts` following `branch-access.test.ts` pattern:
+- [x] Create `apps/backend/src/middleware/authorize.test.ts` following `branch-access.test.ts` pattern:
   - Injects `user` via `X-Test-User` header; mounts a dummy protected `GET /protected`.
   - Cases:
     - no user on context → `401` (Unauthorized).
@@ -91,17 +91,17 @@ Adds the authorization middleware that all future protected routes will use. No 
     - 403 path also asserts `logAuditEvent` was called once with the expected `{ action, metadata.permission, metadata.route, metadata.method, userId, businessId }`.
     - `super_admin` with a permission not listed in `ROLE_PERMISSIONS[super_admin]` (e.g., a made-up one cast to `Permission`) still gets 200 (bypass).
   - Mock `../services/audit.js` `logAuditEvent` via `vi.mock`.
-- [ ] Target ≥ 90% line coverage on `authorize.ts` (verified via `pnpm --filter @kaipos/backend test -- --coverage`).
+- [x] Target ≥ 90% line coverage on `authorize.ts` (verified via `pnpm --filter @kaipos/backend test -- --coverage`).
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm --filter @kaipos/backend test` passes (incl. new `authorize.test.ts`)
-- [ ] Coverage report for `authorize.ts` ≥ 90% lines.
-- [ ] Manual: no behavioral change in running backend — middleware exists but is not wired anywhere yet.
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm --filter @kaipos/backend test` passes (incl. new `authorize.test.ts`)
+- [x] Coverage report for `authorize.ts` ≥ 90% lines.
+- [x] Manual: no behavioral change in running backend — middleware exists but is not wired anywhere yet.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 

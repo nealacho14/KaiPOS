@@ -38,33 +38,33 @@ Introduces the role/permission model without yet protecting any endpoints. All s
 
 ### Tasks
 
-- [ ] Extend `UserRole` in `packages/shared/src/types/index.ts` to:
+- [x] Extend `UserRole` in `packages/shared/src/types/index.ts` to:
       `'super_admin' | 'admin' | 'manager' | 'supervisor' | 'cashier' | 'waiter' | 'kitchen'`.
-- [ ] Add `'authorization_failed'` to `AuditAction` union in `packages/shared/src/types/index.ts`.
-- [ ] Create `apps/backend/src/lib/permissions.ts`:
+- [x] Add `'authorization_failed'` to `AuditAction` union in `packages/shared/src/types/index.ts`.
+- [x] Create `apps/backend/src/lib/permissions.ts`:
   - Export `Permission` string-literal union for all 14 permissions in the spec (`products:read/write/delete`, `orders:create/read/update/cancel`, `users:read/write/delete`, `reports:view`, `business:manage`, `branches:manage`, `platform:manage`).
   - Export `ROLE_PERMISSIONS: Record<UserRole, Permission[]>` with the role map from the decisions section above.
   - Export `hasPermission(role: UserRole, permission: Permission): boolean` — `super_admin` returns `true` for everything (bypass); otherwise lookup in the map.
   - Export `SUPER_ADMIN_BUSINESS_ID = '*'` constant for `businessId` bypass sentinel.
-- [ ] Write `apps/backend/src/lib/permissions.test.ts`:
+- [x] Write `apps/backend/src/lib/permissions.test.ts`:
   - Parameterized matrix: every role × every permission. Assert returned boolean matches `ROLE_PERMISSIONS`.
   - `super_admin` returns `true` for every permission (including hypothetical unlisted ones).
   - `cliente` or other unknown role returns `false` (TS coverage — cast via `as UserRole`).
-- [ ] Extend `users` `$jsonSchema` in `apps/backend/src/db/setup.ts`:
+- [x] Extend `users` `$jsonSchema` in `apps/backend/src/db/setup.ts`:
       `role: { enum: ['super_admin', 'admin', 'manager', 'supervisor', 'cashier', 'waiter', 'kitchen'] }`.
-- [ ] Extend `auditLogs` `$jsonSchema` `action.enum` in `apps/backend/src/db/setup.ts` with `'authorization_failed'`.
-- [ ] Update `apps/backend/src/schemas/auth.ts` `registerSchema.role` enum to match the new `UserRole` union (still used by `/auth/register` in this phase; removed in Phase 3).
-- [ ] Sanity-check that `db:seed` still runs against the updated `$jsonSchema` (admin/cashier values remain valid; no seed data changes required).
+- [x] Extend `auditLogs` `$jsonSchema` `action.enum` in `apps/backend/src/db/setup.ts` with `'authorization_failed'`.
+- [x] Update `apps/backend/src/schemas/auth.ts` `registerSchema.role` enum to match the new `UserRole` union (still used by `/auth/register` in this phase; removed in Phase 3).
+- [x] Sanity-check that `db:seed` still runs against the updated `$jsonSchema` (admin/cashier values remain valid; no seed data changes required).
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm --filter @kaipos/backend test -- permissions` passes (new `permissions.test.ts`)
-- [ ] Manual: `pnpm docker:up`, then `pnpm --filter @kaipos/backend db:setup` succeeds and `pnpm --filter @kaipos/backend db:seed` still succeeds end-to-end.
-- [ ] Manual: `curl -X POST :4001/api/auth/login` for `admin@lacocinadekai.com` / `admin123` still returns a token.
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm --filter @kaipos/backend test -- permissions` passes (new `permissions.test.ts`)
+- [x] Manual: `pnpm docker:up`, then `pnpm --filter @kaipos/backend db:setup` succeeds and `pnpm --filter @kaipos/backend db:seed` still succeeds end-to-end.
+- [x] Manual: `curl -X POST :4001/api/auth/login` for `admin@lacocinadekai.com` / `admin123` still returns a token.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 

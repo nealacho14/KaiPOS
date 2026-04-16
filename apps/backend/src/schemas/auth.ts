@@ -9,7 +9,7 @@ export const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   name: z.string().min(1),
-  role: z.enum(['admin', 'cashier', 'manager']),
+  role: z.enum(['super_admin', 'admin', 'manager', 'supervisor', 'cashier', 'waiter', 'kitchen']),
   branchIds: z.array(z.string()).optional(),
 });
 

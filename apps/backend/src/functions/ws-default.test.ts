@@ -122,7 +122,7 @@ describe('ws-default handler', () => {
     it('returns 403 when connection has no DDB rows (auth-rejected)', async () => {
       mockGetConnectionContext.mockResolvedValue(null);
 
-      const res = await run(makeEvent({ type: 'subscribe', channel: 'branch:br-1' }));
+      const res = await run(makeEvent({ type: 'subscribe', channel: 'branch:biz-1:br-1' }));
 
       expect(res.statusCode).toBe(403);
       expect(mockAddChannel).not.toHaveBeenCalled();
@@ -155,18 +155,18 @@ describe('ws-default handler', () => {
         branchIds: ['br-1'],
       });
 
-      const res = await run(makeEvent({ type: 'subscribe', channel: 'table:t-1' }));
+      const res = await run(makeEvent({ type: 'subscribe', channel: 'table:biz-1:t-1' }));
 
       expect(res.statusCode).toBe(200);
       expect(mockAddChannel).toHaveBeenCalledWith(
         'conn-1',
-        'table:t-1',
+        'table:biz-1:t-1',
         expect.objectContaining({ userId: 'u-1' }),
       );
 
       const ack = decodeSentMessage();
       expect(ack.type).toBe('subscribe.ack');
-      expect(ack.channel).toBe('table:t-1');
+      expect(ack.channel).toBe('table:biz-1:t-1');
     });
 
     it('denies cross-tenant branch subscribe', async () => {
@@ -177,7 +177,7 @@ describe('ws-default handler', () => {
         branchIds: ['br-1'],
       });
 
-      const res = await run(makeEvent({ type: 'subscribe', channel: 'branch:br-foreign' }));
+      const res = await run(makeEvent({ type: 'subscribe', channel: 'branch:biz-1:br-foreign' }));
 
       expect(res.statusCode).toBe(403);
       expect(mockAddChannel).not.toHaveBeenCalled();

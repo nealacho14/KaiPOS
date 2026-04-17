@@ -26,6 +26,7 @@ services:
     volumes:
       - ./apps/frontend-admin/src:/app/apps/frontend-admin/src
       - ./packages/shared/src:/app/packages/shared/src
+      - ./packages/ui/src:/app/packages/ui/src
     environment:
       - VITE_API_URL=http://backend:4001
       - VITE_PORT=3001

@@ -1,5 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ApiResponse, Order, WSChannel, WSMessage } from '@kaipos/shared';
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Container,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from '@kaipos/ui';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket.js';
 import { clearToken, getToken, setToken } from '../lib/auth-storage.js';
 
@@ -28,6 +46,20 @@ const defaultOrderForm: DebugOrderForm = {
   unitPrice: '3.50',
   quantity: '1',
 };
+
+type WsStatus = ReturnType<typeof useWebSocket>['status'];
+
+function statusColor(status: WsStatus): 'default' | 'success' | 'warning' {
+  switch (status) {
+    case 'open':
+      return 'success';
+    case 'connecting':
+    case 'reconnecting':
+      return 'warning';
+    default:
+      return 'default';
+  }
+}
 
 export function DebugWebSocket() {
   const defaultEndpoint = useMemo(() => getDefaultEndpoint(), []);
@@ -67,9 +99,7 @@ export function DebugWebSocket() {
     ws.connect(tokenInput);
   };
 
-  const onDisconnect = () => {
-    ws.disconnect();
-  };
+  const onDisconnect = () => ws.disconnect();
 
   const onForget = () => {
     clearToken();
@@ -83,9 +113,7 @@ export function DebugWebSocket() {
     setSubscribeInput('');
   };
 
-  const onUnsubscribe = (channel: WSChannel) => {
-    ws.unsubscribe(channel);
-  };
+  const onUnsubscribe = (channel: WSChannel) => ws.unsubscribe(channel);
 
   const authHeaders = useMemo<HeadersInit>(
     () => ({
@@ -148,190 +176,200 @@ export function DebugWebSocket() {
     }
   };
 
-  const containerStyle: React.CSSProperties = {
-    padding: '1.5rem',
-    fontFamily: 'system-ui, sans-serif',
-    maxWidth: 960,
-  };
-  const sectionStyle: React.CSSProperties = {
-    border: '1px solid #ddd',
-    borderRadius: 4,
-    padding: '0.75rem 1rem',
-    marginBottom: '1rem',
-  };
-  const rowStyle: React.CSSProperties = {
-    display: 'flex',
-    gap: '0.5rem',
-    alignItems: 'center',
-    marginBottom: '0.5rem',
-    flexWrap: 'wrap',
-  };
-  const inputStyle: React.CSSProperties = { padding: '0.3rem 0.5rem', minWidth: 240 };
-  const badgeStyle: React.CSSProperties = {
-    padding: '0.1rem 0.5rem',
-    borderRadius: 12,
-    fontSize: 12,
-    background: '#eee',
-  };
-
   return (
-    <div style={containerStyle}>
-      <h1>Debug · WebSocket</h1>
-      <p style={{ color: '#666' }}>
+    <Container maxWidth="md" sx={{ py: 3 }}>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Debug · WebSocket
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
         Connect with a JWT access token and observe messages fanned out to your channels. The
         endpoint defaults to <code>VITE_WS_ENDPOINT</code>.
-      </p>
+      </Typography>
 
-      <section style={sectionStyle}>
-        <h2 style={{ margin: '0 0 0.5rem' }}>Connection</h2>
-        <div style={rowStyle}>
-          <label>
-            Endpoint{' '}
-            <input
-              style={{ ...inputStyle, minWidth: 360 }}
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Connection
+          </Typography>
+          <Stack spacing={2}>
+            <TextField
+              label="Endpoint"
               value={endpoint}
               onChange={(e) => setEndpoint(e.target.value)}
               placeholder="wss://<api-id>.execute-api.us-east-1.amazonaws.com/prod"
+              fullWidth
             />
-          </label>
-        </div>
-        <div style={rowStyle}>
-          <label>
-            Token{' '}
-            <input
-              style={{ ...inputStyle, minWidth: 360 }}
+            <TextField
+              label="Token"
               value={tokenInput}
               onChange={(e) => setTokenInput(e.target.value)}
               placeholder="eyJhbGciOi..."
               type="password"
+              fullWidth
             />
-          </label>
-          <button onClick={onConnect}>Connect</button>
-          <button onClick={onDisconnect}>Disconnect</button>
-          <button onClick={onForget}>Forget token</button>
-        </div>
-        <div style={rowStyle}>
-          <span style={badgeStyle}>status: {ws.status}</span>
-        </div>
-      </section>
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+              <Button variant="contained" onClick={onConnect}>
+                Connect
+              </Button>
+              <Button variant="outlined" onClick={onDisconnect}>
+                Disconnect
+              </Button>
+              <Button variant="text" onClick={onForget}>
+                Forget token
+              </Button>
+              <Box sx={{ flexGrow: 1 }} />
+              <Chip
+                label={`status: ${ws.status}`}
+                size="small"
+                color={statusColor(ws.status)}
+                variant="outlined"
+              />
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
 
-      <section style={sectionStyle}>
-        <h2 style={{ margin: '0 0 0.5rem' }}>Subscriptions</h2>
-        <div style={rowStyle}>
-          <input
-            style={inputStyle}
-            value={subscribeInput}
-            onChange={(e) => setSubscribeInput(e.target.value)}
-            placeholder="branch:<id> or business:<id>"
-          />
-          <button onClick={onSubscribe}>Subscribe</button>
-          <button onClick={() => ws.ping()}>Ping</button>
-        </div>
-        {ws.subscribedChannels.length === 0 ? (
-          <p style={{ color: '#666' }}>
-            No active subscriptions (default channels are server-side).
-          </p>
-        ) : (
-          <ul>
-            {ws.subscribedChannels.map((channel) => (
-              <li key={channel}>
-                <code>{channel}</code>{' '}
-                <button onClick={() => onUnsubscribe(channel)}>Unsubscribe</button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Subscriptions
+          </Typography>
+          <Stack direction="row" spacing={1} mb={2} flexWrap="wrap">
+            <TextField
+              value={subscribeInput}
+              onChange={(e) => setSubscribeInput(e.target.value)}
+              placeholder="branch:<id> or business:<id>"
+              size="small"
+              sx={{ minWidth: 280 }}
+            />
+            <Button variant="contained" onClick={onSubscribe}>
+              Subscribe
+            </Button>
+            <Button variant="outlined" onClick={() => ws.ping()}>
+              Ping
+            </Button>
+          </Stack>
+          {ws.subscribedChannels.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No active subscriptions (default channels are server-side).
+            </Typography>
+          ) : (
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {ws.subscribedChannels.map((channel) => (
+                <Chip
+                  key={channel}
+                  label={channel}
+                  onDelete={() => onUnsubscribe(channel)}
+                  size="small"
+                />
+              ))}
+            </Stack>
+          )}
+        </CardContent>
+      </Card>
 
-      <section style={sectionStyle}>
-        <h2 style={{ margin: '0 0 0.5rem' }}>Order demo</h2>
-        <div style={rowStyle}>
-          <label>
-            branchId{' '}
-            <input
-              style={inputStyle}
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Order demo
+          </Typography>
+          <Stack direction="row" spacing={1} mb={2} flexWrap="wrap" useFlexGap>
+            <TextField
+              label="branchId"
+              size="small"
               value={orderForm.branchId}
               onChange={(e) => setOrderForm({ ...orderForm, branchId: e.target.value })}
               placeholder="branch id"
+              sx={{ minWidth: 220 }}
             />
-          </label>
-          <label>
-            product{' '}
-            <input
-              style={inputStyle}
+            <TextField
+              label="product"
+              size="small"
               value={orderForm.productName}
               onChange={(e) => setOrderForm({ ...orderForm, productName: e.target.value })}
+              sx={{ minWidth: 200 }}
             />
-          </label>
-          <label>
-            unitPrice{' '}
-            <input
-              style={{ ...inputStyle, minWidth: 100 }}
+            <TextField
+              label="unitPrice"
+              size="small"
               value={orderForm.unitPrice}
               onChange={(e) => setOrderForm({ ...orderForm, unitPrice: e.target.value })}
+              sx={{ width: 120 }}
             />
-          </label>
-          <label>
-            qty{' '}
-            <input
-              style={{ ...inputStyle, minWidth: 60 }}
+            <TextField
+              label="qty"
+              size="small"
               value={orderForm.quantity}
               onChange={(e) => setOrderForm({ ...orderForm, quantity: e.target.value })}
+              sx={{ width: 90 }}
             />
-          </label>
-        </div>
-        <div style={rowStyle}>
-          <button onClick={onCreateOrder}>Create order</button>
-          <button onClick={onMarkCompleted} disabled={!lastOrder}>
-            PATCH status → completed
-          </button>
-        </div>
-        {lastOrder && (
-          <p>
-            Last order: <code>{lastOrder._id}</code> · {lastOrder.orderNumber} · status{' '}
-            {lastOrder.status}
-          </p>
-        )}
-        {apiError && <p style={{ color: 'crimson' }}>{apiError}</p>}
-      </section>
+          </Stack>
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Button variant="contained" onClick={onCreateOrder}>
+              Create order
+            </Button>
+            <Button variant="outlined" onClick={onMarkCompleted} disabled={!lastOrder}>
+              PATCH status → completed
+            </Button>
+          </Stack>
+          {lastOrder && (
+            <Typography variant="body2" sx={{ mt: 2 }}>
+              Last order: <code>{lastOrder._id}</code> · {lastOrder.orderNumber} · status{' '}
+              <Chip label={lastOrder.status} size="small" variant="outlined" />
+            </Typography>
+          )}
+          {apiError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {apiError}
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
 
-      <section style={sectionStyle}>
-        <h2 style={{ margin: '0 0 0.5rem' }}>
-          Messages <span style={{ fontWeight: 'normal', color: '#666' }}>(latest 50)</span>
-        </h2>
-        {messages.length === 0 ? (
-          <p style={{ color: '#666' }}>No messages yet.</p>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ textAlign: 'left', background: '#fafafa' }}>
-                <th style={{ padding: '0.35rem', borderBottom: '1px solid #eee' }}>Received</th>
-                <th style={{ padding: '0.35rem', borderBottom: '1px solid #eee' }}>Type</th>
-                <th style={{ padding: '0.35rem', borderBottom: '1px solid #eee' }}>Channel</th>
-                <th style={{ padding: '0.35rem', borderBottom: '1px solid #eee' }}>Payload</th>
-              </tr>
-            </thead>
-            <tbody>
-              {messages.map((entry, idx) => (
-                <tr key={`${entry.receivedAt}-${idx}`}>
-                  <td style={{ padding: '0.35rem', borderBottom: '1px solid #f2f2f2' }}>
-                    {entry.receivedAt}
-                  </td>
-                  <td style={{ padding: '0.35rem', borderBottom: '1px solid #f2f2f2' }}>
-                    <code>{entry.message.type}</code>
-                  </td>
-                  <td style={{ padding: '0.35rem', borderBottom: '1px solid #f2f2f2' }}>
-                    <code>{entry.message.channel ?? '-'}</code>
-                  </td>
-                  <td style={{ padding: '0.35rem', borderBottom: '1px solid #f2f2f2' }}>
-                    <code>{JSON.stringify(entry.message.payload)}</code>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-    </div>
+      <Card>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Messages{' '}
+            <Typography component="span" variant="caption" color="text.secondary">
+              (latest {MAX_MESSAGES})
+            </Typography>
+          </Typography>
+          {messages.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No messages yet.
+            </Typography>
+          ) : (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Received</TableCell>
+                    <TableCell>Type</TableCell>
+                    <TableCell>Channel</TableCell>
+                    <TableCell>Payload</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {messages.map((entry, idx) => (
+                    <TableRow key={`${entry.receivedAt}-${idx}`}>
+                      <TableCell>{entry.receivedAt}</TableCell>
+                      <TableCell>
+                        <code>{entry.message.type}</code>
+                      </TableCell>
+                      <TableCell>
+                        <code>{entry.message.channel ?? '-'}</code>
+                      </TableCell>
+                      <TableCell>
+                        <code>{JSON.stringify(entry.message.payload)}</code>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </CardContent>
+      </Card>
+    </Container>
   );
 }

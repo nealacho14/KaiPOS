@@ -6,6 +6,7 @@ import { originVerify } from './middleware/origin-verify.js';
 import { checkHealth } from './services/health.js';
 import authRoutes from './routes/auth.js';
 import usersRoutes from './routes/users.js';
+import kitchenStationsRoutes from './routes/kitchen-stations.js';
 import type { AppEnv } from './types.js';
 
 const app = new Hono<AppEnv>();
@@ -22,5 +23,6 @@ app.get('/api/health', async (c) => {
 
 app.route('/', authRoutes);
 app.route('/', usersRoutes);
+app.route('/', kitchenStationsRoutes);
 
 export default app;

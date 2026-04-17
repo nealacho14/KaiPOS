@@ -365,6 +365,17 @@ async function seedData(db: Db): Promise<void> {
   ].map((t) => ({ ...t, createdAt: now, updatedAt: now, createdBy: adminUserId }));
   await db.collection('tables').insertMany(tables);
   logger.info('  Seeded 6 tables');
+
+  await db.collection('kitchenStations').insertOne({
+    _id: 'station_seed_001' as never,
+    businessId,
+    branchId,
+    name: 'Cocina caliente',
+    createdAt: now,
+    updatedAt: now,
+    createdBy: adminUserId,
+  });
+  logger.info('  Seeded 1 kitchen station');
 }
 
 // ---------------------------------------------------------------------------

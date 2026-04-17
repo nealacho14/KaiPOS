@@ -250,6 +250,26 @@ const collections: CollectionSetup[] = [
     ],
   },
 
+  // ---- kitchenStations ----
+  {
+    name: 'kitchenStations',
+    validator: {
+      $jsonSchema: {
+        bsonType: 'object',
+        required: ['businessId', 'branchId', 'name', 'createdAt', 'updatedAt', 'createdBy'],
+        properties: {
+          businessId: { bsonType: 'string' },
+          branchId: { bsonType: 'string' },
+          name: { bsonType: 'string' },
+          createdAt: { bsonType: 'date' },
+          updatedAt: { bsonType: 'date' },
+          createdBy: { bsonType: 'string' },
+        },
+      },
+    },
+    indexes: [{ key: { businessId: 1, branchId: 1 } }],
+  },
+
   // ---- orders ----
   {
     name: 'orders',

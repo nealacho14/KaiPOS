@@ -1,7 +1,24 @@
 import type { MiddlewareHandler } from 'hono';
+import type { TokenPayload } from '@kaipos/shared/types';
 import { ForbiddenError } from '../lib/errors.js';
 import { hasPermission } from '../lib/permissions.js';
 import type { AppEnv } from '../types.js';
+
+/**
+ * Returns true when the actor may access `branchId`. Roles with
+ * `branches:manage` (admin, super_admin) bypass; others must have the
+ * branch in their token's `branchIds` cache.
+ */
+export function canAccessBranch(actor: TokenPayload, branchId: string): boolean {
+  if (hasPermission(actor.role, 'branches:manage')) return true;
+  return actor.branchIds?.includes(branchId) ?? false;
+}
+
+export function assertBranchAccess(actor: TokenPayload, branchId: string): void {
+  if (!canAccessBranch(actor, branchId)) {
+    throw new ForbiddenError('Access denied to this branch');
+  }
+}
 
 export function requireBranchAccess(paramName: string): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
@@ -15,15 +32,7 @@ export function requireBranchAccess(paramName: string): MiddlewareHandler<AppEnv
       throw new ForbiddenError('Branch ID is required');
     }
 
-    if (hasPermission(user.role, 'branches:manage')) {
-      await next();
-      return;
-    }
-
-    if (!user.branchIds?.includes(branchId)) {
-      throw new ForbiddenError('Access denied to this branch');
-    }
-
+    assertBranchAccess(user, branchId);
     await next();
   };
 }

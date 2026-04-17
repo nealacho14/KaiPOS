@@ -25,6 +25,7 @@ const collections: CollectionSetup[] = [
         bsonType: 'object',
         required: ['name', 'slug', 'isActive', 'createdAt', 'updatedAt'],
         properties: {
+          _id: { bsonType: 'string' },
           name: { bsonType: 'string' },
           slug: { bsonType: 'string' },
           address: { bsonType: 'string' },
@@ -47,6 +48,7 @@ const collections: CollectionSetup[] = [
         bsonType: 'object',
         required: ['businessId', 'name', 'isActive', 'createdAt', 'updatedAt', 'createdBy'],
         properties: {
+          _id: { bsonType: 'string' },
           businessId: { bsonType: 'string' },
           name: { bsonType: 'string' },
           address: { bsonType: 'string' },
@@ -82,6 +84,7 @@ const collections: CollectionSetup[] = [
           'createdBy',
         ],
         properties: {
+          _id: { bsonType: 'string' },
           businessId: { bsonType: 'string' },
           email: { bsonType: 'string' },
           name: { bsonType: 'string' },
@@ -122,6 +125,7 @@ const collections: CollectionSetup[] = [
           'createdBy',
         ],
         properties: {
+          _id: { bsonType: 'string' },
           businessId: { bsonType: 'string' },
           name: { bsonType: 'string' },
           description: { bsonType: 'string' },
@@ -159,6 +163,7 @@ const collections: CollectionSetup[] = [
           'createdBy',
         ],
         properties: {
+          _id: { bsonType: 'string' },
           businessId: { bsonType: 'string' },
           name: { bsonType: 'string' },
           description: { bsonType: 'string' },
@@ -195,6 +200,7 @@ const collections: CollectionSetup[] = [
           'createdBy',
         ],
         properties: {
+          _id: { bsonType: 'string' },
           businessId: { bsonType: 'string' },
           name: { bsonType: 'string' },
           options: {
@@ -234,6 +240,7 @@ const collections: CollectionSetup[] = [
           'createdBy',
         ],
         properties: {
+          _id: { bsonType: 'string' },
           branchId: { bsonType: 'string' },
           number: { bsonType: 'int' },
           capacity: { bsonType: 'int' },
@@ -258,6 +265,7 @@ const collections: CollectionSetup[] = [
         bsonType: 'object',
         required: ['businessId', 'branchId', 'name', 'createdAt', 'updatedAt', 'createdBy'],
         properties: {
+          _id: { bsonType: 'string' },
           businessId: { bsonType: 'string' },
           branchId: { bsonType: 'string' },
           name: { bsonType: 'string' },
@@ -291,6 +299,7 @@ const collections: CollectionSetup[] = [
           'createdBy',
         ],
         properties: {
+          _id: { bsonType: 'string' },
           businessId: { bsonType: 'string' },
           branchId: { bsonType: 'string' },
           orderNumber: { bsonType: 'string' },
@@ -331,6 +340,7 @@ const collections: CollectionSetup[] = [
           'createdBy',
         ],
         properties: {
+          _id: { bsonType: 'string' },
           businessId: { bsonType: 'string' },
           orderId: { bsonType: 'string' },
           amount: { bsonType: 'number' },
@@ -354,6 +364,7 @@ const collections: CollectionSetup[] = [
         bsonType: 'object',
         required: ['userId', 'token', 'expiresAt', 'createdAt'],
         properties: {
+          _id: { bsonType: 'string' },
           userId: { bsonType: 'string' },
           token: { bsonType: 'string' },
           expiresAt: { bsonType: 'date' },
@@ -375,6 +386,7 @@ const collections: CollectionSetup[] = [
         bsonType: 'object',
         required: ['email', 'attempts', 'lastAttemptAt'],
         properties: {
+          _id: { bsonType: 'string' },
           email: { bsonType: 'string' },
           attempts: { bsonType: 'int' },
           lockedUntil: { bsonType: ['date', 'null'] },
@@ -393,6 +405,7 @@ const collections: CollectionSetup[] = [
         bsonType: 'object',
         required: ['action', 'target', 'createdAt'],
         properties: {
+          _id: { bsonType: 'string' },
           businessId: { bsonType: 'string' },
           userId: { bsonType: 'string' },
           action: { enum: [...AUDIT_ACTIONS] },
@@ -419,6 +432,7 @@ const collections: CollectionSetup[] = [
         bsonType: 'object',
         required: ['userId', 'token', 'expiresAt', 'createdAt'],
         properties: {
+          _id: { bsonType: 'string' },
           userId: { bsonType: 'string' },
           token: { bsonType: 'string' },
           expiresAt: { bsonType: 'date' },

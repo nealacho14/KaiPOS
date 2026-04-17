@@ -27,6 +27,20 @@ function stripPasswordHash(user: User): SafeUser {
   return safe;
 }
 
+/**
+ * Defensive cast for `user._id`. The codebase convention is UUID strings
+ * (see `crypto.randomUUID()` on every insert), but records created
+ * out-of-band — e.g. manual Atlas inserts — can end up with a Mongo
+ * `ObjectId`. Downstream `$jsonSchema` validators require `createdBy`,
+ * `userId`, etc. to be `string`, and a serialized ObjectId in a JWT
+ * payload produces channel names like `user:[object Object]`. Calling
+ * `String()` is a no-op for strings and returns the 24-char hex form for
+ * ObjectIds.
+ */
+function idToString(id: unknown): string {
+  return typeof id === 'string' ? id : String(id);
+}
+
 export async function login(
   email: string,
   password: string,
@@ -51,6 +65,10 @@ export async function login(
     const updated = await loginAttempts.findOneAndUpdate(
       { email },
       {
+        // Convention: every collection uses a UUID-string `_id` (enforced by
+        // the `$jsonSchema` validator). On upsert, Mongo would otherwise
+        // auto-generate an ObjectId and fail validation.
+        $setOnInsert: { _id: crypto.randomUUID() },
         $inc: { attempts: 1 },
         $set: { lastAttemptAt: new Date() },
       },
@@ -77,8 +95,9 @@ export async function login(
   // Reset login attempts on success
   await loginAttempts.deleteOne({ email });
 
+  const userId = idToString(user._id);
   const payload: TokenPayload = {
-    userId: user._id,
+    userId,
     businessId: user.businessId,
     role: user.role,
     ...(user.branchIds !== undefined ? { branchIds: user.branchIds } : {}),
@@ -91,7 +110,7 @@ export async function login(
   const refreshTokens = await getRefreshTokensCollection();
   await refreshTokens.insertOne({
     _id: crypto.randomUUID(),
-    userId: user._id,
+    userId,
     token: refreshToken,
     expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000),
     createdAt: new Date(),
@@ -100,7 +119,7 @@ export async function login(
   logAuditEvent({
     action: 'login',
     target: email,
-    userId: user._id,
+    userId,
     businessId: user.businessId,
   });
 
@@ -133,8 +152,9 @@ export async function refresh(
   // Rotate: delete old, issue new
   await refreshTokens.deleteOne({ _id: stored._id });
 
+  const userId = idToString(user._id);
   const payload: TokenPayload = {
-    userId: user._id,
+    userId,
     businessId: user.businessId,
     role: user.role,
     ...(user.branchIds !== undefined ? { branchIds: user.branchIds } : {}),
@@ -145,7 +165,7 @@ export async function refresh(
 
   await refreshTokens.insertOne({
     _id: crypto.randomUUID(),
-    userId: user._id,
+    userId,
     token: newRefreshToken,
     expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000),
     createdAt: new Date(),
@@ -154,7 +174,7 @@ export async function refresh(
   logAuditEvent({
     action: 'token_refresh',
     target: user.email,
-    userId: user._id,
+    userId,
     businessId: user.businessId,
   });
 
@@ -185,10 +205,11 @@ export async function forgotPassword(email: string): Promise<void> {
 
   const token = crypto.randomUUID();
   const passwordResetTokens = await getPasswordResetTokensCollection();
+  const userId = idToString(user._id);
 
   await passwordResetTokens.insertOne({
     _id: crypto.randomUUID(),
-    userId: user._id,
+    userId,
     token,
     expiresAt: new Date(Date.now() + PASSWORD_RESET_TTL_HOURS * 60 * 60 * 1000),
     createdAt: new Date(),
@@ -200,7 +221,7 @@ export async function forgotPassword(email: string): Promise<void> {
   logAuditEvent({
     action: 'password_reset_request',
     target: email,
-    userId: user._id,
+    userId,
     businessId: user.businessId,
   });
 }

@@ -208,20 +208,25 @@ Cliente real que cumple el AC de re-suscripción tras reconexión y demo visual.
 
 ## QA Plan
 
-End-to-end contra prod desplegado (todos los AC del spec). Documentar resultados en el PR de Phase 5.
+End-to-end contra prod desplegado, ejecutado vía Playwright MCP + curl el 2026-04-17. Ver PR de QA Results para el detalle de cada corrida.
 
-- [ ] **Auth válida**: cliente conecta con JWT legítimo → recibe mensajes de sus canales default.
-- [ ] **Auth inválida**: conexión sin token / con token inválido / expirado → rechazada en el handshake (no hay item en DDB).
-- [ ] **Origin verify (prod)**: conexión sin el shared secret → rechazada con 403.
-- [ ] **Broadcast sucursal**: 3 clientes en sucursal A + 1 en sucursal B; PATCH de orden en A → los 3 de A reciben, el de B no.
-- [ ] **Aislamiento multi-tenant**: usuario de business X no recibe broadcasts emitidos en canales de business Y, incluso si conoce el nombre del canal.
-- [ ] **Multi-sucursal**: usuario con `branchIds = [A, B]` recibe mensajes tanto en canal de A como de B sin subscribe manual.
-- [ ] **Super_admin opt-in**: super_admin conecta → no recibe nada. Tras `subscribe business:<X>` → recibe broadcasts de X.
-- [ ] **Validación de subscribe**: cliente envía `subscribe branch:<ajeno>` → el server rechaza y mantiene la suscripción anterior.
-- [ ] **Reconexión**: cliente conectado con 2 canales dinámicos → corta red → reconecta → sigue recibiendo en los mismos 2 canales sin intervención.
-- [ ] **Order status demo**: crear orden → PATCH a `completed` → cliente suscrito al `branch:<id>` recibe `order.status-changed` en <500ms (medido).
-- [ ] **DM a usuario**: dos conexiones del mismo `userId` en dispositivos distintos → `publishToUser` llega a ambas.
-- [ ] **KitchenStation CRUD**: GET filtra por `branchId` y por `businessId`; POST gateado por permiso.
-- [ ] **Cleanup de conexiones muertas**: cortar un cliente abruptamente (sin $disconnect) → publish en su canal detecta `GoneException` y borra el item de DDB.
-- [ ] **TTL**: registro de conexión sobreviviente se purga automáticamente tras 2h sin tráfico.
-- [ ] **Deploy**: `pnpm deploy:prod` levanta el endpoint WSS sin intervención manual más allá de los secrets ya creados.
+- [x] **Auth válida**: cliente conecta con JWT legítimo → recibe mensajes de sus canales default.
+- [x] **Auth inválida**: conexión sin token / con token inválido / expirado → rechazada en el handshake (no hay item en DDB).
+- [x] **Broadcast sucursal**: 3 clientes en sucursal A + 1 en sucursal B; PATCH de orden en A → los 3 de A reciben, el de B no.
+- [x] **Aislamiento multi-tenant**: usuario de business X no recibe broadcasts emitidos en canales de business Y, incluso si conoce el nombre del canal. — Pass tras PR #41 (canales tenant-scoped). PR #42 además repara el manual subscribe en `getConnectionContext`.
+- [x] **Multi-sucursal**: usuario con `branchIds = [A, B]` recibe mensajes tanto en canal de A como de B sin subscribe manual.
+- [ ] **Super_admin opt-in**: super_admin conecta → no recibe nada. Tras `subscribe business:<X>` → recibe broadcasts de X. — **Skip por falta de user super_admin**. Tests unitarios de `canSubscribeTo` cubren la política (`packages/shared/src/types/websocket.test.ts`). Pendiente validación end-to-end cuando exista super_admin seedeado.
+- [x] **Validación de subscribe**: cliente envía `subscribe branch:<ajeno>` → el server rechaza y mantiene la suscripción anterior. — Pass tras PR #42.
+- [x] **Reconexión**: cliente conectado con 2 canales dinámicos → corta red → reconecta → sigue recibiendo en los mismos 2 canales sin intervención. — Pass vía Playwright MCP: socket cerrado abruptamente (code 4000) → status `reconnecting` → nuevo socket creado automáticamente → status `open` en 916ms.
+- [x] **Order status demo**: crear orden → PATCH a `completed` → cliente suscrito al `branch:<id>` recibe `order.status-changed` en <500ms (medido). — Pass vía Playwright MCP: latencia medida = 406ms (PATCH click → WS receive).
+- [ ] **DM a usuario**: dos conexiones del mismo `userId` en dispositivos distintos → `publishToUser` llega a ambas. — **Skip**: no hay endpoint público que dispare `publishToUser` hoy. Tests unitarios (`ws-publish.test.ts`) y la semántica de `publishToChannel` (canal `user:<userId>`) cubren la lógica. Validar end-to-end cuando haya un flow (notificaciones) que la ejercite.
+- [x] **KitchenStation CRUD**: GET filtra por `branchId` y por `businessId`; POST gateado por permiso. — Pass vía curl: GET con biz-001 retorna sus estaciones; GET con biz-002 retorna vacío; POST 201 crea con `createdBy` como UUID string; 400 sin branchId; 401 sin token.
+- [x] **Deploy**: `pnpm deploy:prod` levanta el endpoint WSS sin intervención manual más allá de los secrets ya creados. — Pass: CI deployó #36, #37, #38, #39, #40, #41, #42 vía `scripts/deploy-prod.sh` (two-phase: stacks → lee WebSocketEndpoint → build frontend con VITE_WS_ENDPOINT → deploy frontend).
+
+### Escenarios retirados del QA manual
+
+Los siguientes checks del QA Plan original quedaron fuera del scope de QA manual por motivos estructurales — cubiertos en cambio por tests unitarios y/o documentación:
+
+- ~~**Origin verify (prod)**~~ — **N/A por arquitectura**. El endpoint WSS bypasea CloudFront por diseño y los browsers no pueden setear headers custom en `new WebSocket(...)`, así que el `x-origin-verify` compartido del HTTP API no tiene ruta de entrega. Check descartado en PR #36 (`qa-fix-origin-verify`); `spec.md` y `CLAUDE.md` actualizados con la anotación inline. Seguridad del handshake queda en JWT + TLS, patrón estándar (Slack, Discord, Linear).
+- ~~**Cleanup de conexiones muertas**~~ — **Skip end-to-end**. Requiere inspección directa de la tabla DDB post-publish, no disponible desde browser. Cubierto por tests unitarios en `apps/backend/src/lib/ws-publish.test.ts` que mockean `GoneException` y verifican que `removeChannel` se llama inline.
+- ~~**TTL 2h**~~ — **Skip end-to-end** (no se puede esperar 2h). `addConnection` setea el attribute `ttl` a `Date.now()/1000 + 7200` (ver `apps/backend/src/lib/ws-connections.ts:52`); DDB TTL garbage-collects asincrónicamente una vez expirado. Cubierto por tests unitarios que verifican el atributo seteado en cada PutCommand.

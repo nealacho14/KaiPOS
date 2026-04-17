@@ -27,7 +27,7 @@ const DEFAULT_MAX_BACKOFF_MS = 30_000;
  * connectionId, which is gone).
  */
 export class WSClient {
-  private readonly endpoint: string;
+  private endpoint: string;
   private readonly initialBackoffMs: number;
   private readonly maxBackoffMs: number;
 
@@ -61,6 +61,15 @@ export class WSClient {
 
   get subscribedChannels(): WSChannel[] {
     return Array.from(this.subscriptions);
+  }
+
+  /**
+   * Updates the endpoint for the next `connect()` / reconnect attempt. Does
+   * not disturb an already-open socket — callers who want the change to take
+   * effect immediately should `disconnect()` and `connect()` again.
+   */
+  setEndpoint(endpoint: string): void {
+    this.endpoint = endpoint;
   }
 
   on<K extends keyof WSClientEventMap>(event: K, handler: Listener<K>): () => void {

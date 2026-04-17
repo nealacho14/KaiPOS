@@ -145,7 +145,14 @@ export interface User {
   createdBy: string;
 }
 
-export type UserRole = 'admin' | 'cashier' | 'manager';
+export type UserRole =
+  | 'super_admin'
+  | 'admin'
+  | 'manager'
+  | 'supervisor'
+  | 'cashier'
+  | 'waiter'
+  | 'kitchen';
 
 // ---------------------------------------------------------------------------
 // Auth types
@@ -195,18 +202,6 @@ export interface LoginResponse {
   user: Omit<User, 'passwordHash'>;
 }
 
-export interface RegisterRequest {
-  email: string;
-  password: string;
-  name: string;
-  role: UserRole;
-  branchIds?: string[];
-}
-
-export interface RegisterResponse {
-  user: Omit<User, 'passwordHash'>;
-}
-
 export interface RefreshRequest {
   refreshToken: string;
 }
@@ -236,7 +231,8 @@ export type AuditAction =
   | 'register'
   | 'password_reset_request'
   | 'password_reset_complete'
-  | 'token_refresh';
+  | 'token_refresh'
+  | 'authorization_failed';
 
 export interface AuditLog {
   _id: string;

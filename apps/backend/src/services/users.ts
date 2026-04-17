@@ -4,6 +4,7 @@ import { getUsersCollection } from '../db/collections.js';
 import { hashPassword } from '../lib/password.js';
 import { AppError, ForbiddenError, NotFoundError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
+import { SUPER_ADMIN_BUSINESS_ID } from '../lib/permissions.js';
 import type { CreateUserInput, ListUsersQuery, UpdateUserInput } from '../schemas/users.js';
 import { logAuditEvent } from './audit.js';
 
@@ -28,6 +29,23 @@ function buildScopeFilter(actor: TokenPayload, query?: ListUsersQuery): Filter<U
     return query?.businessId ? { businessId: query.businessId } : {};
   }
   return { businessId: actor.businessId };
+}
+
+function resolveTargetBusinessId(actor: TokenPayload, requested: string | undefined): string {
+  if (actor.role === 'super_admin') {
+    if (!requested) {
+      throw new AppError(
+        'super_admin must specify a target businessId',
+        400,
+        'MISSING_TARGET_BUSINESS_ID',
+      );
+    }
+    if (requested === SUPER_ADMIN_BUSINESS_ID) {
+      throw new AppError('Invalid target businessId', 400, 'INVALID_TARGET_BUSINESS_ID');
+    }
+    return requested;
+  }
+  return actor.businessId;
 }
 
 function assertManagerCanAssign(
@@ -81,7 +99,7 @@ export async function createUser(
 ): Promise<SafeUser> {
   assertManagerCanAssign(actor, data.role, context);
 
-  const targetBusinessId = actor.businessId;
+  const targetBusinessId = resolveTargetBusinessId(actor, data.businessId);
   const users = await getUsersCollection();
 
   const existing = await users.findOne({ email: data.email, businessId: targetBusinessId });

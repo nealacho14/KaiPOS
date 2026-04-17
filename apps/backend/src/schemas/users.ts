@@ -10,6 +10,7 @@ export const createUserSchema = z.object({
   name: z.string().min(1),
   role: z.enum(['super_admin', 'admin', 'manager', 'supervisor', 'cashier', 'waiter', 'kitchen']),
   branchIds: z.array(z.string()).optional(),
+  businessId: z.string().min(1).optional(),
 });
 
 export const updateUserSchema = z

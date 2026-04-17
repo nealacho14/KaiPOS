@@ -244,6 +244,82 @@ describe('users service', () => {
         ),
       ).rejects.toThrow('Managers cannot assign this role');
     });
+
+    it('super_admin must supply a target businessId', async () => {
+      await expect(
+        createUser(
+          superAdminPayload,
+          { email: 'new@test.com', password: 'password123', name: 'New', role: 'cashier' },
+          ctx,
+        ),
+      ).rejects.toMatchObject({ statusCode: 400, code: 'MISSING_TARGET_BUSINESS_ID' });
+      expect(mockUsersCollection.insertOne).not.toHaveBeenCalled();
+    });
+
+    it('super_admin creates a user in the specified target business', async () => {
+      mockUsersCollection.findOne.mockResolvedValue(null);
+      mockUsersCollection.insertOne.mockResolvedValue({});
+
+      const result = await createUser(
+        superAdminPayload,
+        {
+          email: 'new@test.com',
+          password: 'password123',
+          name: 'New',
+          role: 'admin',
+          businessId: 'biz-target',
+        },
+        ctx,
+      );
+
+      expect(result.businessId).toBe('biz-target');
+      expect(mockUsersCollection.findOne).toHaveBeenCalledWith({
+        email: 'new@test.com',
+        businessId: 'biz-target',
+      });
+      expect(mockUsersCollection.insertOne).toHaveBeenCalledWith(
+        expect.objectContaining({ businessId: 'biz-target' }),
+      );
+    });
+
+    it('super_admin cannot create with sentinel businessId "*"', async () => {
+      await expect(
+        createUser(
+          superAdminPayload,
+          {
+            email: 'new@test.com',
+            password: 'password123',
+            name: 'New',
+            role: 'admin',
+            businessId: '*',
+          },
+          ctx,
+        ),
+      ).rejects.toMatchObject({ statusCode: 400, code: 'INVALID_TARGET_BUSINESS_ID' });
+      expect(mockUsersCollection.insertOne).not.toHaveBeenCalled();
+    });
+
+    it('non-super_admin ignores businessId in body and uses actor.businessId', async () => {
+      mockUsersCollection.findOne.mockResolvedValue(null);
+      mockUsersCollection.insertOne.mockResolvedValue({});
+
+      const result = await createUser(
+        adminPayload,
+        {
+          email: 'new@test.com',
+          password: 'password123',
+          name: 'New',
+          role: 'cashier',
+          businessId: 'biz-other',
+        },
+        ctx,
+      );
+
+      expect(result.businessId).toBe('biz-1');
+      expect(mockUsersCollection.insertOne).toHaveBeenCalledWith(
+        expect.objectContaining({ businessId: 'biz-1' }),
+      );
+    });
   });
 
   describe('updateUser', () => {

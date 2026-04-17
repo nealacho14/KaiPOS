@@ -242,11 +242,17 @@ export async function getConnectionContext(
   const identity = out.find((row) => row.userId && row.businessId && row.role);
   if (!identity?.userId || !identity.businessId || !identity.role) return null;
 
+  // Branch channels are tenant-scoped (`branch:<businessId>:<branchId>`); strip
+  // the `branch:` prefix and the embedded `<businessId>:` to recover the bare
+  // branchId so `canSubscribeTo` can match it against the token's branchIds.
   const branchIds: string[] = [];
   for (const row of out) {
-    if (row.channel.startsWith('branch:')) {
-      branchIds.push(row.channel.slice('branch:'.length));
-    }
+    if (!row.channel.startsWith('branch:')) continue;
+    const rest = row.channel.slice('branch:'.length);
+    const sepIdx = rest.indexOf(':');
+    // Defensive: skip rows that don't conform to the tenant-scoped format.
+    if (sepIdx <= 0 || sepIdx === rest.length - 1) continue;
+    branchIds.push(rest.slice(sepIdx + 1));
   }
 
   return {

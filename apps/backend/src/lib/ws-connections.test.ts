@@ -227,13 +227,13 @@ describe('ws-connections', () => {
                 role: 'manager',
               },
               {
-                channel: 'branch:br-1',
+                channel: 'branch:biz-1:br-1',
                 userId: 'u-1',
                 businessId: 'biz-1',
                 role: 'manager',
               },
               {
-                channel: 'branch:br-2',
+                channel: 'branch:biz-1:br-2',
                 userId: 'u-1',
                 businessId: 'biz-1',
                 role: 'manager',

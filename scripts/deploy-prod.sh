@@ -18,6 +18,14 @@ WS_OUTPUT_KEY="WebSocketEndpoint"
 echo "==> Phase 1/2: backend build + backend-side stacks"
 pnpm --filter @kaipos/backend build
 
+# CDK synths every stack in the app before deploying any, including
+# `FrontendStack`, whose `BucketDeployment` asset source is
+# `apps/frontend-admin/dist`. That directory doesn't exist yet in phase 1, so
+# synth would fail with `CannotFindAsset`. Stub it out — the BucketDeployment
+# only actually runs in phase 2, which rebuilds `dist` with the real bundle.
+mkdir -p apps/frontend-admin/dist
+touch apps/frontend-admin/dist/.placeholder
+
 # Deploying `kaipos-prod-api` also deploys its deps (secrets, assets,
 # websocket) via CDK's implicit dependency resolution. `kaipos-prod-github-oidc`
 # isn't a dep so include it explicitly.

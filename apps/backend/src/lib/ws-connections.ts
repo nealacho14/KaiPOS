@@ -5,6 +5,7 @@ import {
   DeleteCommand,
   PutCommand,
   QueryCommand,
+  type BatchWriteCommandInput,
 } from '@aws-sdk/lib-dynamodb';
 import type { TokenPayload, WSChannel } from '@kaipos/shared/types';
 
@@ -13,6 +14,11 @@ export const CONNECTION_TTL_SECONDS = 2 * 60 * 60;
 
 // DDB BatchWrite caps at 25 requests per call.
 const BATCH_WRITE_LIMIT = 25;
+
+// Retry budget for UnprocessedItems (throttling / partial failure). Small and
+// exponentially backed off so we don't stall the Lambda.
+const BATCH_WRITE_MAX_RETRIES = 3;
+const BATCH_WRITE_BASE_DELAY_MS = 50;
 
 export interface ConnectionItem {
   connectionId: string;
@@ -61,11 +67,44 @@ function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Sends a BatchWrite and retries `UnprocessedItems` with exponential backoff.
+ * Throws if any items remain unprocessed after the retry budget is exhausted so
+ * the caller can decide whether to abort the connection rather than silently
+ * operating with a partial subscription set.
+ */
+async function sendBatchWithRetry(
+  client: DynamoDBDocumentClient,
+  table: string,
+  requests: NonNullable<BatchWriteCommandInput['RequestItems']>[string],
+): Promise<void> {
+  let pending = requests;
+  for (let attempt = 0; attempt <= BATCH_WRITE_MAX_RETRIES; attempt += 1) {
+    const res = await client.send(new BatchWriteCommand({ RequestItems: { [table]: pending } }));
+    const unprocessed = res.UnprocessedItems?.[table];
+    if (!unprocessed || unprocessed.length === 0) return;
+    pending = unprocessed;
+    if (attempt < BATCH_WRITE_MAX_RETRIES) {
+      await sleep(BATCH_WRITE_BASE_DELAY_MS * 2 ** attempt);
+    }
+  }
+  throw new Error(
+    `DynamoDB BatchWrite left ${pending.length} unprocessed item(s) after ${
+      BATCH_WRITE_MAX_RETRIES + 1
+    } attempts`,
+  );
+}
+
 /**
  * Writes one row per channel for a freshly connected client. Batched to respect
- * the 25-item cap; unprocessed items after retries are surfaced so the caller
- * can log — we don't retry silently because the caller may prefer to tear down
- * the whole connection rather than operate with a partial subscription set.
+ * the 25-item cap. Under throttling, `UnprocessedItems` are retried with
+ * exponential backoff; if the retry budget is exhausted this throws so the
+ * caller can tear down the connection rather than operate with a partial
+ * subscription set.
  */
 export async function addConnection(
   connectionId: string,
@@ -88,12 +127,10 @@ export async function addConnection(
   const client = getDocClient();
 
   for (const batch of chunk(items, BATCH_WRITE_LIMIT)) {
-    await client.send(
-      new BatchWriteCommand({
-        RequestItems: {
-          [table]: batch.map((Item) => ({ PutRequest: { Item } })),
-        },
-      }),
+    await sendBatchWithRetry(
+      client,
+      table,
+      batch.map((Item) => ({ PutRequest: { Item } })),
     );
   }
 }
@@ -263,14 +300,12 @@ export async function removeConnection(connectionId: string): Promise<void> {
   const client = getDocClient();
 
   for (const batch of chunk(channels, BATCH_WRITE_LIMIT)) {
-    await client.send(
-      new BatchWriteCommand({
-        RequestItems: {
-          [table]: batch.map((channel) => ({
-            DeleteRequest: { Key: { connectionId, channel } },
-          })),
-        },
-      }),
+    await sendBatchWithRetry(
+      client,
+      table,
+      batch.map((channel) => ({
+        DeleteRequest: { Key: { connectionId, channel } },
+      })),
     );
   }
 }

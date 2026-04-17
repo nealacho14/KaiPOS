@@ -34,7 +34,6 @@ const assets = new AssetsStack(app, `${prefix}-assets`, { env, config });
 const ws = new WebSocketStack(app, `${prefix}-websocket`, {
   env,
   config,
-  mongoSecret: secrets.mongoSecret,
   jwtSecret: secrets.jwtSecret,
 });
 

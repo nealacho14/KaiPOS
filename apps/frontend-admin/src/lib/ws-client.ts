@@ -4,7 +4,6 @@ export type WSClientStatus = 'idle' | 'connecting' | 'open' | 'closed' | 'reconn
 
 export interface WSClientOptions {
   endpoint: string;
-  originSecret?: string;
   initialBackoffMs?: number;
   maxBackoffMs?: number;
 }
@@ -29,7 +28,6 @@ const DEFAULT_MAX_BACKOFF_MS = 30_000;
  */
 export class WSClient {
   private readonly endpoint: string;
-  private readonly originSecret: string | undefined;
   private readonly initialBackoffMs: number;
   private readonly maxBackoffMs: number;
 
@@ -53,7 +51,6 @@ export class WSClient {
 
   constructor(options: WSClientOptions) {
     this.endpoint = options.endpoint;
-    this.originSecret = options.originSecret;
     this.initialBackoffMs = options.initialBackoffMs ?? DEFAULT_INITIAL_BACKOFF_MS;
     this.maxBackoffMs = options.maxBackoffMs ?? DEFAULT_MAX_BACKOFF_MS;
   }
@@ -123,7 +120,6 @@ export class WSClient {
     }
     const sep = this.endpoint.includes('?') ? '&' : '?';
     const params = new URLSearchParams({ token: this.token });
-    if (this.originSecret) params.set('originSecret', this.originSecret);
     return `${this.endpoint}${sep}${params.toString()}`;
   }
 

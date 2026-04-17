@@ -10,7 +10,6 @@ import type { StageConfig } from './config.js';
 
 interface WebSocketStackProps extends cdk.StackProps {
   config: StageConfig;
-  mongoSecret: secretsmanager.ISecret;
   jwtSecret: secretsmanager.ISecret;
 }
 
@@ -22,7 +21,7 @@ export class WebSocketStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: WebSocketStackProps) {
     super(scope, id, props);
 
-    const { config, mongoSecret, jwtSecret } = props;
+    const { config, jwtSecret } = props;
 
     // Connections table. PK=connectionId, SK=channel so a single connection can
     // carry multiple rows (one per channel) and fan-out is a GSI query by channel.
@@ -47,9 +46,10 @@ export class WebSocketStack extends cdk.Stack {
       nonKeyAttributes: ['userId'],
     });
 
+    // WS handlers don't use MongoDB — only the api Lambda does. Keep the WS
+    // Lambdas scoped to JWT + DDB + the management API to respect least privilege.
     const baseEnvironment: Record<string, string> = {
       NODE_ENV: config.stage,
-      MONGO_SECRET_ARN: mongoSecret.secretArn,
       JWT_SECRET_ARN: jwtSecret.secretArn,
       CLOUDFRONT_SECRET: config.cloudfrontSecret,
       CONNECTIONS_TABLE_NAME: this.connectionsTable.tableName,
@@ -91,8 +91,8 @@ export class WebSocketStack extends cdk.Stack {
     this.connectionsTable.grantReadWriteData(wsDisconnectFn);
     this.connectionsTable.grantReadWriteData(wsDefaultFn);
 
-    mongoSecret.grantRead(wsConnectFn);
-    mongoSecret.grantRead(wsDefaultFn);
+    // Only handlers that verify JWTs need the secret. $disconnect is triggered
+    // by API Gateway without a token.
     jwtSecret.grantRead(wsConnectFn);
     jwtSecret.grantRead(wsDefaultFn);
 
@@ -124,9 +124,9 @@ export class WebSocketStack extends cdk.Stack {
 
     // Inject the management endpoint so the default handler can DM the caller.
     // callbackUrl is the HTTPS management URL (wss://... is the client-facing URL).
+    // Only $default and the api Lambda (see api-stack) PostToConnection; $connect
+    // and $disconnect never talk back to clients.
     const managementEndpoint = this.webSocketStage.callbackUrl;
-    wsConnectFn.addEnvironment('WS_API_ENDPOINT', managementEndpoint);
-    wsDisconnectFn.addEnvironment('WS_API_ENDPOINT', managementEndpoint);
     wsDefaultFn.addEnvironment('WS_API_ENDPOINT', managementEndpoint);
 
     new cdk.CfnOutput(this, 'WebSocketEndpoint', {

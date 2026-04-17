@@ -24,8 +24,21 @@ interface StubClient {
   send: ReturnType<typeof vi.fn>;
 }
 
-function makeClient(queryResults: Record<string, unknown[][]> = {}): StubClient {
+interface BatchWriteSequenceEntry {
+  unprocessed: unknown[];
+}
+
+interface MakeClientOptions {
+  queryResults?: Record<string, unknown[][]>;
+  // Responses returned from successive BatchWriteCommand calls. Each entry lists
+  // the items to surface back as UnprocessedItems (empty array = all processed).
+  batchWriteResponses?: BatchWriteSequenceEntry[];
+}
+
+function makeClient(options: MakeClientOptions = {}): StubClient {
+  const { queryResults = {}, batchWriteResponses } = options;
   const queryCallsByKey: Record<string, number> = {};
+  let batchWriteCallIndex = 0;
 
   const send = vi.fn(async (cmd: Command) => {
     const name = cmd.constructor.name;
@@ -36,6 +49,16 @@ function makeClient(queryResults: Record<string, unknown[][]> = {}): StubClient 
       const results = queryResults[key] ?? [[]];
       const idx = Math.min(queryCallsByKey[key] - 1, results.length - 1);
       return { Items: results[idx] };
+    }
+    if (name === 'BatchWriteCommand' && batchWriteResponses) {
+      const b = cmd as BatchWriteCommand;
+      const tableName = Object.keys(b.input.RequestItems ?? {})[0] ?? '';
+      const entry =
+        batchWriteResponses[Math.min(batchWriteCallIndex, batchWriteResponses.length - 1)];
+      batchWriteCallIndex += 1;
+      if (entry && entry.unprocessed.length > 0) {
+        return { UnprocessedItems: { [tableName]: entry.unprocessed } };
+      }
     }
     return {};
   });
@@ -107,6 +130,37 @@ describe('ws-connections', () => {
       await addConnection('conn-1', token, []);
       expect(client.send).not.toHaveBeenCalled();
     });
+
+    it('retries UnprocessedItems and succeeds when DDB eventually drains them', async () => {
+      const unprocessed = [
+        { PutRequest: { Item: { connectionId: 'conn-1', channel: 'user:u-1' } } },
+      ];
+      const client = makeClient({
+        batchWriteResponses: [{ unprocessed }, { unprocessed: [] }],
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      __setDocClientForTests(client as any);
+
+      await addConnection('conn-1', token, ['user:u-1']);
+      expect(client.send).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws when UnprocessedItems persist past the retry budget', async () => {
+      const unprocessed = [
+        { PutRequest: { Item: { connectionId: 'conn-1', channel: 'user:u-1' } } },
+      ];
+      // Budget is MAX_RETRIES + 1 = 4 attempts, all returning unprocessed.
+      const client = makeClient({
+        batchWriteResponses: Array.from({ length: 4 }, () => ({ unprocessed })),
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      __setDocClientForTests(client as any);
+
+      await expect(addConnection('conn-1', token, ['user:u-1'])).rejects.toThrow(
+        /unprocessed item/i,
+      );
+      expect(client.send).toHaveBeenCalledTimes(4);
+    });
   });
 
   describe('addChannel / removeChannel', () => {
@@ -144,7 +198,7 @@ describe('ws-connections', () => {
   describe('getChannelsForConnection', () => {
     it('returns every channel row for the connection', async () => {
       const client = makeClient({
-        primary: [[{ channel: 'user:u-1' }, { channel: 'branch:br-1' }]],
+        queryResults: { primary: [[{ channel: 'user:u-1' }, { channel: 'branch:br-1' }]] },
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       __setDocClientForTests(client as any);
@@ -157,34 +211,36 @@ describe('ws-connections', () => {
   describe('getConnectionContext', () => {
     it('reconstructs identity and branchIds from rows', async () => {
       const client = makeClient({
-        primary: [
-          [
-            {
-              channel: 'user:u-1',
-              userId: 'u-1',
-              businessId: 'biz-1',
-              role: 'manager',
-            },
-            {
-              channel: 'business:biz-1',
-              userId: 'u-1',
-              businessId: 'biz-1',
-              role: 'manager',
-            },
-            {
-              channel: 'branch:br-1',
-              userId: 'u-1',
-              businessId: 'biz-1',
-              role: 'manager',
-            },
-            {
-              channel: 'branch:br-2',
-              userId: 'u-1',
-              businessId: 'biz-1',
-              role: 'manager',
-            },
+        queryResults: {
+          primary: [
+            [
+              {
+                channel: 'user:u-1',
+                userId: 'u-1',
+                businessId: 'biz-1',
+                role: 'manager',
+              },
+              {
+                channel: 'business:biz-1',
+                userId: 'u-1',
+                businessId: 'biz-1',
+                role: 'manager',
+              },
+              {
+                channel: 'branch:br-1',
+                userId: 'u-1',
+                businessId: 'biz-1',
+                role: 'manager',
+              },
+              {
+                channel: 'branch:br-2',
+                userId: 'u-1',
+                businessId: 'biz-1',
+                role: 'manager',
+              },
+            ],
           ],
-        ],
+        },
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       __setDocClientForTests(client as any);
@@ -198,7 +254,7 @@ describe('ws-connections', () => {
     });
 
     it('returns null when no rows exist', async () => {
-      const client = makeClient({ primary: [[]] });
+      const client = makeClient({ queryResults: { primary: [[]] } });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       __setDocClientForTests(client as any);
 
@@ -210,12 +266,14 @@ describe('ws-connections', () => {
   describe('getConnectionsForChannel', () => {
     it('queries the GSI and projects connectionId + userId', async () => {
       const client = makeClient({
-        'channel-index': [
-          [
-            { connectionId: 'conn-1', userId: 'u-1' },
-            { connectionId: 'conn-2', userId: 'u-2' },
+        queryResults: {
+          'channel-index': [
+            [
+              { connectionId: 'conn-1', userId: 'u-1' },
+              { connectionId: 'conn-2', userId: 'u-2' },
+            ],
           ],
-        ],
+        },
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       __setDocClientForTests(client as any);
@@ -234,7 +292,7 @@ describe('ws-connections', () => {
   describe('removeConnection', () => {
     it('deletes every channel row for the connection', async () => {
       const client = makeClient({
-        primary: [[{ channel: 'user:u-1' }, { channel: 'branch:br-1' }]],
+        queryResults: { primary: [[{ channel: 'user:u-1' }, { channel: 'branch:br-1' }]] },
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       __setDocClientForTests(client as any);
@@ -257,7 +315,7 @@ describe('ws-connections', () => {
     });
 
     it('is a no-op when no rows exist', async () => {
-      const client = makeClient({ primary: [[]] });
+      const client = makeClient({ queryResults: { primary: [[]] } });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       __setDocClientForTests(client as any);
 

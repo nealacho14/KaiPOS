@@ -73,13 +73,12 @@ describe('WSClient', () => {
     vi.useRealTimers();
   });
 
-  it('appends token and optional origin secret as query params', () => {
-    const client = new WSClient({ endpoint: 'wss://example/prod', originSecret: 'secret-xyz' });
+  it('appends the token as a query param', () => {
+    const client = new WSClient({ endpoint: 'wss://example/prod' });
     client.connect('jwt-token');
     const url = MockWebSocket.instances[0]!.url;
     expect(url).toContain('wss://example/prod?');
     expect(url).toContain('token=jwt-token');
-    expect(url).toContain('originSecret=secret-xyz');
   });
 
   it('reports status transitions and emits message envelopes', () => {

@@ -70,10 +70,10 @@ export class ApiStack extends cdk.Stack {
     webSocketStage.grantManagementApiAccess(apiFunction);
 
     // Narrow DDB grants: the API Lambda only needs to read the channel-index
-    // and delete stale rows detected via GoneException — no bulk writes.
+    // and delete stale rows detected via GoneException — no writes.
     apiFunction.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ['dynamodb:Query', 'dynamodb:UpdateItem', 'dynamodb:DeleteItem'],
+        actions: ['dynamodb:Query', 'dynamodb:DeleteItem'],
         resources: [connectionsTable.tableArn, `${connectionsTable.tableArn}/index/*`],
       }),
     );

@@ -1,6 +1,18 @@
-import { useEffect, useState } from 'react';
 import type { ApiResponse } from '@kaipos/shared';
 import { API_VERSION } from '@kaipos/shared';
+import {
+  Alert,
+  Box,
+  Chip,
+  CircularProgress,
+  ColorSchemeToggle,
+  Container,
+  KaiPOSLogo,
+  Link,
+  Stack,
+  Typography,
+} from '@kaipos/ui';
+import { useEffect, useState } from 'react';
 import { DebugWebSocket } from './pages/DebugWebSocket.js';
 
 interface HealthData {
@@ -28,8 +40,6 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    // Same-origin: in dev, Vite proxies /api to the backend; in prod,
-    // CloudFront proxies /api/* to API Gateway. No CORS, no absolute URL.
     fetch('/api/health')
       .then((res) => res.json())
       .then((data: ApiResponse<HealthData>) => {
@@ -45,22 +55,74 @@ export function App() {
   }
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
-      <h1>KaiPOS Admin</h1>
-      <p>Version: {API_VERSION}</p>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      {health && (
-        <div>
-          <p>API Status: {health.service}</p>
-          <p>Database: {health.database}</p>
-          {health.databaseError && <p style={{ color: 'red' }}>DB Error: {health.databaseError}</p>}
-          <p>Timestamp: {health.timestamp}</p>
-        </div>
+    <Container maxWidth="md" sx={{ py: 4 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <KaiPOSLogo variant="horizontal" size="md" />
+          <Typography variant="overline" color="text.secondary">
+            Admin
+          </Typography>
+        </Stack>
+        <ColorSchemeToggle />
+      </Stack>
+
+      <Typography
+        component="h1"
+        sx={{
+          position: 'absolute',
+          width: 1,
+          height: 1,
+          padding: 0,
+          margin: -1,
+          overflow: 'hidden',
+          clip: 'rect(0, 0, 0, 0)',
+          whiteSpace: 'nowrap',
+          border: 0,
+        }}
+      >
+        KaiPOS Admin
+      </Typography>
+
+      <Typography variant="body2" color="text.secondary" gutterBottom>
+        Version: {API_VERSION}
+      </Typography>
+
+      {error && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
       )}
-      {!health && !error && <p>Loading...</p>}
-      <p style={{ marginTop: '1.5rem', color: '#666' }}>
-        Debug tools: <a href="#/debug/ws">WebSocket</a>
-      </p>
-    </div>
+
+      {health && (
+        <Stack spacing={1} sx={{ mt: 2 }}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="body1">API Status: {health.service}</Typography>
+            <Chip
+              label={health.database}
+              size="small"
+              color={health.database === 'connected' ? 'success' : 'error'}
+            />
+          </Stack>
+          <Typography variant="body1">Database: {health.database}</Typography>
+          {health.databaseError && <Alert severity="error">DB Error: {health.databaseError}</Alert>}
+          <Typography variant="caption" color="text.secondary">
+            Timestamp: {health.timestamp}
+          </Typography>
+        </Stack>
+      )}
+
+      {!health && !error && (
+        <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CircularProgress size={16} />
+          <Typography variant="body2" color="text.secondary">
+            Loading...
+          </Typography>
+        </Box>
+      )}
+
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 3 }}>
+        Debug tools: <Link href="#/debug/ws">WebSocket</Link>
+      </Typography>
+    </Container>
   );
 }

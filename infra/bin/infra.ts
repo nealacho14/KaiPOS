@@ -31,19 +31,21 @@ new GithubOidcStack(app, `${prefix}-github-oidc`, {
 const secrets = new SecretsStack(app, `${prefix}-secrets`, { env, config });
 const assets = new AssetsStack(app, `${prefix}-assets`, { env, config });
 
+const ws = new WebSocketStack(app, `${prefix}-websocket`, {
+  env,
+  config,
+  mongoSecret: secrets.mongoSecret,
+  jwtSecret: secrets.jwtSecret,
+});
+
 const api = new ApiStack(app, `${prefix}-api`, {
   env,
   config,
   mongoSecret: secrets.mongoSecret,
   jwtSecret: secrets.jwtSecret,
   assetsBucket: assets.assetsBucket,
-});
-
-new WebSocketStack(app, `${prefix}-websocket`, {
-  env,
-  config,
-  mongoSecret: secrets.mongoSecret,
-  jwtSecret: secrets.jwtSecret,
+  webSocketStage: ws.webSocketStage,
+  connectionsTable: ws.connectionsTable,
 });
 
 new FrontendStack(app, `${prefix}-frontend`, {

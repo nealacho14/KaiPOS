@@ -116,12 +116,12 @@ Ships the first consumer of `requirePermission` and proves end-to-end behavior.
 
 **Schemas & service**
 
-- [ ] Create `apps/backend/src/schemas/users.ts` with Zod schemas:
+- [x] Create `apps/backend/src/schemas/users.ts` with Zod schemas:
   - `listUsersQuerySchema`: `{ businessId?: string }` (only honored for `super_admin`).
   - `createUserSchema`: same shape as today's `registerSchema` (`email`, `password` ≥ 8, `name`, `role` in new enum, `branchIds?`).
   - `updateUserSchema`: `{ name?, role?, branchIds?, isActive? }` — all optional, at least one key required (`z.object({...}).refine(...)`).
   - `userIdParamSchema`: `{ id: z.string().uuid() }`.
-- [ ] Create `apps/backend/src/services/users.ts` with pure service functions that accept the acting `TokenPayload`:
+- [x] Create `apps/backend/src/services/users.ts` with pure service functions that accept the acting `TokenPayload`:
   - `listUsers(actor, query) → SafeUser[]` — builds Mongo filter:
     - `super_admin` + no query filter → no `businessId` filter.
     - `super_admin` + `query.businessId` → filter by that id.
@@ -131,7 +131,7 @@ Ships the first consumer of `requirePermission` and proves end-to-end behavior.
   - `updateUser(actor, id, patch) → SafeUser` — same scoping as `getUserById`; enforces manager role-boundary against **both** existing target role and any incoming `patch.role`; strips `passwordHash`/`businessId`/`_id`/`createdAt`/`createdBy` from patch; `updatedAt = new Date()`.
   - `deactivateUser(actor, id) → SafeUser` — sets `isActive = false` (idempotent). Same scoping. Prevents an actor from deactivating themselves (`ForbiddenError` with code `CANNOT_DEACTIVATE_SELF`). If user already inactive → still 200 with current state.
   - All "not found in scope" paths throw `NotFoundError('User')` → 404 (so cross-tenant access looks indistinguishable from non-existence).
-- [ ] Create `apps/backend/src/services/users.test.ts` covering the five service functions:
+- [x] Create `apps/backend/src/services/users.test.ts` covering the five service functions:
   - Mongo collection mocked via `vi.mock('../db/collections.js', …)` (follow `services/auth.test.ts` pattern).
   - Matrix: actor = admin vs. super_admin vs. manager vs. cashier; target in-business vs. cross-business.
   - Manager role-boundary: create/update with target role `admin` or `manager` → `ForbiddenError`.
@@ -140,14 +140,14 @@ Ships the first consumer of `requirePermission` and proves end-to-end behavior.
 
 **Routes & wiring**
 
-- [ ] Create `apps/backend/src/routes/users.ts` (`const users = new Hono<AppEnv>()`) with:
+- [x] Create `apps/backend/src/routes/users.ts` (`const users = new Hono<AppEnv>()`) with:
   - `GET /api/users` → `requireAuth()`, `requirePermission('users:read')`, `validate({ query: listUsersQuerySchema })`, `usersService.listUsers(user!, c.req.query())`.
   - `GET /api/users/:id` → `requireAuth()`, `requirePermission('users:read')`, `validate({ param: userIdParamSchema })`, `usersService.getUserById(user!, id)`.
   - `POST /api/users` → `requireAuth()`, `requirePermission('users:write')`, `validate({ body: createUserSchema })`, `usersService.createUser(user!, body)` → 201.
   - `PATCH /api/users/:id` → `requireAuth()`, `requirePermission('users:write')`, `validate({ param, body: updateUserSchema })`, `usersService.updateUser(user!, id, body)`.
   - `DELETE /api/users/:id` → `requireAuth()`, `requirePermission('users:delete')`, `validate({ param })`, `usersService.deactivateUser(user!, id)` → 200 with updated user.
-- [ ] Wire in `apps/backend/src/app.ts`: `app.route('/', usersRoutes)` after `authRoutes`.
-- [ ] Create `apps/backend/src/routes/users.test.ts` using `app.request()` (Hono's fetch-in-process harness). Cover acceptance criteria:
+- [x] Wire in `apps/backend/src/app.ts`: `app.route('/', usersRoutes)` after `authRoutes`.
+- [x] Create `apps/backend/src/routes/users.test.ts` using `app.request()` (Hono's fetch-in-process harness). Cover acceptance criteria:
   - 401 when no token.
   - 403 + `authorization_failed` audit emission when cashier hits `GET /api/users`.
   - admin can list/get/create/patch/delete in own business.
@@ -159,30 +159,30 @@ Ships the first consumer of `requirePermission` and proves end-to-end behavior.
 
 **Retire `/auth/register`**
 
-- [ ] Remove the `POST /api/auth/register` route from `apps/backend/src/routes/auth.ts`.
-- [ ] Remove `registerSchema` and the `RegisterRequest`/`RegisterResponse` types (keep if the frontend imports them — verify with `pnpm grep "RegisterRequest\|RegisterResponse"`; currently unused by frontend). Delete if unused.
-- [ ] Remove `register` function from `apps/backend/src/services/auth.ts` (and from `auth.test.ts` / `auth.audit.test.ts` — port relevant assertions to `users.test.ts` if they check behavior not already covered there).
+- [x] Remove the `POST /api/auth/register` route from `apps/backend/src/routes/auth.ts`.
+- [x] Remove `registerSchema` and the `RegisterRequest`/`RegisterResponse` types (keep if the frontend imports them — verify with `pnpm grep "RegisterRequest\|RegisterResponse"`; currently unused by frontend). Delete if unused.
+- [x] Remove `register` function from `apps/backend/src/services/auth.ts` (and from `auth.test.ts` / `auth.audit.test.ts` — port relevant assertions to `users.test.ts` if they check behavior not already covered there).
 
 **Docs**
 
-- [ ] Update `CLAUDE.md`: remove the line "No test files exist in the backend yet" from the "Commands" section.
-- [ ] Add a short "RBAC" subsection under "Backend Pattern" in `CLAUDE.md` describing: roles, where the permission map lives (`apps/backend/src/lib/permissions.ts`), `requirePermission` middleware usage, and the `super_admin` bypass sentinel.
+- [x] Update `CLAUDE.md`: remove the line "No test files exist in the backend yet" from the "Commands" section.
+- [x] Add a short "RBAC" subsection under "Backend Pattern" in `CLAUDE.md` describing: roles, where the permission map lives (`apps/backend/src/lib/permissions.ts`), `requirePermission` middleware usage, and the `super_admin` bypass sentinel.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm --filter @kaipos/backend test` passes (all services + route tests green)
-- [ ] Manual: spin up `pnpm docker:up`; exercise with curl:
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm --filter @kaipos/backend test` passes (all services + route tests green)
+- [x] Manual: spin up `pnpm docker:up`; exercise with curl:
   - Login as `admin@lacocinadekai.com` → get access token.
   - `GET /api/users` with admin token → lists La Cocina de Kai users.
   - `GET /api/users` with cashier token → `403` and a new `auditLogs` row with `action='authorization_failed'` and `metadata.permission='users:read'`.
   - `POST /api/users` with admin token to create a `manager` → 201.
   - `PATCH /api/users/:id` with admin token to rename → 200.
   - `DELETE /api/users/:id` with admin token → 200; subsequent login for that email fails with "Account is deactivated".
-- [ ] Manual: confirm `POST /api/auth/register` now returns 404 (route removed).
+- [x] Manual: confirm `POST /api/auth/register` now returns 404 (route removed).
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 

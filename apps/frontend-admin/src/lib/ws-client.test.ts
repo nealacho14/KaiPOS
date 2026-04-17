@@ -81,6 +81,15 @@ describe('WSClient', () => {
     expect(url).toContain('token=jwt-token');
   });
 
+  it('uses the latest endpoint set via setEndpoint() on the next connect', () => {
+    const client = new WSClient({ endpoint: '' });
+    client.setEndpoint('wss://override/prod');
+    client.connect('jwt-token');
+    const url = MockWebSocket.instances[0]!.url;
+    expect(url).toContain('wss://override/prod?');
+    expect(url).toContain('token=jwt-token');
+  });
+
   it('reports status transitions and emits message envelopes', () => {
     const client = new WSClient({ endpoint: 'wss://example/prod' });
     const statusSpy = vi.fn();

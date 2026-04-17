@@ -23,6 +23,14 @@ export function useWebSocket(options: WSClientOptions): UseWebSocketResult {
     client.subscribedChannels,
   );
 
+  // Keep the WSClient's endpoint in sync with the prop so that an interactive
+  // override (e.g. typing a new wss:// URL into the debug page) takes effect
+  // on the next connect. Without this, the endpoint captured at first render
+  // is frozen and silently overrides the input.
+  useEffect(() => {
+    client.setEndpoint(options.endpoint);
+  }, [client, options.endpoint]);
+
   useEffect(() => {
     const offStatus = client.on('status', (next) => {
       setStatus(next);

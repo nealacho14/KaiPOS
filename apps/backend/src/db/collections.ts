@@ -5,6 +5,7 @@ import type {
   Category,
   Modifier,
   Table,
+  KitchenStation,
   Transaction,
   Product,
   Order,
@@ -39,6 +40,11 @@ export async function getModifiersCollection(): Promise<Collection<Modifier>> {
 export async function getTablesCollection(): Promise<Collection<Table>> {
   const db = await getDb();
   return db.collection<Table>('tables');
+}
+
+export async function getKitchenStationsCollection(): Promise<Collection<KitchenStation>> {
+  const db = await getDb();
+  return db.collection<KitchenStation>('kitchenStations');
 }
 
 export async function getTransactionsCollection(): Promise<Collection<Transaction>> {

@@ -12,8 +12,11 @@
     "db:seed": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/seed.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.693.0",
+    "@aws-sdk/client-dynamodb": "^3.693.0",
     "@aws-sdk/client-secrets-manager": "^3.693.0",
     "@aws-sdk/client-ses": "^3.1030.0",
+    "@aws-sdk/lib-dynamodb": "^3.693.0",
     "@hono/node-server": "^1.19.12",
     "@kaipos/shared": "workspace:*",
     "bcryptjs": "^3.0.3",

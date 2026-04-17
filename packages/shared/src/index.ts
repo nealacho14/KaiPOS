@@ -6,6 +6,7 @@ export type {
   Modifier,
   TableStatus,
   Table,
+  KitchenStation,
   TransactionStatus,
   Transaction,
   Product,
@@ -33,6 +34,19 @@ export type {
 } from './types/index.js';
 
 export { AUDIT_ACTIONS } from './types/index.js';
+
+export type {
+  WSChannel,
+  WSChannelKind,
+  ParsedChannel,
+  WSMessage,
+  WSSubscribeRequest,
+  WSUnsubscribeRequest,
+  WSPingRequest,
+  WSClientRequest,
+} from './types/websocket.js';
+
+export { WS_MESSAGE_VERSION, channelFor, parseChannel, canSubscribeTo } from './types/websocket.js';
 
 export {
   API_VERSION,

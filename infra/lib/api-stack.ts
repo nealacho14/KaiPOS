@@ -6,6 +6,7 @@ import * as apigw from 'aws-cdk-lib/aws-apigatewayv2';
 import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import type * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import type * as s3 from 'aws-cdk-lib/aws-s3';
+import type * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import type { Construct } from 'constructs';
 import type { StageConfig } from './config.js';
 
@@ -14,6 +15,8 @@ interface ApiStackProps extends cdk.StackProps {
   mongoSecret: secretsmanager.ISecret;
   jwtSecret: secretsmanager.ISecret;
   assetsBucket: s3.IBucket;
+  webSocketStage: apigw.WebSocketStage;
+  connectionsTable: dynamodb.ITable;
 }
 
 export class ApiStack extends cdk.Stack {
@@ -22,7 +25,8 @@ export class ApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
-    const { config, mongoSecret, jwtSecret, assetsBucket } = props;
+    const { config, mongoSecret, jwtSecret, assetsBucket, webSocketStage, connectionsTable } =
+      props;
 
     // Lambda runs outside any VPC and reaches MongoDB Atlas directly over the
     // public internet. Atlas access is restricted via its own IP allowlist.
@@ -43,6 +47,8 @@ export class ApiStack extends cdk.Stack {
         CLOUDFRONT_SECRET: config.cloudfrontSecret,
         SES_SENDER_EMAIL: config.sesSenderEmail,
         PASSWORD_RESET_BASE_URL: config.passwordResetBaseUrl,
+        WS_API_ENDPOINT: webSocketStage.callbackUrl,
+        CONNECTIONS_TABLE_NAME: connectionsTable.tableName,
       },
     });
 
@@ -55,6 +61,20 @@ export class ApiStack extends cdk.Stack {
       new iam.PolicyStatement({
         actions: ['ses:SendEmail'],
         resources: ['*'],
+      }),
+    );
+
+    // Publish real-time events to WebSocket clients. The API Lambda does not
+    // accept WS traffic itself — it fan-outs by querying the connections table
+    // (GSI1) and DM'ing each live connection via ManageConnections.
+    webSocketStage.grantManagementApiAccess(apiFunction);
+
+    // Narrow DDB grants: the API Lambda only needs to read the channel-index
+    // and delete stale rows detected via GoneException — no bulk writes.
+    apiFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['dynamodb:Query', 'dynamodb:UpdateItem', 'dynamodb:DeleteItem'],
+        resources: [connectionsTable.tableArn, `${connectionsTable.tableArn}/index/*`],
       }),
     );
 

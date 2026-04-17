@@ -244,6 +244,8 @@ export const AUDIT_ACTIONS = [
   'password_reset_complete',
   'token_refresh',
   'authorization_failed',
+  'order_created',
+  'order_status_changed',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

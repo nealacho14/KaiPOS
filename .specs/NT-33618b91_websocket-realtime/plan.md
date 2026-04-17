@@ -144,26 +144,26 @@ Infraestructura de publicación + ruta orders que la ejercita.
 
 ### Tasks
 
-- [ ] `apps/backend/src/lib/ws-publish.ts`:
-  - [ ] `publishToChannel(channel, message)`: query GSI1 por `channel`, fan-out con `PostToConnectionCommand` usando `Promise.allSettled`. En `GoneException` (410) borrar el item de DDB. Logger por mensaje.
-  - [ ] `publishToUser(userId, message)`: igual pero scaneando por `channel = user:<userId>`.
-  - [ ] Cliente `ApiGatewayManagementApiClient` singleton con endpoint desde `WS_API_ENDPOINT` env var.
-- [ ] Inyectar `WS_API_ENDPOINT` y `CONNECTIONS_TABLE_NAME` al Lambda del `api` en `infra/lib/api-stack.ts`; grants `execute-api:ManageConnections` al WS API y `dynamodb:Query`/`UpdateItem`/`DeleteItem` a la tabla de conexiones (cross-stack reference).
-- [ ] `apps/backend/src/services/orders.ts`: `createOrder(input, user)` (calcula `orderNumber`, `subtotal`/`tax`/`total` con `calculateOrderTotal` de `@kaipos/shared`, inserta, audita), `updateOrderStatus(id, status, user)` (scoping por `businessId`, audita, **publica** `{ type: 'order.status-changed', channel: channelFor.branch(branchId), payload: { orderId, orderNumber, status } }`).
-- [ ] Permisos: verificar/agregar en `Permission` las entradas faltantes (`orders:create`, `orders:update` — revisar state actual del map).
-- [ ] `apps/backend/src/routes/orders.ts`:
-  - [ ] `POST /api/orders` con validación Zod + `requirePermission('orders:create')`.
-  - [ ] `PATCH /api/orders/:id/status` con `requirePermission('orders:update')`.
-  - [ ] Registrar en `app.ts`.
-- [ ] Tests unitarios del publish helper (mock `ApiGatewayManagementApiClient` y DDB; cubrir `GoneException`) y de `updateOrderStatus` (verificar que dispara `publishToChannel` con payload correcto).
+- [x] `apps/backend/src/lib/ws-publish.ts`:
+  - [x] `publishToChannel(channel, message)`: query GSI1 por `channel`, fan-out con `PostToConnectionCommand` usando `Promise.allSettled`. En `GoneException` (410) borrar el item de DDB. Logger por mensaje.
+  - [x] `publishToUser(userId, message)`: igual pero scaneando por `channel = user:<userId>`.
+  - [x] Cliente `ApiGatewayManagementApiClient` singleton con endpoint desde `WS_API_ENDPOINT` env var.
+- [x] Inyectar `WS_API_ENDPOINT` y `CONNECTIONS_TABLE_NAME` al Lambda del `api` en `infra/lib/api-stack.ts`; grants `execute-api:ManageConnections` al WS API y `dynamodb:Query`/`UpdateItem`/`DeleteItem` a la tabla de conexiones (cross-stack reference).
+- [x] `apps/backend/src/services/orders.ts`: `createOrder(input, user)` (calcula `orderNumber`, `subtotal`/`tax`/`total` con `calculateOrderTotal` de `@kaipos/shared`, inserta, audita), `updateOrderStatus(id, status, user)` (scoping por `businessId`, audita, **publica** `{ type: 'order.status-changed', channel: channelFor.branch(branchId), payload: { orderId, orderNumber, status } }`).
+- [x] Permisos: verificar/agregar en `Permission` las entradas faltantes (`orders:create`, `orders:update` — revisar state actual del map).
+- [x] `apps/backend/src/routes/orders.ts`:
+  - [x] `POST /api/orders` con validación Zod + `requirePermission('orders:create')`.
+  - [x] `PATCH /api/orders/:id/status` con `requirePermission('orders:update')`.
+  - [x] Registrar en `app.ts`.
+- [x] Tests unitarios del publish helper (mock `ApiGatewayManagementApiClient` y DDB; cubrir `GoneException`) y de `updateOrderStatus` (verificar que dispara `publishToChannel` con payload correcto).
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm test` passes
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm test` passes
 - [ ] Manual (prod/stage, sin frontend): dos `wscat` conectados con tokens de sucursales distintas → `PATCH /api/orders/:id/status` → solo la conexión de la sucursal correcta recibe el mensaje. Medir latencia p99 <500ms.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
@@ -177,30 +177,30 @@ Cliente real que cumple el AC de re-suscripción tras reconexión y demo visual.
 
 ### Tasks
 
-- [ ] `apps/frontend-admin/src/lib/ws-client.ts`: clase `WSClient` con
-  - [ ] `connect(token)` construye `wss://<endpoint>?token=<jwt>` y opcionalmente un origin secret por query si se configura.
-  - [ ] Reconnect con backoff exponencial (1s → 2s → 4s → … → 30s máx), cancelable.
-  - [ ] `subscribe(channel)`/`unsubscribe(channel)` con tracking interno — en cada reconexión exitosa re-emite todas las `subscribe` tracked.
-  - [ ] Event emitter (`on('message' | 'open' | 'close' | 'error', handler)`).
-- [ ] `apps/frontend-admin/src/hooks/useWebSocket.ts`: hook que expone `status`, `subscribe`, `unsubscribe`, y `lastMessage`.
-- [ ] Helper mínimo `apps/frontend-admin/src/lib/auth-storage.ts` con `getToken`/`setToken`/`clearToken` vs `localStorage` (acotado a lo necesario para este ticket; la UI de login real vive en otro flow).
-- [ ] Página debug `src/pages/DebugWebSocket.tsx`:
-  - [ ] Input de token, botón Connect/Disconnect.
-  - [ ] Lista de canales suscritos + input para `subscribe`/`unsubscribe`.
-  - [ ] Stream de mensajes recibidos (últimos 50) con timestamp.
-  - [ ] Botón "Crear orden" + "Cambiar estado a completed" para disparar el flujo end-to-end vía REST.
-- [ ] Wire en `App.tsx` (ruta `/debug/ws` o toggle condicional simple — no se requiere router completo).
-- [ ] Actualizar `CLAUDE.md` con una sección breve sobre WebSocket: endpoint, auth, canales, publish helper.
-- [ ] Tests unitarios de `WSClient` (mock `WebSocket` global): reconecta, re-suscribe, backoff cap.
+- [x] `apps/frontend-admin/src/lib/ws-client.ts`: clase `WSClient` con
+  - [x] `connect(token)` construye `wss://<endpoint>?token=<jwt>` y opcionalmente un origin secret por query si se configura.
+  - [x] Reconnect con backoff exponencial (1s → 2s → 4s → … → 30s máx), cancelable.
+  - [x] `subscribe(channel)`/`unsubscribe(channel)` con tracking interno — en cada reconexión exitosa re-emite todas las `subscribe` tracked.
+  - [x] Event emitter (`on('message' | 'open' | 'close' | 'error', handler)`).
+- [x] `apps/frontend-admin/src/hooks/useWebSocket.ts`: hook que expone `status`, `subscribe`, `unsubscribe`, y `onMessage` (suscripción directa al stream; el consumer empuja a su propio state — evita warnings de set-state-in-effect).
+- [x] Helper mínimo `apps/frontend-admin/src/lib/auth-storage.ts` con `getToken`/`setToken`/`clearToken` vs `localStorage` (acotado a lo necesario para este ticket; la UI de login real vive en otro flow).
+- [x] Página debug `src/pages/DebugWebSocket.tsx`:
+  - [x] Input de token, botón Connect/Disconnect.
+  - [x] Lista de canales suscritos + input para `subscribe`/`unsubscribe`.
+  - [x] Stream de mensajes recibidos (últimos 50) con timestamp.
+  - [x] Botón "Crear orden" + "Cambiar estado a completed" para disparar el flujo end-to-end vía REST.
+- [x] Wire en `App.tsx` (ruta `/debug/ws` o toggle condicional simple — no se requiere router completo).
+- [x] Actualizar `CLAUDE.md` con una sección breve sobre WebSocket: endpoint, auth, canales, publish helper.
+- [x] Tests unitarios de `WSClient` (mock `WebSocket` global): reconecta, re-suscribe, backoff cap.
 - [ ] QA manual end-to-end (ver `QA Plan`).
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm test` passes
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm test` passes
 - [ ] Manual: abrir la página debug con dos usuarios de sucursales distintas en dos navegadores; PATCH de orden en sucursal A → solo el navegador A recibe el mensaje.
 - [ ] Manual: matar la red del cliente durante 10s → tras recuperarse, los canales previos siguen activos sin intervención.
 

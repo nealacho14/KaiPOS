@@ -46,9 +46,11 @@ export function generateRefreshToken(): string {
 
 export async function verifyAccessToken(token: string): Promise<TokenPayload> {
   const { payload } = await jose.jwtVerify(token, await getSecret());
+  const branchIds = payload.branchIds;
   return {
     userId: payload.userId as string,
     businessId: payload.businessId as string,
     role: payload.role as TokenPayload['role'],
+    ...(Array.isArray(branchIds) ? { branchIds: branchIds as string[] } : {}),
   };
 }

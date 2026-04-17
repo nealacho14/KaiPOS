@@ -1,33 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { User, RefreshToken, LoginAttempt, PasswordResetToken } from '@kaipos/shared/types';
+import { login, refresh, logout, forgotPassword, resetPassword } from './auth.js';
 
-// --- Mock collections ---
-
-const mockUsersCollection = {
-  findOne: vi.fn(),
-  insertOne: vi.fn(),
-  updateOne: vi.fn(),
-};
-
-const mockRefreshTokensCollection = {
-  findOne: vi.fn(),
-  insertOne: vi.fn(),
-  deleteOne: vi.fn(),
-  deleteMany: vi.fn(),
-};
-
-const mockLoginAttemptsCollection = {
-  findOne: vi.fn(),
-  findOneAndUpdate: vi.fn(),
-  updateOne: vi.fn(),
-  deleteOne: vi.fn(),
-};
-
-const mockPasswordResetTokensCollection = {
-  findOne: vi.fn(),
-  insertOne: vi.fn(),
-  updateOne: vi.fn(),
-};
+const {
+  mockUsersCollection,
+  mockRefreshTokensCollection,
+  mockLoginAttemptsCollection,
+  mockPasswordResetTokensCollection,
+} = vi.hoisted(() => ({
+  mockUsersCollection: {
+    findOne: vi.fn(),
+    insertOne: vi.fn(),
+    updateOne: vi.fn(),
+  },
+  mockRefreshTokensCollection: {
+    findOne: vi.fn(),
+    insertOne: vi.fn(),
+    deleteOne: vi.fn(),
+    deleteMany: vi.fn(),
+  },
+  mockLoginAttemptsCollection: {
+    findOne: vi.fn(),
+    findOneAndUpdate: vi.fn(),
+    updateOne: vi.fn(),
+    deleteOne: vi.fn(),
+  },
+  mockPasswordResetTokensCollection: {
+    findOne: vi.fn(),
+    insertOne: vi.fn(),
+    updateOne: vi.fn(),
+  },
+}));
 
 vi.mock('../db/collections.js', () => ({
   getUsersCollection: () => Promise.resolve(mockUsersCollection),
@@ -55,8 +58,6 @@ vi.mock('../lib/logger.js', () => ({
     error: vi.fn(),
   }),
 }));
-
-import { login, refresh, logout, forgotPassword, resetPassword } from './auth.js';
 
 const now = new Date('2025-01-01T00:00:00Z');
 
@@ -133,6 +134,39 @@ describe('auth service', () => {
       vi.mocked(verifyPassword).mockResolvedValueOnce(true);
 
       await expect(login('admin@test.com', 'admin123')).rejects.toThrow('Account is deactivated');
+    });
+
+    it('includes branchIds in the access token payload when the user has any', async () => {
+      mockLoginAttemptsCollection.findOne.mockResolvedValue(null);
+      mockUsersCollection.findOne.mockResolvedValue(adminUser);
+      mockRefreshTokensCollection.insertOne.mockResolvedValue({});
+      mockLoginAttemptsCollection.deleteOne.mockResolvedValue({});
+
+      await login('admin@test.com', 'admin123');
+
+      const { signAccessToken } = await import('../lib/jwt.js');
+      expect(signAccessToken).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'admin-1',
+          role: 'admin',
+          branchIds: ['branch-1'],
+        }),
+      );
+    });
+
+    it('omits branchIds when the user has none', async () => {
+      const userWithoutBranches: User = { ...adminUser };
+      delete userWithoutBranches.branchIds;
+      mockLoginAttemptsCollection.findOne.mockResolvedValue(null);
+      mockUsersCollection.findOne.mockResolvedValue(userWithoutBranches);
+      mockRefreshTokensCollection.insertOne.mockResolvedValue({});
+      mockLoginAttemptsCollection.deleteOne.mockResolvedValue({});
+
+      await login('admin@test.com', 'admin123');
+
+      const { signAccessToken } = await import('../lib/jwt.js');
+      const payload = vi.mocked(signAccessToken).mock.calls.at(-1)?.[0];
+      expect(payload).not.toHaveProperty('branchIds');
     });
 
     it('resets login attempts on successful login', async () => {

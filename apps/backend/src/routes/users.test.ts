@@ -4,20 +4,23 @@ import type { TokenPayload, User } from '@kaipos/shared/types';
 import type { AppEnv } from '../types.js';
 import { errorHandler } from '../middleware/error-handler.js';
 import { AppError, ForbiddenError, NotFoundError } from '../lib/errors.js';
+import usersRoutes from './users.js';
 
-const mockVerifyAccessToken = vi.fn();
+const { mockVerifyAccessToken, mockUsersService, mockLogAuditEvent } = vi.hoisted(() => ({
+  mockVerifyAccessToken: vi.fn(),
+  mockUsersService: {
+    listUsers: vi.fn(),
+    getUserById: vi.fn(),
+    createUser: vi.fn(),
+    updateUser: vi.fn(),
+    deactivateUser: vi.fn(),
+  },
+  mockLogAuditEvent: vi.fn(),
+}));
 
 vi.mock('../lib/jwt.js', () => ({
   verifyAccessToken: (...args: unknown[]) => mockVerifyAccessToken(...args),
 }));
-
-const mockUsersService = {
-  listUsers: vi.fn(),
-  getUserById: vi.fn(),
-  createUser: vi.fn(),
-  updateUser: vi.fn(),
-  deactivateUser: vi.fn(),
-};
 
 vi.mock('../services/users.js', () => ({
   listUsers: (...args: unknown[]) => mockUsersService.listUsers(...args),
@@ -26,8 +29,6 @@ vi.mock('../services/users.js', () => ({
   updateUser: (...args: unknown[]) => mockUsersService.updateUser(...args),
   deactivateUser: (...args: unknown[]) => mockUsersService.deactivateUser(...args),
 }));
-
-const mockLogAuditEvent = vi.fn();
 
 vi.mock('../services/audit.js', () => ({
   logAuditEvent: (...args: unknown[]) => mockLogAuditEvent(...args),
@@ -42,8 +43,6 @@ vi.mock('../lib/logger.js', () => ({
   },
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }),
 }));
-
-import usersRoutes from './users.js';
 
 const adminPayload: TokenPayload = { userId: 'admin-1', businessId: 'biz-1', role: 'admin' };
 const cashierPayload: TokenPayload = { userId: 'cash-1', businessId: 'biz-1', role: 'cashier' };

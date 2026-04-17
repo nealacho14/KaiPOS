@@ -1,12 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { TokenPayload, User } from '@kaipos/shared/types';
+import { listUsers, getUserById, createUser, updateUser, deactivateUser } from './users.js';
 
-const mockUsersCollection = {
-  find: vi.fn(),
-  findOne: vi.fn(),
-  insertOne: vi.fn(),
-  updateOne: vi.fn(),
-};
+const { mockUsersCollection, mockLogAuditEvent } = vi.hoisted(() => ({
+  mockUsersCollection: {
+    find: vi.fn(),
+    findOne: vi.fn(),
+    insertOne: vi.fn(),
+    updateOne: vi.fn(),
+  },
+  mockLogAuditEvent: vi.fn(),
+}));
 
 vi.mock('../db/collections.js', () => ({
   getUsersCollection: () => Promise.resolve(mockUsersCollection),
@@ -24,13 +28,9 @@ vi.mock('../lib/logger.js', () => ({
   }),
 }));
 
-const mockLogAuditEvent = vi.fn();
-
 vi.mock('./audit.js', () => ({
   logAuditEvent: (...args: unknown[]) => mockLogAuditEvent(...args),
 }));
-
-import { listUsers, getUserById, createUser, updateUser, deactivateUser } from './users.js';
 
 const now = new Date('2025-01-01T00:00:00Z');
 

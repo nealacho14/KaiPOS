@@ -1,4 +1,5 @@
 import { type Db } from 'mongodb';
+import { AUDIT_ACTIONS } from '@kaipos/shared';
 import { logger } from '../lib/logger.js';
 import { getDb, closeConnection } from './client.js';
 
@@ -374,18 +375,7 @@ const collections: CollectionSetup[] = [
         properties: {
           businessId: { bsonType: 'string' },
           userId: { bsonType: 'string' },
-          action: {
-            enum: [
-              'login',
-              'login_failed',
-              'logout',
-              'register',
-              'password_reset_request',
-              'password_reset_complete',
-              'token_refresh',
-              'authorization_failed',
-            ],
-          },
+          action: { enum: [...AUDIT_ACTIONS] },
           target: { bsonType: 'string' },
           ip: { bsonType: 'string' },
           userAgent: { bsonType: 'string' },

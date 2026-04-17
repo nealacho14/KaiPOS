@@ -22,8 +22,6 @@ export type {
   PasswordResetToken,
   LoginRequest,
   LoginResponse,
-  RegisterRequest,
-  RegisterResponse,
   RefreshRequest,
   RefreshResponse,
   ForgotPasswordRequest,

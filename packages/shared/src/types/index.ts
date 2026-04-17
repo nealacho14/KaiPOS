@@ -202,18 +202,6 @@ export interface LoginResponse {
   user: Omit<User, 'passwordHash'>;
 }
 
-export interface RegisterRequest {
-  email: string;
-  password: string;
-  name: string;
-  role: UserRole;
-  branchIds?: string[];
-}
-
-export interface RegisterResponse {
-  user: Omit<User, 'passwordHash'>;
-}
-
 export interface RefreshRequest {
   refreshToken: string;
 }

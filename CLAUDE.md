@@ -42,9 +42,10 @@ pnpm --filter @kaipos/backend db:setup   # create collections, validators, index
 pnpm --filter @kaipos/backend db:seed    # insert demo data (refuses to run against Atlas / MONGO_SECRET_ARN)
 
 # Infrastructure deployment (from repo root)
-pnpm deploy:prod               # full deploy: backend + frontend + all stacks
-pnpm deploy:prod:api           # targeted: backend build + api stack only
-pnpm deploy:prod:frontend      # targeted: frontend build + frontend stack only
+pnpm deploy:prod               # full deploy: two-phase (backend-side stacks first, then read WS endpoint, then frontend)
+pnpm deploy:prod:api           # targeted: backend build + api stack (+ deps)
+pnpm deploy:prod:websocket     # targeted: backend build + websocket stack (+ deps)
+pnpm deploy:prod:frontend      # targeted: read WS endpoint + frontend build + frontend stack
 ```
 
 Vitest is configured in backend, frontend, and shared packages (`pnpm test` runs all).

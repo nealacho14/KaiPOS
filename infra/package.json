@@ -14,6 +14,7 @@
     "deploy:prod:frontend": "cdk deploy kaipos-prod-frontend -c stage=prod",
     "deploy:prod:secrets": "cdk deploy kaipos-prod-secrets -c stage=prod",
     "deploy:prod:assets": "cdk deploy kaipos-prod-assets -c stage=prod",
+    "deploy:prod:websocket": "cdk deploy kaipos-prod-websocket -c stage=prod",
     "destroy:prod": "cdk destroy --all -c stage=prod"
   },
   "dependencies": {

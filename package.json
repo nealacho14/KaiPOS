@@ -15,9 +15,10 @@
     "test": "turbo test",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
-    "deploy:prod": "pnpm --filter @kaipos/backend build && pnpm --filter @kaipos/frontend-admin build && pnpm --filter @kaipos/infra deploy:prod --require-approval never",
+    "deploy:prod": "bash scripts/deploy-prod.sh",
     "deploy:prod:api": "pnpm --filter @kaipos/backend build && pnpm --filter @kaipos/infra deploy:prod:api --require-approval never",
-    "deploy:prod:frontend": "pnpm --filter @kaipos/frontend-admin build && pnpm --filter @kaipos/infra deploy:prod:frontend --require-approval never",
+    "deploy:prod:frontend": "bash scripts/deploy-prod-frontend.sh",
+    "deploy:prod:websocket": "pnpm --filter @kaipos/backend build && pnpm --filter @kaipos/infra deploy:prod:websocket --require-approval never",
     "prepare": "husky"
   },
   "lint-staged": {

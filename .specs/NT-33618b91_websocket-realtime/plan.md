@@ -107,29 +107,29 @@ Lógica completa de handshake, registro en DDB, y gestión dinámica de canales.
 
 ### Tasks
 
-- [ ] `apps/backend/src/lib/ws-auth.ts`: `authenticateConnectEvent(event)` — extrae `token` del query string, valida `x-origin-verify` (header del evento `$connect` en prod; skip si `CLOUDFRONT_SECRET` no está seteado), llama `verifyAccessToken`, devuelve `TokenPayload` o `null`.
-- [ ] `apps/backend/src/lib/ws-connections.ts`: wrapper sobre `DynamoDBDocumentClient` con `addConnection(connectionId, payload, channels)`, `removeConnection(connectionId)`, `addChannel(connectionId, channel)`, `removeChannel(connectionId, channel)`, `getConnectionsForChannel(channel)`, `getChannelsForConnection(connectionId)`. TTL = 2h refrescado en cada write.
-- [ ] `ws-connect.ts`: auth → canales por defecto → batch-write a DDB. Default channels: `user:<userId>`, `business:<businessId>`, y `branch:<id>` para cada `branchIds` del token. Super_admin (`businessId === '*'`): solo `user:<userId>`.
-- [ ] `ws-disconnect.ts`: query por `connectionId` → batch-delete.
-- [ ] `ws-default.ts`: parsea body JSON, switch `type`:
+- [x] `apps/backend/src/lib/ws-auth.ts`: `authenticateConnectEvent(event)` — extrae `token` del query string, valida `x-origin-verify` (header del evento `$connect` en prod; skip si `CLOUDFRONT_SECRET` no está seteado), llama `verifyAccessToken`, devuelve `TokenPayload` o `null`.
+- [x] `apps/backend/src/lib/ws-connections.ts`: wrapper sobre `DynamoDBDocumentClient` con `addConnection(connectionId, payload, channels)`, `removeConnection(connectionId)`, `addChannel(connectionId, channel)`, `removeChannel(connectionId, channel)`, `getConnectionsForChannel(channel)`, `getChannelsForConnection(connectionId)`. TTL = 2h refrescado en cada write.
+- [x] `ws-connect.ts`: auth → canales por defecto → batch-write a DDB. Default channels: `user:<userId>`, `business:<businessId>`, y `branch:<id>` para cada `branchIds` del token. Super_admin (`businessId === '*'`): solo `user:<userId>`.
+- [x] `ws-disconnect.ts`: query por `connectionId` → batch-delete.
+- [x] `ws-default.ts`: parsea body JSON, switch `type`:
   - `subscribe`: valida con `canSubscribeTo(channel, token)` → `addChannel`. Super_admin puede suscribirse a `business:<any>` sin `branchId`.
   - `unsubscribe`: `removeChannel`.
   - `ping`: responde `pong` vía `PostToConnection` (DM a su propia conexión).
   - Tipos desconocidos: `400` y mensaje de error al cliente.
-- [ ] Pino logger con `connectionId`/`userId`/`businessId` en los bindings de cada handler.
-- [ ] Tests unitarios con mocks de DDB y API GW:
-  - [ ] `authenticateConnectEvent` rechaza sin token, con token inválido, sin origin secret en prod.
-  - [ ] `ws-connect` escribe exactamente los canales esperados para usuarios single/multi-branch y super_admin.
-  - [ ] `ws-default` valida multi-tenant (usuario X no puede subscribe a `branch:Y` de otro business).
-  - [ ] `ws-disconnect` limpia todos los items del `connectionId`.
+- [x] Pino logger con `connectionId`/`userId`/`businessId` en los bindings de cada handler.
+- [x] Tests unitarios con mocks de DDB y API GW:
+  - [x] `authenticateConnectEvent` rechaza sin token, con token inválido, sin origin secret en prod.
+  - [x] `ws-connect` escribe exactamente los canales esperados para usuarios single/multi-branch y super_admin.
+  - [x] `ws-default` valida multi-tenant (usuario X no puede subscribe a `branch:Y` de otro business).
+  - [x] `ws-disconnect` limpia todos los items del `connectionId`.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm test` passes (incluyendo tests nuevos)
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm test` passes (incluyendo tests nuevos)
 - [ ] Manual (contra prod o stage): `wscat -c "wss://<endpoint>/prod?token=<jwt_valido>"` conecta; sin token → cierra. `{ "type": "subscribe", "channel": "branch:<propio>" }` acepta; `branch:<ajeno>` rechaza.
 - [ ] Manual: verificar items en DDB vía consola AWS tras un `$connect`.
 

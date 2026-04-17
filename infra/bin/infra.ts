@@ -5,6 +5,7 @@ import { FrontendStack } from '../lib/frontend-stack.js';
 import { GithubOidcStack } from '../lib/github-oidc-stack.js';
 import { SecretsStack } from '../lib/secrets-stack.js';
 import { AssetsStack } from '../lib/assets-stack.js';
+import { WebSocketStack } from '../lib/websocket-stack.js';
 import { getStageConfig } from '../lib/config.js';
 
 const app = new cdk.App();
@@ -30,12 +31,20 @@ new GithubOidcStack(app, `${prefix}-github-oidc`, {
 const secrets = new SecretsStack(app, `${prefix}-secrets`, { env, config });
 const assets = new AssetsStack(app, `${prefix}-assets`, { env, config });
 
+const ws = new WebSocketStack(app, `${prefix}-websocket`, {
+  env,
+  config,
+  jwtSecret: secrets.jwtSecret,
+});
+
 const api = new ApiStack(app, `${prefix}-api`, {
   env,
   config,
   mongoSecret: secrets.mongoSecret,
   jwtSecret: secrets.jwtSecret,
   assetsBucket: assets.assetsBucket,
+  webSocketStage: ws.webSocketStage,
+  connectionsTable: ws.connectionsTable,
 });
 
 new FrontendStack(app, `${prefix}-frontend`, {

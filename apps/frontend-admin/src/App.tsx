@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { ApiResponse } from '@kaipos/shared';
 import { API_VERSION } from '@kaipos/shared';
+import { DebugWebSocket } from './pages/DebugWebSocket.js';
 
 interface HealthData {
   service: string;
@@ -10,9 +11,21 @@ interface HealthData {
   timestamp: string;
 }
 
+function readHashRoute(): string {
+  if (typeof window === 'undefined') return '';
+  return window.location.hash.replace(/^#/, '');
+}
+
 export function App() {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [route, setRoute] = useState<string>(() => readHashRoute());
+
+  useEffect(() => {
+    const onHashChange = () => setRoute(readHashRoute());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   useEffect(() => {
     // Same-origin: in dev, Vite proxies /api to the backend; in prod,
@@ -26,6 +39,10 @@ export function App() {
       })
       .catch(() => setError('Could not connect to API'));
   }, []);
+
+  if (route === '/debug/ws') {
+    return <DebugWebSocket />;
+  }
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
@@ -41,6 +58,9 @@ export function App() {
         </div>
       )}
       {!health && !error && <p>Loading...</p>}
+      <p style={{ marginTop: '1.5rem', color: '#666' }}>
+        Debug tools: <a href="#/debug/ws">WebSocket</a>
+      </p>
     </div>
   );
 }

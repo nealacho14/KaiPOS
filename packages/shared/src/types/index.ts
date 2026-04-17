@@ -63,6 +63,16 @@ export interface Table {
   createdBy: string;
 }
 
+export interface KitchenStation {
+  _id: string;
+  businessId: string;
+  branchId: string;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+}
+
 export type TransactionStatus = 'pending' | 'completed' | 'failed' | 'refunded';
 
 export interface Transaction {
@@ -234,6 +244,8 @@ export const AUDIT_ACTIONS = [
   'password_reset_complete',
   'token_refresh',
   'authorization_failed',
+  'order_created',
+  'order_status_changed',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -282,3 +294,20 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
     totalPages: number;
   };
 }
+
+// ---------------------------------------------------------------------------
+// WebSocket contracts (re-exported from ./websocket.ts)
+// ---------------------------------------------------------------------------
+
+export type {
+  WSChannel,
+  WSChannelKind,
+  ParsedChannel,
+  WSMessage,
+  WSSubscribeRequest,
+  WSUnsubscribeRequest,
+  WSPingRequest,
+  WSClientRequest,
+} from './websocket.js';
+
+export { WS_MESSAGE_VERSION, channelFor, parseChannel, canSubscribeTo } from './websocket.js';

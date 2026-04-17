@@ -1,7 +1,12 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/functions/api.ts'],
+  entry: [
+    'src/functions/api.ts',
+    'src/functions/ws-connect.ts',
+    'src/functions/ws-disconnect.ts',
+    'src/functions/ws-default.ts',
+  ],
   format: ['esm'],
   dts: true,
   outDir: 'dist',

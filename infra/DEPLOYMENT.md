@@ -7,8 +7,9 @@ Single AWS environment: **`prod`**. Local development (`dev`) runs via `pnpm dev
 
 - `kaipos-prod-secrets` — Secrets Manager secret `kaipos/prod/mongo-uri` (empty on create, populated out-of-band).
 - `kaipos-prod-assets` — Private versioned S3 bucket `kaipos-assets-prod`.
+- `kaipos-prod-websocket` — API Gateway WebSocket API + DynamoDB connections table + three Lambda handlers (`$connect`, `$disconnect`, `$default`). Outputs the `wss://...` URL that the frontend SPA needs.
 - `kaipos-prod-api` — API Gateway HTTP API + Lambda for backend functions. Lambda runs **outside any VPC** and connects to MongoDB Atlas directly over the public internet (protected by Atlas IP allowlist). This keeps monthly cost near zero by avoiding a NAT Gateway (~$33/month).
-- `kaipos-prod-frontend` — S3 + CloudFront for the admin SPA.
+- `kaipos-prod-frontend` — S3 + CloudFront for the admin SPA. The Vite build embeds `VITE_WS_ENDPOINT` from the websocket stack's output, which is why `deploy:prod` runs in two phases (see below).
 
 ## Prerequisites
 
@@ -81,11 +82,20 @@ Expect HTTP 200 with `"database": "connected"`.
 ## Redeploy
 
 ```bash
-pnpm --filter @kaipos/backend build
-pnpm --filter @kaipos/frontend-admin build
-pnpm --filter @kaipos/infra diff:prod   # review
-pnpm --filter @kaipos/infra deploy:prod
+# Full deploy — orchestrated by scripts/deploy-prod.sh (two phases: non-frontend
+# first, then read WebSocketEndpoint from the websocket stack, then frontend).
+pnpm deploy:prod
+
+# Targeted deploys
+pnpm deploy:prod:api          # backend build + api stack (+ deps)
+pnpm deploy:prod:websocket    # backend build + websocket stack
+pnpm deploy:prod:frontend     # read ws endpoint, frontend build with VITE_WS_ENDPOINT, frontend stack
+
+# Preview diff first (optional)
+pnpm --filter @kaipos/infra diff:prod
 ```
+
+**Why two phases?** The frontend bundle bakes `VITE_WS_ENDPOINT` at Vite build time. That URL only exists after `kaipos-prod-websocket` is deployed. `scripts/deploy-prod.sh` deploys everything except the frontend, reads `WebSocketEndpoint` via `aws cloudformation describe-stacks`, then builds + deploys the frontend with the env var set. Skipping this step (e.g. running only the Vite build without the env var) leaves the `#/debug/ws` endpoint field blank.
 
 ## Rotate the Mongo secret
 

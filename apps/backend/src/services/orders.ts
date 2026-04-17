@@ -128,7 +128,7 @@ export async function updateOrderStatus(
   // observes a 500 if DDB/API GW is broken (the DB write still stands, which is
   // the correct semantic — the client can retry the PATCH to re-emit).
   try {
-    await publishToChannel(channelFor.branch(updated.branchId), {
+    await publishToChannel(channelFor.branch(updated.businessId, updated.branchId), {
       type: 'order.status-changed',
       payload: {
         orderId: updated._id,
@@ -138,7 +138,7 @@ export async function updateOrderStatus(
     });
   } catch (err) {
     log.warn(
-      { err, orderId, branchId: updated.branchId },
+      { err, orderId, businessId: updated.businessId, branchId: updated.branchId },
       'Order status persisted but WS publish failed',
     );
   }

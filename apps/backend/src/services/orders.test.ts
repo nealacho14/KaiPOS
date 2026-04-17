@@ -165,7 +165,7 @@ describe('orders service', () => {
         { _id: 'o-1', businessId: 'biz-1' },
         expect.objectContaining({ $set: expect.objectContaining({ status: 'completed' }) }),
       );
-      expect(mockPublishToChannel).toHaveBeenCalledWith('branch:br-1', {
+      expect(mockPublishToChannel).toHaveBeenCalledWith('branch:biz-1:br-1', {
         type: 'order.status-changed',
         payload: {
           orderId: 'o-1',

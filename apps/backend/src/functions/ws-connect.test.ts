@@ -85,7 +85,7 @@ describe('ws-connect handler', () => {
     expect(mockAddConnection).toHaveBeenCalledWith('conn-1', token, [
       'user:u-1',
       'business:biz-1',
-      'branch:br-1',
+      'branch:biz-1:br-1',
     ]);
   });
 
@@ -103,9 +103,9 @@ describe('ws-connect handler', () => {
     expect(mockAddConnection).toHaveBeenCalledWith('conn-1', token, [
       'user:u-1',
       'business:biz-1',
-      'branch:br-1',
-      'branch:br-2',
-      'branch:br-3',
+      'branch:biz-1:br-1',
+      'branch:biz-1:br-2',
+      'branch:biz-1:br-3',
     ]);
   });
 

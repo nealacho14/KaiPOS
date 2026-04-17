@@ -1,11 +1,9 @@
 import type { APIGatewayProxyWebsocketHandlerV2 } from 'aws-lambda';
 import { channelFor, type WSChannel } from '@kaipos/shared/types';
-import { createLogger } from '../lib/logger.js';
+import { createWsRequestLogger } from '../lib/lambda-runtime.js';
 import { SUPER_ADMIN_BUSINESS_ID } from '../lib/permissions.js';
 import { addConnection } from '../lib/ws-connections.js';
 import { authenticateConnectEvent } from '../lib/ws-auth.js';
-
-const log = createLogger({ module: 'ws-connect' });
 
 /**
  * Default channels materialized at `$connect`:
@@ -34,16 +32,16 @@ function defaultChannelsFor(payload: {
 }
 
 export const handler: APIGatewayProxyWebsocketHandlerV2 = async (event) => {
+  const log = createWsRequestLogger(event, 'ws-connect');
   const connectionId = event.requestContext.connectionId;
 
   const token = await authenticateConnectEvent(event);
   if (!token) {
-    log.warn({ connectionId }, 'ws-connect: handshake rejected');
+    log.warn('ws-connect: handshake rejected');
     return { statusCode: 401, body: 'Unauthorized' };
   }
 
   const reqLog = log.child({
-    connectionId,
     userId: token.userId,
     businessId: token.businessId,
     role: token.role,

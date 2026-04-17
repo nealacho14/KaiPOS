@@ -15,7 +15,7 @@ import {
   type WSClientRequest,
   type WSMessage,
 } from '@kaipos/shared/types';
-import { createLogger } from '../lib/logger.js';
+import { createWsRequestLogger } from '../lib/lambda-runtime.js';
 import { SUPER_ADMIN_BUSINESS_ID } from '../lib/permissions.js';
 import {
   addChannel,
@@ -23,8 +23,6 @@ import {
   removeChannel,
   type ConnectionContext,
 } from '../lib/ws-connections.js';
-
-const log = createLogger({ module: 'ws-default' });
 
 let cachedManagementClient: ApiGatewayManagementApiClient | null = null;
 
@@ -103,8 +101,8 @@ function canSubscribe(ctx: ConnectionContext, channel: string): boolean {
 export const handler: APIGatewayProxyWebsocketHandlerV2 = async (
   event: APIGatewayProxyWebsocketEventV2,
 ) => {
+  const reqLog = createWsRequestLogger(event, 'ws-default');
   const connectionId = event.requestContext.connectionId;
-  const reqLog = log.child({ connectionId });
 
   const parsed = parseBody(event.body);
   if (!parsed) {

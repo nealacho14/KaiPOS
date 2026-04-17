@@ -13,7 +13,7 @@ import {
   LOCKOUT_DURATION_MINUTES,
   PASSWORD_RESET_TTL_HOURS,
 } from '../lib/auth-config.js';
-import { UnauthorizedError, ForbiddenError, AppError } from '../lib/errors.js';
+import { UnauthorizedError, AppError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
 import { sendPasswordResetEmail } from '../lib/ses.js';
 import { logAuditEvent } from './audit.js';
@@ -104,57 +104,6 @@ export async function login(
   });
 
   return { accessToken, refreshToken, user: stripPasswordHash(user) };
-}
-
-export async function register(
-  adminUser: TokenPayload,
-  data: {
-    email: string;
-    password: string;
-    name: string;
-    role: User['role'];
-    branchIds?: string[];
-  },
-): Promise<SafeUser> {
-  if (adminUser.role !== 'admin') {
-    throw new ForbiddenError('Only admins can register new users');
-  }
-
-  const users = await getUsersCollection();
-
-  // Check for duplicate email within the business
-  const existing = await users.findOne({ email: data.email, businessId: adminUser.businessId });
-  if (existing) {
-    throw new AppError('A user with this email already exists', 409, 'DUPLICATE_EMAIL');
-  }
-
-  const now = new Date();
-  const newUser: User = {
-    _id: crypto.randomUUID(),
-    businessId: adminUser.businessId,
-    email: data.email,
-    name: data.name,
-    passwordHash: await hashPassword(data.password),
-    role: data.role,
-    branchIds: data.branchIds,
-    isActive: true,
-    createdAt: now,
-    updatedAt: now,
-    createdBy: adminUser.userId,
-  };
-
-  await users.insertOne(newUser);
-  log.info({ userId: newUser._id, email: newUser.email }, 'User registered');
-
-  logAuditEvent({
-    action: 'register',
-    target: newUser.email,
-    userId: adminUser.userId,
-    businessId: adminUser.businessId,
-    metadata: { registeredUserId: newUser._id, role: newUser.role },
-  });
-
-  return stripPasswordHash(newUser);
 }
 
 export async function refresh(

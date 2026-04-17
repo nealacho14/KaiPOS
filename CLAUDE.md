@@ -47,7 +47,7 @@ pnpm deploy:prod:api           # targeted: backend build + api stack only
 pnpm deploy:prod:frontend      # targeted: frontend build + frontend stack only
 ```
 
-Vitest is configured in backend, frontend, and shared packages (`pnpm test` runs all). No test files exist in the backend yet.
+Vitest is configured in backend, frontend, and shared packages (`pnpm test` runs all).
 
 ## Architecture
 
@@ -75,6 +75,16 @@ Database access goes through `src/db/client.ts` (MongoDB singleton) and `src/db/
 
 1. If `MONGO_SECRET_ARN` is set (AWS prod), it fetches the URI from AWS Secrets Manager using `@aws-sdk/client-secrets-manager` and caches it in module scope.
 2. Otherwise it falls back to `MONGO_URI` env var (local dev / Docker).
+
+### RBAC
+
+Authorization is enforced per-route after `requireAuth()` via the `requirePermission(permission)` middleware in `src/middleware/authorize.ts`.
+
+- Roles (in code, English only): `super_admin`, `admin`, `manager`, `supervisor`, `cashier`, `waiter`, `kitchen`.
+- The `role → Permission[]` map lives in `src/lib/permissions.ts`. Permissions are `resource:action` strings (e.g., `users:read`, `products:write`). Permissions are derived from the role at request time — they are not embedded in the JWT.
+- `super_admin` bypasses both the permission check and `businessId` tenant isolation. Their stored `businessId` is the sentinel `SUPER_ADMIN_BUSINESS_ID = '*'` (also exported from `permissions.ts`).
+- Denials are audited: middleware fires a `logAuditEvent({ action: 'authorization_failed', metadata: { permission, route, method } })` and returns 403 with the generic message `Insufficient permissions`.
+- User CRUD lives in `src/routes/users.ts` and `src/services/users.ts`. Cross-tenant reads return 404 (not 403) so existence isn't leaked. Managers can only assign roles in `{supervisor, cashier, waiter, kitchen}`; violations also emit `authorization_failed`.
 
 ### Database scripts
 

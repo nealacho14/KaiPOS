@@ -77,7 +77,7 @@ vi.mock('../lib/ses.js', () => ({
   sendPasswordResetEmail: (...args: unknown[]) => mockSendPasswordResetEmail(...args),
 }));
 
-import { login, register, refresh, logout, forgotPassword, resetPassword } from './auth.js';
+import { login, refresh, logout, forgotPassword, resetPassword } from './auth.js';
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
@@ -166,50 +166,6 @@ describe('auth service — audit and email side-effects', () => {
 
       expect(mockLogAuditEvent).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'login_failed', target: 'ghost@test.com' }),
-      );
-    });
-  });
-
-  describe('register', () => {
-    it('calls logAuditEvent with action "register" after creating a user', async () => {
-      const adminPayload = { userId: 'admin-1', businessId: 'biz-1', role: 'admin' as const };
-      mockUsersCollection.findOne.mockResolvedValue(null);
-      mockUsersCollection.insertOne.mockResolvedValue({});
-
-      await register(adminPayload, {
-        email: 'new@test.com',
-        password: 'password123',
-        name: 'New User',
-        role: 'cashier',
-        branchIds: ['branch-1'],
-      });
-
-      expect(mockLogAuditEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'register',
-          target: 'new@test.com',
-          userId: 'admin-1',
-          businessId: 'biz-1',
-        }),
-      );
-    });
-
-    it('includes registeredUserId and role in audit metadata', async () => {
-      const adminPayload = { userId: 'admin-1', businessId: 'biz-1', role: 'admin' as const };
-      mockUsersCollection.findOne.mockResolvedValue(null);
-      mockUsersCollection.insertOne.mockResolvedValue({});
-
-      await register(adminPayload, {
-        email: 'new@test.com',
-        password: 'password123',
-        name: 'New User',
-        role: 'cashier',
-      });
-
-      expect(mockLogAuditEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          metadata: expect.objectContaining({ role: 'cashier' }),
-        }),
       );
     });
   });

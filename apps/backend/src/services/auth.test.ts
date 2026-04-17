@@ -56,7 +56,7 @@ vi.mock('../lib/logger.js', () => ({
   }),
 }));
 
-import { login, register, refresh, logout, forgotPassword, resetPassword } from './auth.js';
+import { login, refresh, logout, forgotPassword, resetPassword } from './auth.js';
 
 const now = new Date('2025-01-01T00:00:00Z');
 
@@ -146,55 +146,6 @@ describe('auth service', () => {
       expect(mockLoginAttemptsCollection.deleteOne).toHaveBeenCalledWith({
         email: 'admin@test.com',
       });
-    });
-  });
-
-  describe('register', () => {
-    const adminPayload = { userId: 'admin-1', businessId: 'biz-1', role: 'admin' as const };
-
-    it('creates a user when called by admin', async () => {
-      mockUsersCollection.findOne.mockResolvedValue(null);
-      mockUsersCollection.insertOne.mockResolvedValue({});
-
-      const result = await register(adminPayload, {
-        email: 'new@test.com',
-        password: 'password123',
-        name: 'New User',
-        role: 'cashier',
-        branchIds: ['branch-1'],
-      });
-
-      expect(result.email).toBe('new@test.com');
-      expect(result.role).toBe('cashier');
-      expect(result.businessId).toBe('biz-1');
-      expect(result).not.toHaveProperty('passwordHash');
-      expect(mockUsersCollection.insertOne).toHaveBeenCalledOnce();
-    });
-
-    it('throws ForbiddenError for non-admin caller', async () => {
-      const cashierPayload = { userId: 'user-2', businessId: 'biz-1', role: 'cashier' as const };
-
-      await expect(
-        register(cashierPayload, {
-          email: 'new@test.com',
-          password: 'password123',
-          name: 'New',
-          role: 'cashier',
-        }),
-      ).rejects.toThrow('Only admins can register new users');
-    });
-
-    it('throws on duplicate email', async () => {
-      mockUsersCollection.findOne.mockResolvedValue(adminUser);
-
-      await expect(
-        register(adminPayload, {
-          email: 'admin@test.com',
-          password: 'password123',
-          name: 'Dup',
-          role: 'cashier',
-        }),
-      ).rejects.toThrow('A user with this email already exists');
     });
   });
 

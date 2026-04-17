@@ -190,18 +190,20 @@ Ships the first consumer of `requirePermission` and proves end-to-end behavior.
 
 Run end-to-end after all phases are merged to the feature branch.
 
-- [ ] Fresh DB: `pnpm docker:down -v && pnpm docker:up && pnpm --filter @kaipos/backend db:setup && pnpm --filter @kaipos/backend db:seed`. Seed must complete with no validator errors.
-- [ ] Login as admin (`admin@lacocinadekai.com` / `admin123`) — returns token.
-- [ ] Login as cashier (`cajero@lacocinadekai.com` / `cajero123`) — returns token.
-- [ ] `GET /api/users` → admin=200 with 2 users; cashier=403 + audit row.
-- [ ] `POST /api/users` → admin creates a `manager`, a `supervisor`, a `waiter`, a `kitchen`; all 201.
-- [ ] Newly-created `manager` token: can `POST /api/users` for `cashier` ✓, but gets 403 for role `admin` or `manager` and the denial is audited with `metadata.permission='users:write'`.
-- [ ] Newly-created `manager` token: can `GET /api/users` ✓, can `PATCH` a cashier's name ✓, cannot `DELETE` (403 + audit).
-- [ ] `GET /api/users/<unknown_id>` as admin → 404 (not 403).
-- [ ] Create a second business + admin directly in Mongo (or via a temp super_admin). `GET /api/users/<other-biz-user-id>` as first admin → 404.
-- [ ] Promote one user to `super_admin` with `businessId='*'` directly in Mongo. `GET /api/users` with their token lists users across all businesses; `?businessId=biz_seed_001` filters correctly.
-- [ ] `DELETE /api/users/<self-id>` → 403 `CANNOT_DEACTIVATE_SELF`.
-- [ ] `DELETE /api/users/<someone-else>` as admin → 200; subsequent login for that user → 401 "Account is deactivated" + existing `login_failed` audit with `reason=deactivated`.
-- [ ] `POST /api/auth/register` → 404 Not Found (route retired).
-- [ ] `auditLogs` collection: verify TTL-relevant fields and that `authorization_failed` events contain `{ permission, route, method }` as plain strings.
-- [ ] `pnpm --filter @kaipos/backend test -- --coverage` reports ≥ 90% line coverage on `middleware/authorize.ts` and `lib/permissions.ts`.
+Automated via `scripts/qa-rbac.sh` (run after `pnpm docker:up`). Last run: 31 passed / 0 failed.
+
+- [x] Fresh DB: `pnpm docker:down -v && pnpm docker:up && pnpm --filter @kaipos/backend db:setup && pnpm --filter @kaipos/backend db:seed`. Seed must complete with no validator errors.
+- [x] Login as admin (`admin@lacocinadekai.com` / `admin123`) — returns token.
+- [x] Login as cashier (`cajero@lacocinadekai.com` / `cajero123`) — returns token.
+- [x] `GET /api/users` → admin=200 with 2 users; cashier=403 + audit row.
+- [x] `POST /api/users` → admin creates a `manager`, a `supervisor`, a `waiter`, a `kitchen`; all 201.
+- [x] Newly-created `manager` token: can `POST /api/users` for `cashier` ✓, but gets 403 for role `admin` or `manager` and the denial is audited with `metadata.permission='users:write'`.
+- [x] Newly-created `manager` token: can `GET /api/users` ✓, can `PATCH` a cashier's name ✓, cannot `DELETE` (403 + audit).
+- [x] `GET /api/users/<unknown_id>` as admin → 404 (not 403).
+- [x] Create a second business + admin directly in Mongo (or via a temp super_admin). `GET /api/users/<other-biz-user-id>` as first admin → 404.
+- [x] Promote one user to `super_admin` with `businessId='*'` directly in Mongo. `GET /api/users` with their token lists users across all businesses; `?businessId=biz_seed_001` filters correctly.
+- [x] `DELETE /api/users/<self-id>` → 403 `CANNOT_DEACTIVATE_SELF`.
+- [x] `DELETE /api/users/<someone-else>` as admin → 200; subsequent login for that user → 401 "Account is deactivated" + existing `login_failed` audit with `reason=deactivated`.
+- [x] `POST /api/auth/register` → 404 Not Found (route retired).
+- [x] `auditLogs` collection: verify TTL-relevant fields and that `authorization_failed` events contain `{ permission, route, method }` as plain strings.
+- [x] `pnpm --filter @kaipos/backend test -- --coverage` reports ≥ 90% line coverage on `middleware/authorize.ts` and `lib/permissions.ts` (measured: 100% / 100%).

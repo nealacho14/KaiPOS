@@ -74,26 +74,26 @@ Solo infra y handlers que devuelven 200/OK. No hay lógica de auth todavía.
 
 ### Tasks
 
-- [ ] Crear `infra/lib/websocket-stack.ts` (`WebSocketStack`) con:
-  - [ ] Tabla DDB `ws-connections` (PK `connectionId`, SK `channel`, GSI1 `channel-index`, TTL attribute `ttl`, `BillingMode.PAY_PER_REQUEST`, `RemovalPolicy.DESTROY`).
-  - [ ] 3 `lambda.Function` (`wsConnect`, `wsDisconnect`, `wsDefault`), mismo runtime/memoria/timeout/log-retention que `ApiStack`. Env vars: `MONGO_SECRET_ARN`, `JWT_SECRET_ARN`, `CLOUDFRONT_SECRET`, `CONNECTIONS_TABLE_NAME`, `WS_API_ENDPOINT` (inyectado post-creación del stage).
-  - [ ] `WebSocketApi` + `WebSocketStage` (`prod`, `autoDeploy: true`).
-  - [ ] Integrations para rutas `$connect`, `$disconnect`, `$default`.
-  - [ ] Grants: DDB read/write a los 3 handlers; Secrets read (`mongoSecret`, `jwtSecret`) a `wsConnect` y `wsDefault`; `execute-api:ManageConnections` a `wsDefault` (responde pings/ack).
-  - [ ] Output: `WebSocketEndpoint` (wss URL).
-- [ ] Registrar el stack en `infra/bin/infra.ts` con dependencia de `SecretsStack`.
-- [ ] `apps/backend/tsup.config.ts`: agregar `src/functions/ws-connect.ts`, `ws-disconnect.ts`, `ws-default.ts` al array `entry`.
-- [ ] Crear los 3 archivos handler como stubs (`export const handler = async () => ({ statusCode: 200, body: 'ok' })`).
-- [ ] `pnpm --filter infra synth -c stage=prod` genera los 3 templates sin error.
-- [ ] Exponer el WS endpoint URL del stack vía `CfnOutput` para referencia.
+- [x] Crear `infra/lib/websocket-stack.ts` (`WebSocketStack`) con:
+  - [x] Tabla DDB `ws-connections` (PK `connectionId`, SK `channel`, GSI1 `channel-index`, TTL attribute `ttl`, `BillingMode.PAY_PER_REQUEST`, `RemovalPolicy.DESTROY`).
+  - [x] 3 `lambda.Function` (`wsConnect`, `wsDisconnect`, `wsDefault`), mismo runtime/memoria/timeout/log-retention que `ApiStack`. Env vars: `MONGO_SECRET_ARN`, `JWT_SECRET_ARN`, `CLOUDFRONT_SECRET`, `CONNECTIONS_TABLE_NAME`, `WS_API_ENDPOINT` (inyectado post-creación del stage).
+  - [x] `WebSocketApi` + `WebSocketStage` (`prod`, `autoDeploy: true`).
+  - [x] Integrations para rutas `$connect`, `$disconnect`, `$default`.
+  - [x] Grants: DDB read/write a los 3 handlers; Secrets read (`mongoSecret`, `jwtSecret`) a `wsConnect` y `wsDefault`; `execute-api:ManageConnections` a `wsDefault` (responde pings/ack).
+  - [x] Output: `WebSocketEndpoint` (wss URL).
+- [x] Registrar el stack en `infra/bin/infra.ts` con dependencia de `SecretsStack`.
+- [x] `apps/backend/tsup.config.ts`: agregar `src/functions/ws-connect.ts`, `ws-disconnect.ts`, `ws-default.ts` al array `entry`.
+- [x] Crear los 3 archivos handler como stubs (`export const handler = async () => ({ statusCode: 200, body: 'ok' })`).
+- [x] `pnpm --filter infra synth -c stage=prod` genera los 3 templates sin error.
+- [x] Exponer el WS endpoint URL del stack vía `CfnOutput` para referencia.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds (backend + infra)
-- [ ] Manual: `pnpm --filter infra synth -c stage=prod` genera `WebSocketStack` sin errores y el template incluye la tabla DDB con GSI y TTL attribute.
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds (backend + infra)
+- [x] Manual: `pnpm --filter infra synth -c stage=prod` genera `WebSocketStack` sin errores y el template incluye la tabla DDB con GSI y TTL attribute.
 - [ ] Manual (si el usuario quiere deployar): `pnpm deploy:prod` deja el endpoint WSS disponible; `wscat -c wss://<endpoint>/prod` obtiene handshake 101 (auth aún sin validar — fase siguiente).
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->

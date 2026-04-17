@@ -85,7 +85,9 @@ const collections: CollectionSetup[] = [
           email: { bsonType: 'string' },
           name: { bsonType: 'string' },
           passwordHash: { bsonType: 'string' },
-          role: { enum: ['admin', 'cashier', 'manager'] },
+          role: {
+            enum: ['super_admin', 'admin', 'manager', 'supervisor', 'cashier', 'waiter', 'kitchen'],
+          },
           branchIds: {
             bsonType: 'array',
             items: { bsonType: 'string' },
@@ -381,6 +383,7 @@ const collections: CollectionSetup[] = [
               'password_reset_request',
               'password_reset_complete',
               'token_refresh',
+              'authorization_failed',
             ],
           },
           target: { bsonType: 'string' },

@@ -85,6 +85,8 @@ Authorization is enforced per-route after `requireAuth()` via the `requirePermis
 - `super_admin` bypasses both the permission check and `businessId` tenant isolation. Their stored `businessId` is the sentinel `SUPER_ADMIN_BUSINESS_ID = '*'` (also exported from `permissions.ts`).
 - Denials are audited: middleware fires a `logAuditEvent({ action: 'authorization_failed', metadata: { permission, route, method } })` and returns 403 with the generic message `Insufficient permissions`.
 - User CRUD lives in `src/routes/users.ts` and `src/services/users.ts`. Cross-tenant reads return 404 (not 403) so existence isn't leaked. Managers can only assign roles in `{supervisor, cashier, waiter, kitchen}`; violations also emit `authorization_failed`.
+- Branch access is enforced by `requireBranchAccess(paramName)` in `src/middleware/branch-access.ts`. It bypasses when the role has `branches:manage` (admin + super_admin) and otherwise checks the `branchIds` carried on the JWT — no per-request DB lookup. `branchIds` is populated by `login`/`refresh` from the user record and refreshed on every refresh-token rotation.
+- **Permission checks vs. tenant-isolation role checks.** Authorization decisions (who can do what) MUST go through `hasPermission(role, permission)` / `requirePermission(permission)` — never inline `role === '...'` in route/service code. The one legitimate exception is tenant-isolation scoping for `super_admin` (who has `businessId === '*'` and therefore needs special handling to scope queries to a specific `businessId`, e.g. in `src/services/users.ts`). If you add a new `role === '...'` check, it must be for tenant scoping, not authorization — otherwise use `hasPermission`.
 
 ### Database scripts
 

@@ -81,6 +81,7 @@ export async function login(
     userId: user._id,
     businessId: user.businessId,
     role: user.role,
+    ...(user.branchIds !== undefined ? { branchIds: user.branchIds } : {}),
   };
 
   const accessToken = await signAccessToken(payload);
@@ -136,6 +137,7 @@ export async function refresh(
     userId: user._id,
     businessId: user.businessId,
     role: user.role,
+    ...(user.branchIds !== undefined ? { branchIds: user.branchIds } : {}),
   };
 
   const newAccessToken = await signAccessToken(payload);

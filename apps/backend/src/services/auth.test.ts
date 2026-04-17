@@ -135,6 +135,39 @@ describe('auth service', () => {
       await expect(login('admin@test.com', 'admin123')).rejects.toThrow('Account is deactivated');
     });
 
+    it('includes branchIds in the access token payload when the user has any', async () => {
+      mockLoginAttemptsCollection.findOne.mockResolvedValue(null);
+      mockUsersCollection.findOne.mockResolvedValue(adminUser);
+      mockRefreshTokensCollection.insertOne.mockResolvedValue({});
+      mockLoginAttemptsCollection.deleteOne.mockResolvedValue({});
+
+      await login('admin@test.com', 'admin123');
+
+      const { signAccessToken } = await import('../lib/jwt.js');
+      expect(signAccessToken).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'admin-1',
+          role: 'admin',
+          branchIds: ['branch-1'],
+        }),
+      );
+    });
+
+    it('omits branchIds when the user has none', async () => {
+      const userWithoutBranches: User = { ...adminUser };
+      delete userWithoutBranches.branchIds;
+      mockLoginAttemptsCollection.findOne.mockResolvedValue(null);
+      mockUsersCollection.findOne.mockResolvedValue(userWithoutBranches);
+      mockRefreshTokensCollection.insertOne.mockResolvedValue({});
+      mockLoginAttemptsCollection.deleteOne.mockResolvedValue({});
+
+      await login('admin@test.com', 'admin123');
+
+      const { signAccessToken } = await import('../lib/jwt.js');
+      const payload = vi.mocked(signAccessToken).mock.calls.at(-1)?.[0];
+      expect(payload).not.toHaveProperty('branchIds');
+    });
+
     it('resets login attempts on successful login', async () => {
       mockLoginAttemptsCollection.findOne.mockResolvedValue(null);
       mockUsersCollection.findOne.mockResolvedValue(adminUser);

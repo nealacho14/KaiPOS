@@ -32,6 +32,8 @@ export type {
   PaginatedResponse,
 } from './types/index.js';
 
+export { AUDIT_ACTIONS } from './types/index.js';
+
 export {
   API_VERSION,
   formatCurrency,

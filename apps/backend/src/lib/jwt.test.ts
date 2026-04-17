@@ -21,6 +21,18 @@ describe('jwt', () => {
       expect(decoded.userId).toBe('user-1');
       expect(decoded.businessId).toBe('biz-1');
       expect(decoded.role).toBe('admin');
+      expect(decoded.branchIds).toBeUndefined();
+    });
+
+    it('roundtrips branchIds when present', async () => {
+      const token = await signAccessToken({
+        ...testPayload,
+        role: 'cashier',
+        branchIds: ['branch-1', 'branch-2'],
+      });
+      const decoded = await verifyAccessToken(token);
+
+      expect(decoded.branchIds).toEqual(['branch-1', 'branch-2']);
     });
 
     it('rejects a tampered token', async () => {

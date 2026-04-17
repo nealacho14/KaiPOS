@@ -162,6 +162,7 @@ export interface TokenPayload {
   userId: string;
   businessId: string;
   role: UserRole;
+  branchIds?: string[];
 }
 
 export interface RefreshToken {
@@ -224,15 +225,18 @@ export interface ResetPasswordRequest {
 // Audit log types
 // ---------------------------------------------------------------------------
 
-export type AuditAction =
-  | 'login'
-  | 'login_failed'
-  | 'logout'
-  | 'register'
-  | 'password_reset_request'
-  | 'password_reset_complete'
-  | 'token_refresh'
-  | 'authorization_failed';
+export const AUDIT_ACTIONS = [
+  'login',
+  'login_failed',
+  'logout',
+  'register',
+  'password_reset_request',
+  'password_reset_complete',
+  'token_refresh',
+  'authorization_failed',
+] as const;
+
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 export interface AuditLog {
   _id: string;

@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from 'hono';
-import { getUsersCollection } from '../db/collections.js';
 import { ForbiddenError } from '../lib/errors.js';
+import { hasPermission } from '../lib/permissions.js';
 import type { AppEnv } from '../types.js';
 
 export function requireBranchAccess(paramName: string): MiddlewareHandler<AppEnv> {
@@ -15,17 +15,12 @@ export function requireBranchAccess(paramName: string): MiddlewareHandler<AppEnv
       throw new ForbiddenError('Branch ID is required');
     }
 
-    // Admins can access all branches in their business
-    if (user.role === 'admin') {
+    if (hasPermission(user.role, 'branches:manage')) {
       await next();
       return;
     }
 
-    // Look up user's branchIds from the database
-    const users = await getUsersCollection();
-    const dbUser = await users.findOne({ _id: user.userId });
-
-    if (!dbUser || !dbUser.branchIds?.includes(branchId)) {
+    if (!user.branchIds?.includes(branchId)) {
       throw new ForbiddenError('Access denied to this branch');
     }
 

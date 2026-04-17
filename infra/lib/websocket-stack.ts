@@ -46,12 +46,15 @@ export class WebSocketStack extends cdk.Stack {
       nonKeyAttributes: ['userId'],
     });
 
-    // WS handlers don't use MongoDB — only the api Lambda does. Keep the WS
-    // Lambdas scoped to JWT + DDB + the management API to respect least privilege.
+    // WS handlers don't use MongoDB — only the api Lambda does. They also
+    // don't enforce the `x-origin-verify` shared secret: the WSS endpoint
+    // bypasses CloudFront (clients connect directly to API Gateway) and
+    // browsers cannot set custom headers on `new WebSocket(...)`, so there
+    // is no code path that could deliver the header. Handshake security
+    // relies on the signed JWT + TLS.
     const baseEnvironment: Record<string, string> = {
       NODE_ENV: config.stage,
       JWT_SECRET_ARN: jwtSecret.secretArn,
-      CLOUDFRONT_SECRET: config.cloudfrontSecret,
       CONNECTIONS_TABLE_NAME: this.connectionsTable.tableName,
     };
 

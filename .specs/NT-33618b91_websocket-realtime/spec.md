@@ -32,7 +32,7 @@ Este trabajo es infraestructura fundacional: habilita features posteriores (KDS,
 
 - En el handshake (`$connect`), validar el JWT existente usando `verifyAccessToken()` con los mismos claims actuales.
 - Conexiones sin token, con token inválido o expirado deben ser rechazadas antes de registrar `connectionId`.
-- Verificación de origen análoga al header `x-origin-verify` del HTTP API (shared-secret) para rechazar conexiones que no pasen por CloudFront en prod. En dev se omite como ya ocurre con `origin-verify`.
+- ~~Verificación de origen análoga al header `x-origin-verify` del HTTP API (shared-secret) para rechazar conexiones que no pasen por CloudFront en prod. En dev se omite como ya ocurre con `origin-verify`.~~ **Post-implementación (QA fix):** descartado — el endpoint WSS bypasea CloudFront por diseño y los browsers no pueden setear headers custom en `new WebSocket(...)`; el check era estructuralmente imposible en esta topología y rechazaba el 100% de los handshakes en prod. La seguridad del handshake queda en JWT firmado + TLS obligatorio (patrón estándar: Slack, Discord, Linear, Figma). Ver branch `NT-33618b91/websocket-realtime/qa-fix-origin-verify`.
 
 **Canales / rooms**
 

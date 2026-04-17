@@ -177,30 +177,30 @@ Cliente real que cumple el AC de re-suscripción tras reconexión y demo visual.
 
 ### Tasks
 
-- [ ] `apps/frontend-admin/src/lib/ws-client.ts`: clase `WSClient` con
-  - [ ] `connect(token)` construye `wss://<endpoint>?token=<jwt>` y opcionalmente un origin secret por query si se configura.
-  - [ ] Reconnect con backoff exponencial (1s → 2s → 4s → … → 30s máx), cancelable.
-  - [ ] `subscribe(channel)`/`unsubscribe(channel)` con tracking interno — en cada reconexión exitosa re-emite todas las `subscribe` tracked.
-  - [ ] Event emitter (`on('message' | 'open' | 'close' | 'error', handler)`).
-- [ ] `apps/frontend-admin/src/hooks/useWebSocket.ts`: hook que expone `status`, `subscribe`, `unsubscribe`, y `lastMessage`.
-- [ ] Helper mínimo `apps/frontend-admin/src/lib/auth-storage.ts` con `getToken`/`setToken`/`clearToken` vs `localStorage` (acotado a lo necesario para este ticket; la UI de login real vive en otro flow).
-- [ ] Página debug `src/pages/DebugWebSocket.tsx`:
-  - [ ] Input de token, botón Connect/Disconnect.
-  - [ ] Lista de canales suscritos + input para `subscribe`/`unsubscribe`.
-  - [ ] Stream de mensajes recibidos (últimos 50) con timestamp.
-  - [ ] Botón "Crear orden" + "Cambiar estado a completed" para disparar el flujo end-to-end vía REST.
-- [ ] Wire en `App.tsx` (ruta `/debug/ws` o toggle condicional simple — no se requiere router completo).
-- [ ] Actualizar `CLAUDE.md` con una sección breve sobre WebSocket: endpoint, auth, canales, publish helper.
-- [ ] Tests unitarios de `WSClient` (mock `WebSocket` global): reconecta, re-suscribe, backoff cap.
+- [x] `apps/frontend-admin/src/lib/ws-client.ts`: clase `WSClient` con
+  - [x] `connect(token)` construye `wss://<endpoint>?token=<jwt>` y opcionalmente un origin secret por query si se configura.
+  - [x] Reconnect con backoff exponencial (1s → 2s → 4s → … → 30s máx), cancelable.
+  - [x] `subscribe(channel)`/`unsubscribe(channel)` con tracking interno — en cada reconexión exitosa re-emite todas las `subscribe` tracked.
+  - [x] Event emitter (`on('message' | 'open' | 'close' | 'error', handler)`).
+- [x] `apps/frontend-admin/src/hooks/useWebSocket.ts`: hook que expone `status`, `subscribe`, `unsubscribe`, y `onMessage` (suscripción directa al stream; el consumer empuja a su propio state — evita warnings de set-state-in-effect).
+- [x] Helper mínimo `apps/frontend-admin/src/lib/auth-storage.ts` con `getToken`/`setToken`/`clearToken` vs `localStorage` (acotado a lo necesario para este ticket; la UI de login real vive en otro flow).
+- [x] Página debug `src/pages/DebugWebSocket.tsx`:
+  - [x] Input de token, botón Connect/Disconnect.
+  - [x] Lista de canales suscritos + input para `subscribe`/`unsubscribe`.
+  - [x] Stream de mensajes recibidos (últimos 50) con timestamp.
+  - [x] Botón "Crear orden" + "Cambiar estado a completed" para disparar el flujo end-to-end vía REST.
+- [x] Wire en `App.tsx` (ruta `/debug/ws` o toggle condicional simple — no se requiere router completo).
+- [x] Actualizar `CLAUDE.md` con una sección breve sobre WebSocket: endpoint, auth, canales, publish helper.
+- [x] Tests unitarios de `WSClient` (mock `WebSocket` global): reconecta, re-suscribe, backoff cap.
 - [ ] QA manual end-to-end (ver `QA Plan`).
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm test` passes
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm test` passes
 - [ ] Manual: abrir la página debug con dos usuarios de sucursales distintas en dos navegadores; PATCH de orden en sucursal A → solo el navegador A recibe el mensaje.
 - [ ] Manual: matar la red del cliente durante 10s → tras recuperarse, los canales previos siguen activos sin intervención.
 

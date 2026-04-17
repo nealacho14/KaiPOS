@@ -1,33 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { User, RefreshToken, LoginAttempt, PasswordResetToken } from '@kaipos/shared/types';
+import { login, refresh, logout, forgotPassword, resetPassword } from './auth.js';
 
-// --- Mock collections ---
-
-const mockUsersCollection = {
-  findOne: vi.fn(),
-  insertOne: vi.fn(),
-  updateOne: vi.fn(),
-};
-
-const mockRefreshTokensCollection = {
-  findOne: vi.fn(),
-  insertOne: vi.fn(),
-  deleteOne: vi.fn(),
-  deleteMany: vi.fn(),
-};
-
-const mockLoginAttemptsCollection = {
-  findOne: vi.fn(),
-  findOneAndUpdate: vi.fn(),
-  updateOne: vi.fn(),
-  deleteOne: vi.fn(),
-};
-
-const mockPasswordResetTokensCollection = {
-  findOne: vi.fn(),
-  insertOne: vi.fn(),
-  updateOne: vi.fn(),
-};
+const {
+  mockUsersCollection,
+  mockRefreshTokensCollection,
+  mockLoginAttemptsCollection,
+  mockPasswordResetTokensCollection,
+} = vi.hoisted(() => ({
+  mockUsersCollection: {
+    findOne: vi.fn(),
+    insertOne: vi.fn(),
+    updateOne: vi.fn(),
+  },
+  mockRefreshTokensCollection: {
+    findOne: vi.fn(),
+    insertOne: vi.fn(),
+    deleteOne: vi.fn(),
+    deleteMany: vi.fn(),
+  },
+  mockLoginAttemptsCollection: {
+    findOne: vi.fn(),
+    findOneAndUpdate: vi.fn(),
+    updateOne: vi.fn(),
+    deleteOne: vi.fn(),
+  },
+  mockPasswordResetTokensCollection: {
+    findOne: vi.fn(),
+    insertOne: vi.fn(),
+    updateOne: vi.fn(),
+  },
+}));
 
 vi.mock('../db/collections.js', () => ({
   getUsersCollection: () => Promise.resolve(mockUsersCollection),
@@ -55,8 +58,6 @@ vi.mock('../lib/logger.js', () => ({
     error: vi.fn(),
   }),
 }));
-
-import { login, refresh, logout, forgotPassword, resetPassword } from './auth.js';
 
 const now = new Date('2025-01-01T00:00:00Z');
 

@@ -1,27 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { logAuditEvent } from './audit.js';
 
-// --- Mock collections ---
-
-const mockAuditLogsCollection = {
-  insertOne: vi.fn(),
-};
+const { mockAuditLogsCollection, mockLog } = vi.hoisted(() => ({
+  mockAuditLogsCollection: { insertOne: vi.fn() },
+  mockLog: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
 
 vi.mock('../db/collections.js', () => ({
   getAuditLogsCollection: () => Promise.resolve(mockAuditLogsCollection),
 }));
 
-// vi.mock factories are hoisted before variable declarations, so use vi.hoisted()
-// to define the logger mock object so it is available when the factory runs.
-const { mockLog } = vi.hoisted(() => {
-  const mockLog = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-  return { mockLog };
-});
-
 vi.mock('../lib/logger.js', () => ({
   createLogger: () => mockLog,
 }));
-
-import { logAuditEvent } from './audit.js';
 
 beforeEach(() => {
   vi.clearAllMocks();

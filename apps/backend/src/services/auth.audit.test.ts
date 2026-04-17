@@ -8,34 +8,41 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { User, RefreshToken, PasswordResetToken } from '@kaipos/shared/types';
+import { login, refresh, logout, forgotPassword, resetPassword } from './auth.js';
 
-// --- Mock collections ---
-
-const mockUsersCollection = {
-  findOne: vi.fn(),
-  insertOne: vi.fn(),
-  updateOne: vi.fn(),
-};
-
-const mockRefreshTokensCollection = {
-  findOne: vi.fn(),
-  insertOne: vi.fn(),
-  deleteOne: vi.fn(),
-  deleteMany: vi.fn(),
-};
-
-const mockLoginAttemptsCollection = {
-  findOne: vi.fn(),
-  findOneAndUpdate: vi.fn(),
-  updateOne: vi.fn(),
-  deleteOne: vi.fn(),
-};
-
-const mockPasswordResetTokensCollection = {
-  findOne: vi.fn(),
-  insertOne: vi.fn(),
-  updateOne: vi.fn(),
-};
+const {
+  mockUsersCollection,
+  mockRefreshTokensCollection,
+  mockLoginAttemptsCollection,
+  mockPasswordResetTokensCollection,
+  mockLogAuditEvent,
+  mockSendPasswordResetEmail,
+} = vi.hoisted(() => ({
+  mockUsersCollection: {
+    findOne: vi.fn(),
+    insertOne: vi.fn(),
+    updateOne: vi.fn(),
+  },
+  mockRefreshTokensCollection: {
+    findOne: vi.fn(),
+    insertOne: vi.fn(),
+    deleteOne: vi.fn(),
+    deleteMany: vi.fn(),
+  },
+  mockLoginAttemptsCollection: {
+    findOne: vi.fn(),
+    findOneAndUpdate: vi.fn(),
+    updateOne: vi.fn(),
+    deleteOne: vi.fn(),
+  },
+  mockPasswordResetTokensCollection: {
+    findOne: vi.fn(),
+    insertOne: vi.fn(),
+    updateOne: vi.fn(),
+  },
+  mockLogAuditEvent: vi.fn(),
+  mockSendPasswordResetEmail: vi.fn(),
+}));
 
 vi.mock('../db/collections.js', () => ({
   getUsersCollection: () => Promise.resolve(mockUsersCollection),
@@ -64,11 +71,6 @@ vi.mock('../lib/logger.js', () => ({
   }),
 }));
 
-// --- Mocks for the new integrations under test ---
-
-const mockLogAuditEvent = vi.fn();
-const mockSendPasswordResetEmail = vi.fn();
-
 vi.mock('./audit.js', () => ({
   logAuditEvent: (...args: unknown[]) => mockLogAuditEvent(...args),
 }));
@@ -76,8 +78,6 @@ vi.mock('./audit.js', () => ({
 vi.mock('../lib/ses.js', () => ({
   sendPasswordResetEmail: (...args: unknown[]) => mockSendPasswordResetEmail(...args),
 }));
-
-import { login, refresh, logout, forgotPassword, resetPassword } from './auth.js';
 
 // ---------------------------------------------------------------------------
 // Shared fixtures

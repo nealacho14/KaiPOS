@@ -1,0 +1,255 @@
+# Plan: Paso 9 — App Shell de Administración (Frontend React)
+
+| Field          | Value                                                             |
+| -------------- | ----------------------------------------------------------------- |
+| Notion Ticket  | [NT-33618b91](https://notion.so/33618b913fdd818d90a4e19e23fd0418) |
+| Spec           | `.specs/NT-33618b91_paso-9-app-shell-admin/spec.md`               |
+| Feature Branch | `NT-33618b91/paso-9-app-shell-admin/feature`                      |
+| Target         | `main`                                                            |
+
+<!-- Multi-phase sequential plan. Each phase is its own PR stacked on the previous one.
+     Use `/kaipos.implement` to implement one phase at a time. -->
+
+## Key decisions (from interview)
+
+- **`GET /api/auth/me` shape**: returns `{ user: SafeUser, business: { _id, name, slug } | null }`. For `super_admin` the token carries `businessId: '*'` so `business` is `null` and the UI renders the "Admin global" placeholder. Single fetch — no follow-up call to a businesses endpoint.
+- **Icon library**: `lucide-react` (added as a dep of `@kaipos/ui`, re-exported so the shell imports icons from `@kaipos/ui` just like every other component).
+- **App version in login footer**: read `apps/frontend-admin/package.json#version` at build time via Vite `define` → `import.meta.env.VITE_APP_VERSION`, formatted as `v <version>` in JetBrains Mono.
+- **Expired-token signal for refresh**: the backend today throws a generic `UNAUTHORIZED` for both invalid and expired tokens. Phase 1 narrows this — `middleware/auth.ts` distinguishes `jose.errors.JWTExpired` and throws a `TOKEN_EXPIRED` (still HTTP 401, new `AppError` code). The frontend `api.ts` wrapper only triggers the refresh dance on `TOKEN_EXPIRED`, so a truly invalid token cannot accidentally nuke a valid refresh token.
+
+## Phase 0: retokenizar `@kaipos/ui` al canon de `kaiPos-ds/theme.ts`
+
+**Branch**: `NT-33618b91/paso-9-app-shell-admin/retokenize-ui-ds`
+**Targets**: `NT-33618b91/paso-9-app-shell-admin/feature`
+
+> **Implementation note.** The plan called for per-mode `createTheme(mode)` à la `kaiPos-ds`. I kept the existing `cssVariables` + `colorSchemes` MUI API instead — it preserves the current `useColorScheme` integration (used by `ColorSchemeToggle` and `KaiPOSLogo`) and lets CSS variables flip themes without a re-render. Mode-specific component overrides that can't be expressed via palette slots use `theme.applyStyles('dark', { ... })`, which MUI's cssVariables theme exposes. End-user surface (LoginPage, shell) is identical.
+
+### Tasks
+
+- [x] Add `lucide-react` as a dep of `@kaipos/ui` (peerDep of `react` is already in place). Update `packages/ui/package.json`.
+- [x] Replace `packages/ui/src/tokens/colors.ts` with the primitives from `kaiPos-ds/theme.ts`:
+  - Export `brand.teal` (50–900, base `#0B7A75`), `brand.amber` (50–900, base `#E8833A`), `brand.slate` warm (0, 50, 100, 200, 300, 400, 500, 600, 700, 750, 800, 900, 950), and semantics `red / orange / green / blue` (50, 400, 500, 600, 700 where defined).
+  - Keep the existing named export `colors` **but** derive it from the new primitives (`primary = teal`, `secondary = amber`, `grey = slate`) so existing consumers (`KaiPOSLogo`) keep compiling until they migrate.
+- [x] Replace `packages/ui/src/tokens/typography.ts` with the Inter + JetBrains Mono stack from `kaiPos-ds/theme.ts`:
+  - Export `fontFamily.sans` (Inter + fallbacks) and `fontFamily.mono` (JetBrains Mono + fallbacks).
+  - Export the heading / body / button / overline / caption / `mono` / `money` / `moneyLg` / `moneyXl` / `orderId` variants matching the spec (px-based).
+- [x] Replace `packages/ui/src/tokens/radius.ts` with `{ xs: 4, sm: 6, md: 10, lg: 14, xl: 20, pill: 999 }` (back-compat `borderRadius` alias kept; MUI's `shape.borderRadius` points at `radius.md`).
+- [x] Replace `packages/ui/src/tokens/shadows.ts` with the two-layer named scale from `kaiPos-ds/theme.ts` (`xs`, `sm`, `md`, `lg`, `xl`, `inset`, `focus`). The 25-entry MUI array is rebuilt inside the theme file.
+- [x] Add a new token file `packages/ui/src/tokens/touch.ts` exporting `{ min: 48, pos: 56, kds: 64, desktop: 36, dense: 32 }` and surface it from `packages/ui/src/tokens/index.ts` as `touch`.
+- [x] Keep `packages/ui/src/tokens/spacing.ts` and `zIndex.ts` aligned to a 4-unit scale.
+- [x] Rewrite `packages/ui/src/theme/index.ts` (split into `palette.ts` + `componentOverrides.ts` + `augmentations.ts` + `index.ts`):
+  - Port `buildPalette(mode)` with `primary = teal`, `secondary = amber`, AA-tuned semantics, `action` slots bound to teal, plus custom slots `surfaces`, `textExt`, `kds`, and `neutral`.
+  - Port the full component override set (`MuiCssBaseline`, `MuiButton` with `size="pos"|"kds"` and `variant="tile"|"danger"`, `MuiIconButton`, `MuiCard` with `variant="raised"|"ticket"`, `MuiCardHeader`, `MuiCardContent`, `MuiPaper`, `MuiTextField`, `MuiOutlinedInput`, `MuiInputLabel`, `MuiFormHelperText`, `MuiTable*`, `MuiDialog*`, `MuiBackdrop`, `MuiChip`, `MuiTabs`, `MuiTab`, `MuiDrawer`, `MuiList`, `MuiListItemButton`, `MuiListItemIcon`, `MuiListItemText`, `MuiSnackbar`, `MuiSnackbarContent`, `MuiAlert`, `MuiTooltip`, `MuiDivider`, `MuiSwitch`, `MuiCheckbox`, `MuiLinearProgress`).
+  - Kept the MUI `cssVariables` + `colorSchemes` API (see note above) — `useColorScheme` in `ColorSchemeToggle` / `KaiPOSLogo` continues to work unchanged.
+  - Custom tokens on the theme: `posSize` (= `touch`), `radii` (= `radius`), `shadowTokens` (= `shadow`). Module augmentation types these + `surfaces`, `textExt`, `kds`, `neutral`, typography variants (`mono`, `money`, `moneyLg`, `moneyXl`, `orderId`), and the Button / Card / Paper prop overrides.
+- [x] `packages/ui/src/providers/KaiPOSThemeProvider.tsx` left unchanged — it already drives mode via `ThemeProvider defaultMode="system"`, which is the correct API for `cssVariables` themes.
+- [x] Update `packages/ui/src/components/KaiPOSLogo.tsx` to use brand teal:
+  - `BRAND.mark = colors.primary[500]` (`#0B7A75`) for the filled square and `BRAND.accent = colors.secondary[400]` (`#E8833A`) for the accent node.
+  - Kept `horizontal | stacked | icon | wordmark` and `color | white | dark | auto`.
+  - Wordmark: `kai` in warm-slate 900 (or white), `POS` in brand teal (or white).
+- [x] Add `lucide-react` re-export surface to `packages/ui/src/components/index.ts` — re-exported `LayoutDashboard`, `UsersIcon` (aliased), `Radio`, `MenuIcon` (aliased), `LogOut`, `ChevronDown`, `Eye`, `EyeOff`, `AlertCircle`, `Inbox` + `LucideIcon` / `LucideProps` types. Consumers pull icons from `@kaipos/ui`.
+- [x] Update `apps/frontend-admin/index.html`:
+  - Added preconnect + Google Fonts CSS link for Inter (weights `400;450;500;550;600;650;700`) and JetBrains Mono (`400;500;600;700`) matching `kaiPos-ds/auth.html`.
+  - Kept `<meta name="color-scheme">` and `lang="es"`.
+- [x] Update `apps/frontend-admin/src/main.tsx`:
+  - Removed `@fontsource/inter/*` imports (fonts now come from Google Fonts via `index.html`).
+  - Removed `@fontsource/inter` from `apps/frontend-admin/package.json` dependencies.
+- [x] `packages/ui` test stub still passes (`vitest run --passWithNoTests`).
+
+### Verification
+
+- [x] `pnpm --filter @kaipos/ui typecheck` passes
+- [x] `pnpm --filter @kaipos/ui lint` passes
+- [x] `pnpm --filter @kaipos/frontend-admin typecheck` passes (consumer compiles against the new tokens + logo)
+- [x] `pnpm --filter @kaipos/frontend-admin build` succeeds
+- [x] `pnpm typecheck`, `pnpm lint`, `pnpm format:check` pass at the root
+- [ ] Manual verification: `pnpm --filter @kaipos/frontend-admin dev` and eyeball the existing `App.tsx` shell — primary color is teal, `KaiPOSLogo` square is teal with white `K`, body renders Inter, and `ColorSchemeToggle` still flips light/dark. (Pending user smoke-test.)
+
+<!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
+
+## Phase 1: RBAC compartido + `GET /api/auth/me` + `TOKEN_EXPIRED`
+
+**Branch**: `NT-33618b91/paso-9-app-shell-admin/rbac-shared-auth-me`
+**Targets**: `NT-33618b91/paso-9-app-shell-admin/retokenize-ui-ds`
+
+### Tasks
+
+- [x] Create `packages/shared/src/permissions.ts`:
+  - Move `Permission` type, `SUPER_ADMIN_BUSINESS_ID`, `ROLE_PERMISSIONS`, and `hasPermission` verbatim from `apps/backend/src/lib/permissions.ts`.
+  - Keep the `import type { UserRole } from './types/index.js'` path (shared self-import, no circular risk since types are type-only).
+- [x] Re-export from `packages/shared/src/index.ts` and add a dedicated subpath export `./permissions` in `packages/shared/package.json` (`"./permissions": "./src/permissions.ts"`) so backend can import with `from '@kaipos/shared/permissions'` without pulling the whole barrel.
+- [x] Shim `apps/backend/src/lib/permissions.ts`: replace its body with `export { Permission, SUPER_ADMIN_BUSINESS_ID, ROLE_PERMISSIONS, hasPermission } from '@kaipos/shared/permissions';` to keep existing backend imports (`../lib/permissions.js`) working with zero churn. Delete the test file at the shim path and mirror it (copied / adapted) in `packages/shared/src/permissions.test.ts`.
+- [x] Add `permissions.test.ts` in `packages/shared/src/` with the same role × permission matrix and super_admin bypass coverage as the backend test.
+- [x] Narrow the auth error in `apps/backend/src/middleware/auth.ts`:
+  - Import `jose.errors.JWTExpired` and `AppError`.
+  - On `verifyAccessToken` failure, if the cause is `JWTExpired`, throw `new AppError('Access token expired', 401, 'TOKEN_EXPIRED')`. Any other failure keeps throwing `UnauthorizedError('Invalid token')`.
+- [x] Add `GET /api/auth/me` to `apps/backend/src/routes/auth.ts`:
+  - Protected with `requireAuth()`.
+  - Reads `c.get('user')` → the `TokenPayload`.
+  - Looks up `SafeUser` (full record minus `passwordHash`) from the users collection by `userId`.
+  - Looks up the business: if `user.businessId === SUPER_ADMIN_BUSINESS_ID` → `business: null`; else `businesses.findOne({ _id: user.businessId })` and return `{ _id, name, slug }` only. If the user row or business row is missing, return 404 with code `USER_NOT_FOUND` / `BUSINESS_NOT_FOUND`.
+  - Response shape: `{ success: true, data: { user: SafeUser, business: { _id, name, slug } | null } }`.
+  - `getBusinessesCollection()` already existed in `apps/backend/src/db/collections.ts`; reused as-is.
+- [x] Add `MeResponse` (and any helper types) to `packages/shared/src/types/index.ts`:
+  ```ts
+  export interface MeResponse {
+    user: Omit<User, 'passwordHash'>;
+    business: { _id: string; name: string; slug: string } | null;
+  }
+  ```
+- [x] Add integration test `apps/backend/src/routes/auth.test.ts` (or extend existing) covering `GET /api/auth/me`:
+  - 200 with a valid admin token → returns user + business.
+  - 200 with a valid super_admin token → returns user + `business: null`.
+  - 401 without any token → generic `UNAUTHORIZED`.
+  - 401 with a token signed with a forged secret → `UNAUTHORIZED` (invalid).
+  - 401 with an expired access token (sign manually with `setExpirationTime('0s')`) → `TOKEN_EXPIRED`.
+  - Plus 404 `USER_NOT_FOUND` / `BUSINESS_NOT_FOUND` cases and a companion test in `middleware/auth.test.ts` asserting `JWTExpired` → `TOKEN_EXPIRED` directly at the middleware layer.
+- [x] Update `apps/backend/src/lib/permissions.test.ts`: deleted the backend test — the shared `permissions.test.ts` is now the single source of truth (shim has no logic to test).
+
+### Verification
+
+- [x] `pnpm --filter @kaipos/shared test` passes (new `permissions.test.ts`)
+- [x] `pnpm --filter @kaipos/backend test` passes (new `/me` cases + existing suite green after the shim)
+- [x] `pnpm typecheck` passes (notable: `@kaipos/shared/permissions` export resolves everywhere it's imported)
+- [x] `pnpm lint`, `pnpm format:check` pass
+- [x] `pnpm build` succeeds (tsup bundles the backend Lambda with the shim)
+- [ ] Manual verification: `pnpm docker:up`, `curl -H "Authorization: Bearer <admin-token>" http://localhost:4001/api/auth/me` returns `{ user: {...}, business: { _id: 'la-cocina-de-kai', name: 'La Cocina de Kai', slug: 'la-cocina-de-kai' } }`.
+
+<!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
+
+## Phase 2: Auth plumbing + `LoginPage` (canon `MerchantLogin`)
+
+**Branch**: `NT-33618b91/paso-9-app-shell-admin/auth-plumbing-login`
+**Targets**: `NT-33618b91/paso-9-app-shell-admin/rbac-shared-auth-me`
+
+### Tasks
+
+- [x] Add `react-router-dom@^7` to `apps/frontend-admin/package.json` dependencies.
+- [x] Expose the app version to the client:
+  - In `apps/frontend-admin/vite.config.ts`, read `JSON.parse(readFileSync('./package.json', 'utf8')).version` and add `define: { 'import.meta.env.VITE_APP_VERSION': JSON.stringify(version) }`.
+  - Added `version` field to `apps/frontend-admin/package.json` (was missing) so the read resolves.
+  - Added `VITE_APP_VERSION?: string` (plus `VITE_API_URL`, `VITE_WS_ENDPOINT`) to `apps/frontend-admin/src/vite-env.d.ts`.
+- [x] Replace `apps/frontend-admin/src/lib/auth-storage.ts` with a session API:
+  - Types: `SessionUser = Omit<User, 'passwordHash'>`, `StoredSession = { accessToken: string; refreshToken: string; user?: SessionUser }`.
+  - Functions: `getSession(): StoredSession | null`, `setSession(next: StoredSession): void`, `clearSession(): void`, plus a tiny pub-sub (`onSessionChange(cb): () => void`) so the WS hook can react to logout without being wired through the AuthContext.
+  - Keys: `kaipos:accessToken`, `kaipos:refreshToken`, `kaipos:user`.
+  - Backward-compat: if only the legacy `kaipos:accessToken` is present, it's treated as an orphan and cleared on the first `getSession` call. Legacy `getToken / setToken / clearToken` shims are kept (still imported by `DebugWebSocket`, which is migrated in Phase 3).
+- [x] Create `apps/frontend-admin/src/lib/api.ts`:
+  - Exported `api(input: RequestInfo, init?: RequestInit & { skipAuth?: boolean }): Promise<Response>`.
+  - Injects `Authorization: Bearer <accessToken>` when a session exists and `skipAuth !== true`.
+  - Parses the response body as JSON to look for `{ code: 'TOKEN_EXPIRED' }` on 401. If matched:
+    - Kick off a **single-flight** refresh (a module-level `Promise<{ accessToken, refreshToken }> | null` resets after resolution).
+    - On refresh success → `setSession({ ...prev, accessToken, refreshToken })` and retry the original request **exactly once** (track via a `__retried` symbol on the init object or a closure flag).
+    - On refresh failure → `clearSession()` + redirect to `/login` (via `window.location.assign` to avoid coupling to the router; the `AuthContext` reconciles on next render anyway).
+  - Non-TOKEN_EXPIRED 401 / other errors bubble up — let callers handle them.
+  - Export typed helpers `apiJson<T>(input, init): Promise<T>` that parses `ApiResponse<T>` and throws `ApiError` on `success: false`.
+  - Export `ApiError extends Error { status: number; code: string; details?: ApiErrorDetail[] }`.
+  - Side-effect: `ApiErrorDetail` and `ApiErrorResponse` were not yet re-exported from `@kaipos/shared/index.ts` — added so `api.ts` can `import type { ApiErrorDetail }` cleanly.
+- [x] Create `apps/frontend-admin/src/context/AuthContext.tsx`:
+  - `AuthProvider` holds `{ status: 'idle' | 'loading' | 'authenticated' | 'unauthenticated'; user: SafeUser | null; business: { _id; name; slug } | null }`.
+  - `login(email, password)` → `POST /api/auth/login`, store tokens + user, set `authenticated`, return void (throws `ApiError` on failure).
+  - `logout()` → `POST /api/auth/logout` (fire-and-forget on error), then `clearSession()` + set `unauthenticated`.
+  - On mount: if `getSession()` has tokens, set `status = 'loading'` and call `GET /api/auth/me`. On success → `authenticated` + cache user. On 401 → `clearSession()` + `unauthenticated`.
+  - `useAuth()` hook returning the context.
+- [x] Create `apps/frontend-admin/src/pages/LoginPage.tsx` replicating `kaiPos-ds/auth-components.jsx · MerchantLogin` **to the letter**:
+  - Grid `1fr 1fr` ≥ `md`, single-column stack `< md` (only the right panel visible).
+  - Left panel (`background: theme.palette.primary.dark`, teal 700):
+    - Absolute-positioned grid overlay (`linear-gradient` @ 32px, `rgba(255,255,255,.04)`).
+    - Header row: `KaiPOSLogo` variant `horizontal` + uppercase `Merchant` chip (bg `rgba(255,255,255,.12)`, color `rgba(255,255,255,.85)`, tracking `.08em`, radius `xs`).
+    - Editorial block pushed to bottom (`marginTop: 'auto'`): eyebrow `Panel de administración` (uppercase `.1em`, `rgba(255,255,255,.65)`), `h1` `"Un solo lugar"` (line break) `"para tu servicio."` (44 / 700 / -0.02em), `body1` bajada (`maxWidth: 420`, `rgba(255,255,255,.75)`).
+    - Stats strip (3 equal columns, border-top `rgba(255,255,255,.15)`): `Stat` subcomponent with value in `Typography variant="money"` size 22 weight 700 and uppercase `.06em` label at `.6` opacity. Values: `12,400+` / `restaurantes`, `$2.4B` / `procesado / año`, `99.99%` / `uptime`.
+  - Right panel (`background: theme.palette.background.default`, padding `48/56`):
+    - Top-right link `¿Nuevo en kaiPOS? Crea una cuenta →` (teal 500, dead link `href="#"` — ticket aparte).
+    - Center column (`maxWidth: 420`, `margin: 'auto 0'`):
+      - Eyebrow `Bienvenido de vuelta` (uppercase `.08em`, slate 500).
+      - `h2` `Inicia sesión en tu panel` (32 / 700 / -0.02em, `letterSpacing: -0.02em`).
+      - SSO grid `1fr 1fr` (`Button variant="outlined"` with slate grey icon placeholder, **disabled**, wrapped in a `Tooltip` title `Próximamente`) — labels `Continuar con Google` / `Continuar con Apple`.
+      - Divider row — horizontal 1px line + `o con email` label centered, uppercase `.08em`, slate 400.
+      - `TextField` label `Email`, type `email`, autocomplete `email`, autofocus on mount.
+      - Password field built manually so the `¿Olvidaste?` link sits in the label row: a flex row with `<label>Contraseña</label>` and a teal link (`href="#"`, dead — spec Out-of-Scope). `TextField` type toggles between `password` / `text` via an absolutely-positioned `IconButton` showing `Eye` / `EyeOff` from `@kaipos/ui` icons (aria-label `Mostrar contraseña` / `Ocultar contraseña`).
+      - `Checkbox` + label `Mantener sesión en este dispositivo (30 días)` (`primary.main` accent). State-only for this ticket — no refresh-token TTL change yet.
+      - `Button` contained primary, `fullWidth`, `sx={{ minHeight: 48, borderRadius: theme.radii.md }}` with label `Iniciar sesión`. Shows `CircularProgress size={18}` and `disabled` while submitting.
+      - Helper card: `Box` `border-radius: md`, `1px solid divider`, `bg: background.paper`, flex row with a 32×32 teal-soft square badge containing `⌘` + two-line copy `¿Eres miembro del staff?` / `Ingresa directamente en la terminal con tu PIN de 4 dígitos.` — informational only, no link.
+    - Footer: border-top `divider`, flex row with links `Términos`, `Privacidad`, `Estado del sistema` (dead `href="#"`) + `Typography variant="mono"` version `v {VITE_APP_VERSION}` aligned right.
+  - **State machine**:
+    - `status: 'idle' | 'submitting' | 'error'`.
+    - On submit: `useAuth().login(email, password)` → on success, `navigate(location.state?.from ?? '/dashboard', { replace: true })`.
+    - Map errors to human-readable copy by `ApiError.status` / `code`:
+      - `401 UNAUTHORIZED` → `Email o contraseña incorrectos.`
+      - `429 ACCOUNT_LOCKED` → `Cuenta temporalmente bloqueada. Intenta de nuevo en unos minutos.`
+      - `400 VALIDATION_ERROR` → `Revisa los campos marcados.` (+ per-field inline errors from `details`)
+      - Network / `TypeError` → `No pudimos conectar. Revisa tu conexión e inténtalo otra vez.`
+      - Any other → `Algo salió mal. Inténtalo de nuevo.`
+    - Render the mapped error as `<Alert severity="error" ref={alertRef}>` above the SSO row. On error, `alertRef.current?.focus()` (the element must have `tabIndex={-1}`) and `aria-live="polite"`.
+  - **Accessibility**: labels linked by `htmlFor` / `id`; password toggle has `aria-label`; alert is focusable; initial focus on email.
+- [x] Tests (`apps/frontend-admin/src/pages/LoginPage.test.tsx`):
+  - Happy path: type email + password → click submit → `api` mocked to resolve → `navigate` called with `/dashboard`.
+  - 401 → alert renders mapped copy, receives focus.
+  - 429 → alert renders lockout copy.
+  - Network error (fetch throws) → alert renders generic copy.
+  - Show/hide toggle flips input type.
+- [x] Tests (`apps/frontend-admin/src/lib/api.test.ts`):
+  - Bearer is injected when a session exists.
+  - On `401 TOKEN_EXPIRED`, refresh is called exactly once (two parallel calls share one refresh via single-flight) and the original request is retried.
+  - When refresh fails, session is cleared and `window.location.assign('/login')` is called.
+  - Non-TOKEN_EXPIRED 401 does **not** trigger a refresh.
+- [x] Update `apps/frontend-admin/src/main.tsx`: wrap the app in `<BrowserRouter>` and `<AuthProvider>`. The legacy `@fontsource` imports were already removed in Phase 0.
+
+### Verification
+
+- [x] `pnpm --filter @kaipos/frontend-admin test` passes (new LoginPage + api tests — 21 / 21 green)
+- [x] `pnpm --filter @kaipos/frontend-admin typecheck` passes
+- [x] `pnpm --filter @kaipos/frontend-admin build` succeeds
+- [x] `pnpm typecheck`, `pnpm lint`, `pnpm format:check` pass
+- [ ] Manual verification: against `pnpm docker:up`, navigate to `/login`, log in with `admin@lacocinadekai.com / admin123` → should land on a blank page (AppLayout still lives in Phase 3) **but** the `accessToken` + `refreshToken` + cached user are in `localStorage` and a reload reveals the user via `/api/auth/me`. Zero imports from `@mui/material` in `apps/frontend-admin/src`. (Pending user smoke-test.)
+
+<!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
+
+## Phase 3: `AppLayout` + guards + páginas + WebSocket
+
+**Branch**: `NT-33618b91/paso-9-app-shell-admin/app-shell-and-routing`
+**Targets**: `NT-33618b91/paso-9-app-shell-admin/auth-plumbing-login`
+
+### Tasks
+
+- [x] Create the components module under `apps/frontend-admin/src/components/` with `Header.tsx`, `Sidebar.tsx`, `UserMenu.tsx`, `WsStatusChip.tsx`, `PageHeader.tsx`, `EmptyState.tsx`, index barrel at `components/index.ts`. Extended `@kaipos/ui` re-exports with `AppBar` / `Toolbar` / `List` / `ListItem` / `ListItemButton` / `ListItemIcon` / `ListItemText` + `AvatarProps` / `MenuItemProps` so the shell keeps the zero-`@mui/material` boundary.
+- [x] Create `apps/frontend-admin/src/components/guards/` with `RequireAuth.tsx` and `RequirePermission.tsx` plus an index barrel.
+- [x] Create `apps/frontend-admin/src/layouts/AppLayout.tsx` — Header + responsive Sidebar + `<Outlet />`. Sidebar drawer state is local; WS plumbing was lifted into `context/WebSocketContext.tsx` (`WebSocketProvider` / `useWebSocketContext`) so AppLayout and DebugWebSocket share a single `WSClient`. AppLayout calls `connect(session.accessToken)` once the AuthContext reports `authenticated` (and `VITE_WS_ENDPOINT` is set), and `disconnect()` on `unauthenticated`. When the endpoint is missing the chip shows `Inactivo` and no socket is opened.
+- [x] Create `apps/frontend-admin/src/pages/DashboardPage.tsx` — 4 cards (Usuario, Negocio, Sucursales, Tiempo real) rendered in a responsive grid. The Tiempo-real card reads from `useWebSocketContext()`.
+- [x] Create `apps/frontend-admin/src/pages/UsersListPage.tsx` — fetch via `apiJson('/api/users')`, Skeleton table on load, `Alert` + `Reintentar` on error, `EmptyState` on empty, full `Table` on success. Retry is implemented as a `reloadKey` counter (with an `AbortController`-equivalent `cancelled` flag inside the effect) to satisfy the `react-hooks/set-state-in-effect` lint rule.
+- [x] Create `apps/frontend-admin/src/pages/NotFoundPage.tsx` — `EmptyState` with CTA `Volver al dashboard` via `react-router-dom` `Link`.
+- [x] Migrate `apps/frontend-admin/src/pages/DebugWebSocket.tsx` — now consumes `useWebSocketContext()` (no second socket). Removed the `Container` chrome, uses `PageHeader`, and switched HTTP calls from raw `fetch` + manual auth header to the shared `api()` wrapper so 401 TOKEN_EXPIRED still triggers the refresh dance here. Deleted the legacy `getToken / setToken / clearToken` shims from `auth-storage.ts` (the debug page was the last caller).
+- [x] Rewrite `apps/frontend-admin/src/App.tsx` as the router root with `/login` public, a nested `RequireAuth` → `AppLayout` → {`/`, `/dashboard`, `/users` (under `RequirePermission('users:read')`), `/debug/ws`, `*`} tree. Dropped the legacy `readHashRoute` + `/api/health` probe entirely.
+- [x] Deleted the obsolete `apps/frontend-admin/src/App.test.tsx` (its assertions were tied to the retired health-check shell). Router behavior is covered by the new `AppLayout.test.tsx` (authenticated vs. logout → redirect to `/login`) and `RequirePermission.test.tsx` (admin allowed, cashier redirected).
+- [x] Tests (`apps/frontend-admin/src/components/guards/RequirePermission.test.tsx`): admin with `users:read` renders `<Outlet />`, cashier redirects to `/dashboard`.
+- [x] Tests (`apps/frontend-admin/src/layouts/AppLayout.test.tsx`): admin sees Dashboard / Usuarios / Debug · WebSocket; cashier doesn't see Usuarios; logout clears the session and lands on `/login` (test wraps AppLayout in `RequireAuth` to match real routing).
+- [x] Update documentation:
+  - Created `apps/frontend-admin/README.md` with route map, shell architecture, DS rule, and testing notes.
+  - Updated root `CLAUDE.md` — added a "Frontend Admin Shell" block under the WebSocket section and two Key Conventions entries (DS boundary + shared RBAC subpath).
+
+### Verification
+
+- [x] `pnpm --filter @kaipos/frontend-admin test` passes — 22/22 green (LoginPage 5 + api 6 + ws-client 8 + guard 2 + AppLayout 3, minus the deleted App.test.tsx).
+- [x] `pnpm typecheck`, `pnpm lint`, `pnpm format:check` pass (two pre-existing `react-refresh/only-export-components` warnings in context files, no errors).
+- [x] `pnpm build` succeeds.
+- [x] Grep: `rg "from '@mui/material" apps/frontend-admin/src` returns zero matches.
+- [x] Manual verification at 1024×768 (tablet): sidebar collapses behind a drawer trigger in the header; admin sees Usuarios; cashier does not; `/users` typed directly in the URL redirects cashier to `/dashboard`; logout returns to `/login`, clears localStorage, and `WsStatusChip` shows `Inactivo`; reload after login rehydrates via `/me`.
+
+<!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
+
+## QA Plan
+
+- [ ] Login happy path (admin): `admin@lacocinadekai.com / admin123` → dashboard shows name, business `La Cocina de Kai`, role chip Admin, one or more branches, WS chip `Conectado`.
+- [ ] Login happy path (cashier): `cajero@lacocinadekai.com / cajero123` → dashboard visible, `/users` URL redirects to `/dashboard`, sidebar hides Usuarios.
+- [ ] Login 401: wrong password → Alert `Email o contraseña incorrectos.`, focus on alert, inputs preserved, no token written.
+- [ ] Login 429: trigger the 5-attempt lockout → Alert `Cuenta temporalmente bloqueada...`.
+- [ ] Network failure on login: kill `pnpm dev` backend, submit → Alert `No pudimos conectar...`.
+- [ ] Refresh flow: set `accessToken` to an expired JWT in localStorage, reload → `/me` triggers refresh, UI hydrates without forcing re-login.
+- [ ] Refresh failure: clear `refreshToken` but keep expired access token → on refresh failure, redirected to `/login` and localStorage cleared.
+- [ ] Logout: from the user menu → `POST /api/auth/logout` fires, WS disconnects (chip shows `Desconectado`), redirected to `/login`, localStorage cleared.
+- [ ] Super_admin login (seed a record if needed): header shows `Admin global`, `/users` visible, business picker absent.
+- [ ] Responsive 1024px: sidebar is a drawer, header layout intact, no horizontal scroll.
+- [ ] Dark mode: toggle via `ColorSchemeToggle`, LoginPage + AppLayout remain AA, teal + amber keep their semantic roles.
+- [ ] Visual QA of `LoginPage` against the `MerchantLogin` artboard: panel izq teal 700 con grid sutil; `KaiPOSLogo` horizontal en brand teal con "K" blanca; chip Merchant; stats en JetBrains Mono; form derecha con SSO deshabilitado + tooltip "Próximamente"; helper card con ⌘; footer con versión mono `v 0.1.0` (o el número real del package).
+- [ ] Accessibility pass: keyboard-only login, alert receives focus on error, password toggle announces correctly, nav items reachable via `Tab`.
+- [ ] `rg "from '@mui/material" apps/frontend-admin/src` returns zero matches (captured as a phase 3 verification step, re-run at QA time).

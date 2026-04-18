@@ -4,12 +4,14 @@ import { useColorScheme } from '../providers/useColorScheme.js';
 import { colors } from '../tokens/colors.js';
 
 /**
- * Brand palette — Deep Navy + Electric Blue (first palette from the brand identity guide).
- * Hard-coded here so the logo stays consistent regardless of the MUI theme primary.
+ * Brand palette — teal mark + amber accent per the kaiPOS canon
+ * (`kaiPos-ds/theme.ts`). Hardcoded here so the logo stays consistent
+ * regardless of the active MUI theme primary.
  */
 const BRAND = {
-  navy: colors.primary[900], // #0F172A
-  accent: colors.primary[500], // #3B82F6
+  mark: colors.primary[500], // #0B7A75 — teal 500
+  accent: colors.secondary[400], // #E8833A — amber 400
+  ink: colors.grey[900], // #141412 — warm slate 900 (wordmark "kai")
 } as const;
 
 export type LogoVariant = 'horizontal' | 'stacked' | 'icon' | 'wordmark';
@@ -44,8 +46,8 @@ function KMark({ size, colorVariant }: KMarkProps) {
   const strokeWidth = size * 0.04;
   const radius = size * 0.22;
 
-  const bgColor = colorVariant === 'color' ? BRAND.navy : 'transparent';
-  const borderColor = colorVariant === 'white' ? '#FFFFFF' : BRAND.navy;
+  const bgColor = colorVariant === 'color' ? BRAND.mark : 'transparent';
+  const borderColor = colorVariant === 'white' ? '#FFFFFF' : BRAND.mark;
   const letterColor = colorVariant === 'color' ? '#FFFFFF' : borderColor;
   const accentColor =
     colorVariant === 'color'
@@ -138,8 +140,8 @@ interface WordmarkProps {
 }
 
 function Wordmark({ size, colorVariant }: WordmarkProps) {
-  const kaiColor = colorVariant === 'white' ? '#FFFFFF' : BRAND.navy;
-  const posColor = colorVariant === 'white' ? '#FFFFFF' : BRAND.accent;
+  const kaiColor = colorVariant === 'white' ? '#FFFFFF' : BRAND.ink;
+  const posColor = colorVariant === 'white' ? '#FFFFFF' : BRAND.mark;
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'baseline' }}>

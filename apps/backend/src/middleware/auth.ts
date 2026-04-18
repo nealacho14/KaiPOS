@@ -1,6 +1,7 @@
 import type { MiddlewareHandler } from 'hono';
+import * as jose from 'jose';
 import { verifyAccessToken } from '../lib/jwt.js';
-import { UnauthorizedError } from '../lib/errors.js';
+import { AppError, UnauthorizedError } from '../lib/errors.js';
 import type { AppEnv } from '../types.js';
 
 export function requireAuth(): MiddlewareHandler<AppEnv> {
@@ -15,8 +16,11 @@ export function requireAuth(): MiddlewareHandler<AppEnv> {
     try {
       const payload = await verifyAccessToken(token);
       c.set('user', payload);
-    } catch {
-      throw new UnauthorizedError('Invalid or expired token');
+    } catch (err) {
+      if (err instanceof jose.errors.JWTExpired) {
+        throw new AppError('Access token expired', 401, 'TOKEN_EXPIRED');
+      }
+      throw new UnauthorizedError('Invalid token');
     }
 
     await next();

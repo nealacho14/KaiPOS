@@ -213,6 +213,11 @@ export interface LoginResponse {
   user: Omit<User, 'passwordHash'>;
 }
 
+export interface MeResponse {
+  user: Omit<User, 'passwordHash'>;
+  business: { _id: string; name: string; slug: string } | null;
+}
+
 export interface RefreshRequest {
   refreshToken: string;
 }

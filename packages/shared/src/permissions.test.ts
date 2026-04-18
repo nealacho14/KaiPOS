@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { UserRole } from '@kaipos/shared/types';
+import type { UserRole } from './types/index.js';
 import {
   ROLE_PERMISSIONS,
   SUPER_ADMIN_BUSINESS_ID,

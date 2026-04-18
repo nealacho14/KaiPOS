@@ -1,3 +1,3 @@
 import base from '@kaipos/eslint-config';
 
-export default base;
+export default [{ ignores: ['kaiPos-ds/**'] }, ...base];

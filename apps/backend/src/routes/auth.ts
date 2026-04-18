@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../types.js';
+import { requireAuth } from '../middleware/auth.js';
 import { validate } from '../middleware/validation.js';
 import {
   loginSchema,
@@ -15,6 +16,12 @@ const auth = new Hono<AppEnv>();
 auth.post('/api/auth/login', validate({ body: loginSchema }), async (c) => {
   const { email, password } = await c.req.json();
   const result = await authService.login(email, password);
+  return c.json({ success: true, data: result });
+});
+
+auth.get('/api/auth/me', requireAuth(), async (c) => {
+  const token = c.get('user')!;
+  const result = await authService.me(token);
   return c.json({ success: true, data: result });
 });
 

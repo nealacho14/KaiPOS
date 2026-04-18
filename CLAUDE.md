@@ -119,7 +119,14 @@ Authorization is enforced per-route after `requireAuth()` via the `requirePermis
 - **Channels.** `user:<userId>` is always attached at connect; regular users also get `business:<businessId>` and one `branch:<id>` per `branchIds` on the token. Super_admin gets only `user:<userId>` and must opt in to `business:<id>` via `subscribe`. Dynamic `subscribe`/`unsubscribe` go through `$default` and are validated with `canSubscribeTo` from `@kaipos/shared`.
 - **Connection store.** DynamoDB table `ws-connections` (PK `connectionId`, SK `channel`, GSI1 `channel-index`, TTL 2h). Populated by `$connect`, mutated by `$default`, cleaned up by `$disconnect` and inline by `publishToChannel` on `GoneException` (410).
 - **Publish helper.** `apps/backend/src/lib/ws-publish.ts` exposes `publishToChannel(channel, message)` and `publishToUser(userId, message)`. The `api` Lambda is granted `execute-api:ManageConnections` on the WS API and read/delete on the connections table; use these helpers from services (e.g. `orders.updateOrderStatus` fans out `order.status-changed` to `channelFor.branch(branchId)`).
-- **Frontend.** `apps/frontend-admin/src/lib/ws-client.ts` (`WSClient`) handles connect, exponential backoff reconnect (1s→30s cap), and re-subscribes tracked channels on reconnect. `src/hooks/useWebSocket.ts` wraps it for React; debug page at `#/debug/ws`.
+- **Frontend.** `apps/frontend-admin/src/lib/ws-client.ts` (`WSClient`) handles connect, exponential backoff reconnect (1s→30s cap), and re-subscribes tracked channels on reconnect. `src/hooks/useWebSocket.ts` wraps it for React; the shell owns a single `WebSocketProvider` (`src/context/WebSocketContext.tsx`) so all consumers share one socket. Debug page at `/debug/ws`.
+
+### Frontend Admin Shell
+
+- React Router v7 with `BrowserRouter` wrapping the app (see `src/main.tsx`). Routes are declared in `src/App.tsx`; guards in `src/components/guards/` (`RequireAuth`, `RequirePermission`).
+- `src/layouts/AppLayout.tsx` renders the `Header` + `Sidebar` shell and initializes the shared `WebSocketProvider`. The WS connects only when `status === 'authenticated'` and `VITE_WS_ENDPOINT` is set; otherwise the status chip shows `Inactivo`.
+- Sidebar items are gated by `hasPermission(user.role, permission)` — routes that need further gating also wrap in `RequirePermission`.
+- See `apps/frontend-admin/README.md` for route map and dev notes.
 
 ### Key Conventions
 
@@ -128,3 +135,5 @@ Authorization is enforced per-route after `requireAuth()` via the `requirePermis
 - Prettier: double quotes, semicolons, trailing commas, 100 char width
 - Unused vars prefixed with `_` (ESLint configured to allow this)
 - Node.js 20 minimum (see `.nvmrc`)
+- **Frontend design system boundary.** `apps/frontend-admin/src` must not import from `@mui/material/*` or `lucide-react` directly — all surface components and icons come from `@kaipos/ui`. Add re-exports there as needed. Verify with `rg "from '@mui/material" apps/frontend-admin/src` → zero matches.
+- **Shared RBAC.** `Permission`, `ROLE_PERMISSIONS`, `hasPermission`, and `SUPER_ADMIN_BUSINESS_ID` live in `@kaipos/shared` (also importable from the subpath `@kaipos/shared/permissions`). The backend `src/lib/permissions.ts` is a thin re-export shim; frontend code should import from `@kaipos/shared` directly.

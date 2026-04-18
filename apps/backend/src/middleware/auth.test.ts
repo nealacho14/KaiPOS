@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Hono } from 'hono';
+import * as jose from 'jose';
 import type { AppEnv } from '../types.js';
 import { requireAuth } from './auth.js';
 
@@ -19,7 +20,8 @@ function createApp() {
   // Error handler to convert thrown errors to responses
   app.onError((err, c) => {
     const status = 'statusCode' in err ? (err.statusCode as number) : 500;
-    return c.json({ error: err.message }, status as 200);
+    const code = 'code' in err ? (err.code as string) : undefined;
+    return c.json({ error: err.message, code }, status as 200);
   });
   return app;
 }
@@ -61,8 +63,24 @@ describe('requireAuth middleware', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 401 when token verification fails', async () => {
-    mockVerifyAccessToken.mockRejectedValue(new Error('expired'));
+  it('returns 401 UNAUTHORIZED when token verification fails (generic / invalid)', async () => {
+    mockVerifyAccessToken.mockRejectedValue(new Error('bogus'));
+
+    const app = createApp();
+    const res = await app.request('/protected/resource', {
+      headers: { Authorization: 'Bearer invalid-token' },
+    });
+
+    expect(res.status).toBe(401);
+    const body = (await res.json()) as { error: string; code: string };
+    expect(body.error).toContain('Invalid token');
+    expect(body.code).toBe('UNAUTHORIZED');
+  });
+
+  it('returns 401 TOKEN_EXPIRED when jose throws JWTExpired', async () => {
+    mockVerifyAccessToken.mockRejectedValue(
+      new jose.errors.JWTExpired('"exp" claim timestamp check failed', {}),
+    );
 
     const app = createApp();
     const res = await app.request('/protected/resource', {
@@ -70,7 +88,8 @@ describe('requireAuth middleware', () => {
     });
 
     expect(res.status).toBe(401);
-    const body = (await res.json()) as { error: string };
-    expect(body.error).toContain('Invalid or expired');
+    const body = (await res.json()) as { error: string; code: string };
+    expect(body.code).toBe('TOKEN_EXPIRED');
+    expect(body.error).toContain('expired');
   });
 });

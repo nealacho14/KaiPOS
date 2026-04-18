@@ -23,6 +23,7 @@ export type {
   PasswordResetToken,
   LoginRequest,
   LoginResponse,
+  MeResponse,
   RefreshRequest,
   RefreshResponse,
   ForgotPasswordRequest,
@@ -30,6 +31,8 @@ export type {
   AuditAction,
   AuditLog,
   ApiResponse,
+  ApiErrorDetail,
+  ApiErrorResponse,
   PaginatedResponse,
 } from './types/index.js';
 
@@ -54,3 +57,6 @@ export {
   generateOrderNumber,
   calculateOrderTotal,
 } from './utils/index.js';
+
+export type { Permission } from './permissions.js';
+export { SUPER_ADMIN_BUSINESS_ID, ROLE_PERMISSIONS, hasPermission } from './permissions.js';

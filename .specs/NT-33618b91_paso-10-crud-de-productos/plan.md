@@ -119,12 +119,12 @@
 
 #### 1. Ruta y navegación
 
-- [ ] `apps/frontend-admin/src/App.tsx` — agregar `<Route element={<RequirePermission permission="products:read" />}>` con `<Route path="/products" element={<ProductsListPage />} />`, siguiendo el patrón de `/users`.
-- [ ] `apps/frontend-admin/src/components/Sidebar.tsx` — agregar item `{ label: 'Productos', to: '/products', icon: <ícono de `@kaipos/ui`>, permission: 'products:read' }`. Si `@kaipos/ui` no exporta un ícono adecuado (e.g. `Package`), **re-exportarlo** desde `packages/ui/src/components/index.ts` (bloque de `lucide-react`). NO importar `lucide-react` directamente en la app.
+- [x] `apps/frontend-admin/src/App.tsx` — agregar `<Route element={<RequirePermission permission="products:read" />}>` con `<Route path="/products" element={<ProductsListPage />} />`, siguiendo el patrón de `/users`.
+- [x] `apps/frontend-admin/src/components/Sidebar.tsx` — agregar item `{ label: 'Productos', to: '/products', icon: <ícono de `@kaipos/ui`>, permission: 'products:read' }`. Si `@kaipos/ui` no exporta un ícono adecuado (e.g. `Package`), **re-exportarlo** desde `packages/ui/src/components/index.ts` (bloque de `lucide-react`). NO importar `lucide-react` directamente en la app.
 
 #### 2. Página `ProductsListPage.tsx`
 
-- [ ] `apps/frontend-admin/src/pages/ProductsListPage.tsx` — nueva página, patrón de `UsersListPage.tsx`:
+- [x] `apps/frontend-admin/src/pages/ProductsListPage.tsx` — nueva página, patrón de `UsersListPage.tsx`:
   - Estado `FetchState = loading | error | success` + `reloadKey` para retry.
   - `useEffect` que llama `apiJson<Product[]>('/api/products?...')` construyendo la querystring desde los filtros (`q`, `category`, `includeInactive`).
   - `mapError(err)` devuelve mensajes en español (403 / 401 / TypeError / default) — copiar de `UsersListPage.tsx::mapError` y ajustar al dominio (“No pudimos cargar los productos…”).
@@ -136,7 +136,7 @@
 
 #### 3. Modal crear/editar
 
-- [ ] `apps/frontend-admin/src/pages/ProductsListPage.tsx` — componente local `ProductFormDialog` (co-ubicado para no sobre-abstraer hasta que haya un segundo caller):
+- [x] `apps/frontend-admin/src/pages/ProductsListPage.tsx` — componente local `ProductFormDialog` (co-ubicado para no sobre-abstraer hasta que haya un segundo caller):
   - Props: `{ open, mode: 'create' | 'edit', initial?: Product, onClose, onSaved }`.
   - Campos: `name`, `sku`, `category` (`TextField` libre por ahora — categorías siguen como string, no FK), `price` (`TextField type="number"`), `stock` (`type="number"`), `description` (`multiline`), `imageUrl` (`TextField type="url"`, opcional).
   - Validación cliente antes de enviar: requeridos, `price >= 0`, `stock >= 0 int`, `imageUrl` si viene, es URL válida. Errores inline por campo.
@@ -148,22 +148,22 @@
 
 #### 4. Convenciones y gates
 
-- [ ] Sólo componentes e íconos de `@kaipos/ui`. Ejecutar `rg "from '@mui/material" apps/frontend-admin/src` y `rg "from 'lucide-react'" apps/frontend-admin/src` → 0 matches.
-- [ ] Mensajes de error en español (coherentes con `UsersListPage`).
-- [ ] Los botones de crear/editar/eliminar se ocultan vía `hasPermission(user.role, '...')` — además el backend ya rechaza con 403, el gate visual es sólo UX.
+- [x] Sólo componentes e íconos de `@kaipos/ui`. Ejecutar `rg "from '@mui/material" apps/frontend-admin/src` y `rg "from 'lucide-react'" apps/frontend-admin/src` → 0 matches.
+- [x] Mensajes de error en español (coherentes con `UsersListPage`).
+- [x] Los botones de crear/editar/eliminar se ocultan vía `hasPermission(user.role, '...')` — además el backend ya rechaza con 403, el gate visual es sólo UX.
 
 #### 5. Docs
 
-- [ ] `apps/frontend-admin/README.md` — agregar `/products` al mapa de rutas y mencionar la permission gate.
+- [x] `apps/frontend-admin/README.md` — agregar `/products` al mapa de rutas y mencionar la permission gate.
 
 ### Verification
 
-- [ ] `pnpm --filter @kaipos/frontend-admin typecheck` passes
-- [ ] `pnpm --filter @kaipos/frontend-admin lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm --filter @kaipos/frontend-admin build` succeeds
-- [ ] `rg "from '@mui/material" apps/frontend-admin/src` → 0 matches
-- [ ] `rg "from 'lucide-react'" apps/frontend-admin/src` → 0 matches
+- [x] `pnpm --filter @kaipos/frontend-admin typecheck` passes
+- [x] `pnpm --filter @kaipos/frontend-admin lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm --filter @kaipos/frontend-admin build` succeeds
+- [x] `rg "from '@mui/material" apps/frontend-admin/src` → 0 matches
+- [x] `rg "from 'lucide-react'" apps/frontend-admin/src` → 0 matches
 - [ ] Manual (con `pnpm dev` o `pnpm docker:up` + backend ya en Phase 1):
   - Login como admin → `/products` carga lista demo seeded.
   - Crear producto → aparece en la tabla inmediatamente.

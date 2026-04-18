@@ -11,13 +11,14 @@ pnpm docker:up                                # docker variant on :3001 + backen
 
 ## Shell routes
 
-| Path         | Guard                                             | Page             |
-| ------------ | ------------------------------------------------- | ---------------- |
-| `/login`     | public                                            | `LoginPage`      |
-| `/dashboard` | `RequireAuth`                                     | `DashboardPage`  |
-| `/users`     | `RequireAuth` + `RequirePermission('users:read')` | `UsersListPage`  |
-| `/debug/ws`  | `RequireAuth`                                     | `DebugWebSocket` |
-| `*`          | `RequireAuth` (below `AppLayout`)                 | `NotFoundPage`   |
+| Path         | Guard                                                | Page               |
+| ------------ | ---------------------------------------------------- | ------------------ |
+| `/login`     | public                                               | `LoginPage`        |
+| `/dashboard` | `RequireAuth`                                        | `DashboardPage`    |
+| `/users`     | `RequireAuth` + `RequirePermission('users:read')`    | `UsersListPage`    |
+| `/products`  | `RequireAuth` + `RequirePermission('products:read')` | `ProductsListPage` |
+| `/debug/ws`  | `RequireAuth`                                        | `DebugWebSocket`   |
+| `*`          | `RequireAuth` (below `AppLayout`)                    | `NotFoundPage`     |
 
 `/` redirects to `/dashboard`. Unknown paths inside the authenticated shell render the 404 page.
 

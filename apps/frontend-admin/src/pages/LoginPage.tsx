@@ -176,10 +176,10 @@ export function LoginPage() {
           <Typography
             component="h1"
             sx={{
-              fontSize: 44,
+              fontSize: { xs: 32, md: 44 },
               fontWeight: 700,
               letterSpacing: '-0.02em',
-              lineHeight: 1.08,
+              lineHeight: 1.12,
               margin: '14px 0 16px',
             }}
           >
@@ -221,7 +221,7 @@ export function LoginPage() {
         sx={{
           display: 'flex',
           flexDirection: 'column',
-          padding: { xs: '32px 24px', md: '48px 56px' },
+          padding: { xs: '28px 20px', md: '48px 56px' },
           overflow: 'auto',
         }}
       >
@@ -256,7 +256,7 @@ export function LoginPage() {
           <Typography
             component="h2"
             sx={{
-              fontSize: 32,
+              fontSize: { xs: 26, md: 32 },
               fontWeight: 700,
               letterSpacing: '-0.02em',
               lineHeight: 1.15,

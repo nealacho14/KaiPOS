@@ -1,9 +1,9 @@
 import type { KitchenStation, TokenPayload } from '@kaipos/shared/types';
+import { SUPER_ADMIN_BUSINESS_ID } from '@kaipos/shared/permissions';
 import { getKitchenStationsCollection } from '../db/collections.js';
 import { AppError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
 import { assertBranchAccess } from '../middleware/branch-access.js';
-import { SUPER_ADMIN_BUSINESS_ID } from '../lib/permissions.js';
 import type { CreateKitchenStationInput } from '../schemas/kitchen-stations.js';
 
 const log = createLogger({ module: 'kitchen-stations-service' });

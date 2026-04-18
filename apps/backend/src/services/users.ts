@@ -1,16 +1,15 @@
 import type { Filter } from 'mongodb';
 import type { TokenPayload, User, UserRole } from '@kaipos/shared/types';
+import { SUPER_ADMIN_BUSINESS_ID } from '@kaipos/shared/permissions';
 import { getUsersCollection } from '../db/collections.js';
 import { hashPassword } from '../lib/password.js';
 import { AppError, ForbiddenError, NotFoundError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
-import { SUPER_ADMIN_BUSINESS_ID } from '../lib/permissions.js';
+import { stripPasswordHash, type SafeUser } from '../lib/user-sanitize.js';
 import type { CreateUserInput, ListUsersQuery, UpdateUserInput } from '../schemas/users.js';
 import { logAuditEvent } from './audit.js';
 
 const log = createLogger({ module: 'users-service' });
-
-type SafeUser = Omit<User, 'passwordHash'>;
 
 const MANAGER_ASSIGNABLE_ROLES: ReadonlySet<UserRole> = new Set([
   'supervisor',
@@ -18,11 +17,6 @@ const MANAGER_ASSIGNABLE_ROLES: ReadonlySet<UserRole> = new Set([
   'waiter',
   'kitchen',
 ]);
-
-function stripPasswordHash(user: User): SafeUser {
-  const { passwordHash: _passwordHash, ...safe } = user;
-  return safe;
-}
 
 function buildScopeFilter(actor: TokenPayload, query?: ListUsersQuery): Filter<User> {
   if (actor.role === 'super_admin') {

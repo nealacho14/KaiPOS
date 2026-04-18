@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import type { UserRole } from '@kaipos/shared/types';
+import { ROLE_PERMISSIONS, type Permission } from '@kaipos/shared/permissions';
 import type { AppEnv } from '../types.js';
-import { ROLE_PERMISSIONS, type Permission } from '../lib/permissions.js';
 import { requirePermission } from './authorize.js';
 
 const mockLogAuditEvent = vi.fn();

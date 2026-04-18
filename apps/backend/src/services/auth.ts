@@ -1,4 +1,4 @@
-import type { MeResponse, TokenPayload, User } from '@kaipos/shared/types';
+import type { MeResponse, TokenPayload } from '@kaipos/shared/types';
 import { SUPER_ADMIN_BUSINESS_ID } from '@kaipos/shared/permissions';
 import {
   getBusinessesCollection,
@@ -8,6 +8,7 @@ import {
   getPasswordResetTokensCollection,
 } from '../db/collections.js';
 import { hashPassword, verifyPassword } from '../lib/password.js';
+import { idToString } from '../lib/id.js';
 import { signAccessToken, generateRefreshToken } from '../lib/jwt.js';
 import {
   REFRESH_TOKEN_TTL_DAYS,
@@ -18,30 +19,10 @@ import {
 import { UnauthorizedError, AppError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
 import { sendPasswordResetEmail } from '../lib/ses.js';
+import { stripPasswordHash, type SafeUser } from '../lib/user-sanitize.js';
 import { logAuditEvent } from './audit.js';
 
 const log = createLogger({ module: 'auth-service' });
-
-type SafeUser = Omit<User, 'passwordHash'>;
-
-function stripPasswordHash(user: User): SafeUser {
-  const { passwordHash: _, ...safe } = user;
-  return safe;
-}
-
-/**
- * Defensive cast for `user._id`. The codebase convention is UUID strings
- * (see `crypto.randomUUID()` on every insert), but records created
- * out-of-band — e.g. manual Atlas inserts — can end up with a Mongo
- * `ObjectId`. Downstream `$jsonSchema` validators require `createdBy`,
- * `userId`, etc. to be `string`, and a serialized ObjectId in a JWT
- * payload produces channel names like `user:[object Object]`. Calling
- * `String()` is a no-op for strings and returns the 24-char hex form for
- * ObjectIds.
- */
-function idToString(id: unknown): string {
-  return typeof id === 'string' ? id : String(id);
-}
 
 export async function login(
   email: string,

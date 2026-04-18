@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { api } from './api.js';
+import { api, resetAuthFailureHandlerForTests, setAuthFailureHandler } from './api.js';
 import { clearSession, setSession } from './auth-storage.js';
 
 const ORIGINAL_LOCATION = window.location;
@@ -7,6 +7,7 @@ const ORIGINAL_LOCATION = window.location;
 beforeEach(() => {
   clearSession();
   vi.restoreAllMocks();
+  resetAuthFailureHandlerForTests();
   Object.defineProperty(window, 'location', {
     configurable: true,
     value: { ...ORIGINAL_LOCATION, assign: vi.fn() },
@@ -97,6 +98,24 @@ describe('api()', () => {
     expect(window.location.assign).toHaveBeenCalledWith('/login');
     expect(window.localStorage.getItem('kaipos:accessToken')).toBeNull();
     expect(window.localStorage.getItem('kaipos:refreshToken')).toBeNull();
+  });
+
+  it('routes auth failures through a registered handler instead of window.location', async () => {
+    setSession({ accessToken: 'old', refreshToken: 'rfr-1' });
+    const onFailure = vi.fn();
+    setAuthFailureHandler(onFailure);
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : (input as URL).toString();
+      if (url === '/api/auth/refresh') {
+        return jsonResponse(401, { success: false, error: 'invalid', code: 'INVALID_TOKEN' });
+      }
+      return jsonResponse(401, { success: false, error: 'expired', code: 'TOKEN_EXPIRED' });
+    });
+
+    await api('/api/users');
+    expect(onFailure).toHaveBeenCalledTimes(1);
+    expect(window.location.assign).not.toHaveBeenCalled();
   });
 
   it('does not refresh on a non-TOKEN_EXPIRED 401', async () => {

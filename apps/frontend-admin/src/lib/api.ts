@@ -1,6 +1,30 @@
 import type { ApiErrorDetail, RefreshResponse } from '@kaipos/shared';
 import { clearSession, getSession, setSession } from './auth-storage.js';
 
+type AuthFailureHandler = () => void;
+
+// Default behavior: when the refresh path gives up, hard-redirect to /login.
+// `AuthProvider` replaces this at startup via `setAuthFailureHandler` so the
+// handler can use the router instead of `window.location.assign`, which keeps
+// this module decoupled from react-router and trivially testable.
+let onAuthFailure: AuthFailureHandler = () => {
+  if (typeof window !== 'undefined') {
+    window.location.assign('/login');
+  }
+};
+
+export function setAuthFailureHandler(handler: AuthFailureHandler): void {
+  onAuthFailure = handler;
+}
+
+export function resetAuthFailureHandlerForTests(): void {
+  onAuthFailure = () => {
+    if (typeof window !== 'undefined') {
+      window.location.assign('/login');
+    }
+  };
+}
+
 export class ApiError extends Error {
   status: number;
   code: string;
@@ -63,9 +87,7 @@ function buildHeaders(init: ApiInit | undefined, accessToken?: string): Headers 
 }
 
 function redirectToLogin(): void {
-  if (typeof window !== 'undefined') {
-    window.location.assign('/login');
-  }
+  onAuthFailure();
 }
 
 export async function api(input: RequestInfo | URL, init?: ApiInit): Promise<Response> {

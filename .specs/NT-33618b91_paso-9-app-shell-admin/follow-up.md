@@ -14,5 +14,5 @@ Source: `.specs/NT-33618b91_paso-9-app-shell-admin/`
 - [ ] Wire the `Mantener sesión (30 días)` checkbox to an actual long-lived refresh-token TTL path — right now it's UI state only; the backend `REFRESH_TOKEN_TTL_DAYS` is a constant. Requires a new `rememberMe` field on `/api/auth/login` and a conditional TTL in `apps/backend/src/services/auth.ts`.
 - [ ] Real SSO (Google + Apple) handlers — currently the `Continuar con Google / Apple` buttons are disabled placeholders with a `Próximamente` tooltip.
 - [ ] Forgot / reset password UI screens — the backend endpoints exist (`POST /api/auth/forgot-password`, `POST /api/auth/reset-password`) but there are no pages yet; the `¿Olvidaste?` link in the password label is currently dead.
-- [ ] Mobile (< 600px) optimization of the admin shell — explicitly out of scope for this ticket; the current iteration targets desktop + tablet (≥ 1024px).
+- [x] Mobile (< 600px) optimization of the admin shell — explicitly out of scope for this ticket; the current iteration targets desktop + tablet (≥ 1024px).
 - [ ] Business picker for `super_admin` — super_admin currently logs in and sees `Admin global` as a placeholder; a proper picker should let them scope the shell to a chosen business.

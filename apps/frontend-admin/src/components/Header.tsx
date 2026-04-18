@@ -39,6 +39,10 @@ export interface HeaderProps {
 export function Header({ wsStatus, onMenuToggle }: HeaderProps) {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+  // `sm` (600px) gates the compact WsStatusChip / hidden role chip — below
+  // that we're on phone territory and the labeled chip eats ~110px of header
+  // width that we need for hamburger + logo + theme toggle + user menu.
+  const isXs = useMediaQuery(theme.breakpoints.down('sm'));
   const { user, business } = useAuth();
 
   const businessName = business?.name ?? 'Admin global';
@@ -95,14 +99,20 @@ export function Header({ wsStatus, onMenuToggle }: HeaderProps) {
             color={roleChip.color}
             label={roleChip.label}
             variant={roleChip.color === 'default' ? 'outlined' : 'filled'}
+            sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
           />
         )}
       </Stack>
 
       <Box sx={{ flexGrow: 1 }} />
 
-      <Stack direction="row" spacing={1} alignItems="center">
-        <WsStatusChip status={wsStatus} />
+      <Stack
+        direction="row"
+        spacing={{ xs: 0.5, sm: 1 }}
+        alignItems="center"
+        sx={{ flexShrink: 0 }}
+      >
+        <WsStatusChip status={wsStatus} compact={isXs} />
         <ColorSchemeToggle />
         <UserMenu />
       </Stack>

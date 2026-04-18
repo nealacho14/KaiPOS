@@ -107,9 +107,9 @@ function LoadingTable() {
         <TableHead>
           <TableRow>
             <TableCell>Nombre</TableCell>
-            <TableCell>Email</TableCell>
+            <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Email</TableCell>
             <TableCell>Rol</TableCell>
-            <TableCell>Sucursales</TableCell>
+            <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Sucursales</TableCell>
             <TableCell>Estado</TableCell>
           </TableRow>
         </TableHead>
@@ -119,13 +119,13 @@ function LoadingTable() {
               <TableCell>
                 <Skeleton variant="text" width="60%" />
               </TableCell>
-              <TableCell>
+              <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                 <Skeleton variant="text" width="80%" />
               </TableCell>
               <TableCell>
                 <Skeleton variant="rounded" width={80} height={24} />
               </TableCell>
-              <TableCell>
+              <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                 <Skeleton variant="text" width="40%" />
               </TableCell>
               <TableCell>
@@ -146,9 +146,9 @@ function UsersTable({ users }: { users: SafeUser[] }) {
         <TableHead>
           <TableRow>
             <TableCell>Nombre</TableCell>
-            <TableCell>Email</TableCell>
+            <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Email</TableCell>
             <TableCell>Rol</TableCell>
-            <TableCell>Sucursales</TableCell>
+            <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Sucursales</TableCell>
             <TableCell>Estado</TableCell>
           </TableRow>
         </TableHead>
@@ -156,11 +156,11 @@ function UsersTable({ users }: { users: SafeUser[] }) {
           {users.map((user) => (
             <TableRow key={user._id} hover>
               <TableCell sx={{ fontWeight: 550 }}>{user.name}</TableCell>
-              <TableCell>{user.email}</TableCell>
+              <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{user.email}</TableCell>
               <TableCell>
                 <Chip size="small" color="primary" label={ROLE_LABEL[user.role]} />
               </TableCell>
-              <TableCell>
+              <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                 <BranchesCell branchIds={user.branchIds} />
               </TableCell>
               <TableCell>

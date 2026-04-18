@@ -214,7 +214,7 @@ export function DebugWebSocket() {
                 onChange={(e) => setSubscribeInput(e.target.value)}
                 placeholder="branch:<id> or business:<id>"
                 size="small"
-                sx={{ minWidth: 280 }}
+                sx={{ flex: 1, minWidth: { xs: '100%', sm: 280 } }}
               />
               <Button variant="contained" onClick={onSubscribe}>
                 Subscribe
@@ -254,28 +254,28 @@ export function DebugWebSocket() {
                 value={orderForm.branchId}
                 onChange={(e) => setOrderForm({ ...orderForm, branchId: e.target.value })}
                 placeholder="branch id"
-                sx={{ minWidth: 220 }}
+                sx={{ flex: 1, minWidth: { xs: '100%', sm: 220 } }}
               />
               <TextField
                 label="product"
                 size="small"
                 value={orderForm.productName}
                 onChange={(e) => setOrderForm({ ...orderForm, productName: e.target.value })}
-                sx={{ minWidth: 200 }}
+                sx={{ flex: 1, minWidth: { xs: '100%', sm: 200 } }}
               />
               <TextField
                 label="unitPrice"
                 size="small"
                 value={orderForm.unitPrice}
                 onChange={(e) => setOrderForm({ ...orderForm, unitPrice: e.target.value })}
-                sx={{ width: 120 }}
+                sx={{ width: { xs: '48%', sm: 120 } }}
               />
               <TextField
                 label="qty"
                 size="small"
                 value={orderForm.quantity}
                 onChange={(e) => setOrderForm({ ...orderForm, quantity: e.target.value })}
-                sx={{ width: 90 }}
+                sx={{ width: { xs: '48%', sm: 90 } }}
               />
             </Stack>
             <Stack direction="row" spacing={1} flexWrap="wrap">

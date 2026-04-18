@@ -74,44 +74,45 @@
 
 ### Tasks
 
-- [ ] Create `packages/shared/src/permissions.ts`:
+- [x] Create `packages/shared/src/permissions.ts`:
   - Move `Permission` type, `SUPER_ADMIN_BUSINESS_ID`, `ROLE_PERMISSIONS`, and `hasPermission` verbatim from `apps/backend/src/lib/permissions.ts`.
   - Keep the `import type { UserRole } from './types/index.js'` path (shared self-import, no circular risk since types are type-only).
-- [ ] Re-export from `packages/shared/src/index.ts` and add a dedicated subpath export `./permissions` in `packages/shared/package.json` (`"./permissions": "./src/permissions.ts"`) so backend can import with `from '@kaipos/shared/permissions'` without pulling the whole barrel.
-- [ ] Shim `apps/backend/src/lib/permissions.ts`: replace its body with `export { Permission, SUPER_ADMIN_BUSINESS_ID, ROLE_PERMISSIONS, hasPermission } from '@kaipos/shared/permissions';` to keep existing backend imports (`../lib/permissions.js`) working with zero churn. Delete the test file at the shim path and mirror it (copied / adapted) in `packages/shared/src/permissions.test.ts`.
-- [ ] Add `permissions.test.ts` in `packages/shared/src/` with the same role × permission matrix and super_admin bypass coverage as the backend test.
-- [ ] Narrow the auth error in `apps/backend/src/middleware/auth.ts`:
+- [x] Re-export from `packages/shared/src/index.ts` and add a dedicated subpath export `./permissions` in `packages/shared/package.json` (`"./permissions": "./src/permissions.ts"`) so backend can import with `from '@kaipos/shared/permissions'` without pulling the whole barrel.
+- [x] Shim `apps/backend/src/lib/permissions.ts`: replace its body with `export { Permission, SUPER_ADMIN_BUSINESS_ID, ROLE_PERMISSIONS, hasPermission } from '@kaipos/shared/permissions';` to keep existing backend imports (`../lib/permissions.js`) working with zero churn. Delete the test file at the shim path and mirror it (copied / adapted) in `packages/shared/src/permissions.test.ts`.
+- [x] Add `permissions.test.ts` in `packages/shared/src/` with the same role × permission matrix and super_admin bypass coverage as the backend test.
+- [x] Narrow the auth error in `apps/backend/src/middleware/auth.ts`:
   - Import `jose.errors.JWTExpired` and `AppError`.
   - On `verifyAccessToken` failure, if the cause is `JWTExpired`, throw `new AppError('Access token expired', 401, 'TOKEN_EXPIRED')`. Any other failure keeps throwing `UnauthorizedError('Invalid token')`.
-- [ ] Add `GET /api/auth/me` to `apps/backend/src/routes/auth.ts`:
+- [x] Add `GET /api/auth/me` to `apps/backend/src/routes/auth.ts`:
   - Protected with `requireAuth()`.
   - Reads `c.get('user')` → the `TokenPayload`.
   - Looks up `SafeUser` (full record minus `passwordHash`) from the users collection by `userId`.
   - Looks up the business: if `user.businessId === SUPER_ADMIN_BUSINESS_ID` → `business: null`; else `businesses.findOne({ _id: user.businessId })` and return `{ _id, name, slug }` only. If the user row or business row is missing, return 404 with code `USER_NOT_FOUND` / `BUSINESS_NOT_FOUND`.
   - Response shape: `{ success: true, data: { user: SafeUser, business: { _id, name, slug } | null } }`.
-  - Add `getBusinessesCollection()` to `apps/backend/src/db/collections.ts` if it is not already there (the codebase already seeds a business, check first and only add if missing).
-- [ ] Add `MeResponse` (and any helper types) to `packages/shared/src/types/index.ts`:
+  - `getBusinessesCollection()` already existed in `apps/backend/src/db/collections.ts`; reused as-is.
+- [x] Add `MeResponse` (and any helper types) to `packages/shared/src/types/index.ts`:
   ```ts
   export interface MeResponse {
     user: Omit<User, 'passwordHash'>;
     business: { _id: string; name: string; slug: string } | null;
   }
   ```
-- [ ] Add integration test `apps/backend/src/routes/auth.test.ts` (or extend existing) covering `GET /api/auth/me`:
+- [x] Add integration test `apps/backend/src/routes/auth.test.ts` (or extend existing) covering `GET /api/auth/me`:
   - 200 with a valid admin token → returns user + business.
   - 200 with a valid super_admin token → returns user + `business: null`.
   - 401 without any token → generic `UNAUTHORIZED`.
   - 401 with a token signed with a forged secret → `UNAUTHORIZED` (invalid).
   - 401 with an expired access token (sign manually with `setExpirationTime('0s')`) → `TOKEN_EXPIRED`.
-- [ ] Update `apps/backend/src/lib/permissions.test.ts`: since the implementation moved, either delete this file and rely on the new shared test, or keep it as a thin shim-smoke-test that imports via `./permissions.js` to prove the re-export works. (Recommended: delete the backend test and keep only the shared one.)
+  - Plus 404 `USER_NOT_FOUND` / `BUSINESS_NOT_FOUND` cases and a companion test in `middleware/auth.test.ts` asserting `JWTExpired` → `TOKEN_EXPIRED` directly at the middleware layer.
+- [x] Update `apps/backend/src/lib/permissions.test.ts`: deleted the backend test — the shared `permissions.test.ts` is now the single source of truth (shim has no logic to test).
 
 ### Verification
 
-- [ ] `pnpm --filter @kaipos/shared test` passes (new `permissions.test.ts`)
-- [ ] `pnpm --filter @kaipos/backend test` passes (new `/me` cases + existing suite green after the shim)
-- [ ] `pnpm typecheck` passes (notable: `@kaipos/shared/permissions` export resolves everywhere it's imported)
-- [ ] `pnpm lint`, `pnpm format:check` pass
-- [ ] `pnpm build` succeeds (tsup bundles the backend Lambda with the shim)
+- [x] `pnpm --filter @kaipos/shared test` passes (new `permissions.test.ts`)
+- [x] `pnpm --filter @kaipos/backend test` passes (new `/me` cases + existing suite green after the shim)
+- [x] `pnpm typecheck` passes (notable: `@kaipos/shared/permissions` export resolves everywhere it's imported)
+- [x] `pnpm lint`, `pnpm format:check` pass
+- [x] `pnpm build` succeeds (tsup bundles the backend Lambda with the shim)
 - [ ] Manual verification: `pnpm docker:up`, `curl -H "Authorization: Bearer <admin-token>" http://localhost:4001/api/auth/me` returns `{ user: {...}, business: { _id: 'la-cocina-de-kai', name: 'La Cocina de Kai', slug: 'la-cocina-de-kai' } }`.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->

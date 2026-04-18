@@ -1,5 +1,7 @@
-import type { TokenPayload, User } from '@kaipos/shared/types';
+import type { MeResponse, TokenPayload, User } from '@kaipos/shared/types';
+import { SUPER_ADMIN_BUSINESS_ID } from '@kaipos/shared/permissions';
 import {
+  getBusinessesCollection,
   getUsersCollection,
   getRefreshTokensCollection,
   getLoginAttemptsCollection,
@@ -261,4 +263,27 @@ export async function resetPassword(token: string, newPassword: string): Promise
     target: stored.userId,
     userId: stored.userId,
   });
+}
+
+export async function me(token: TokenPayload): Promise<MeResponse> {
+  const users = await getUsersCollection();
+  const user = await users.findOne({ _id: token.userId });
+  if (!user) {
+    throw new AppError('User not found', 404, 'USER_NOT_FOUND');
+  }
+
+  if (user.businessId === SUPER_ADMIN_BUSINESS_ID) {
+    return { user: stripPasswordHash(user), business: null };
+  }
+
+  const businesses = await getBusinessesCollection();
+  const business = await businesses.findOne({ _id: user.businessId });
+  if (!business) {
+    throw new AppError('Business not found', 404, 'BUSINESS_NOT_FOUND');
+  }
+
+  return {
+    user: stripPasswordHash(user),
+    business: { _id: business._id, name: business.name, slug: business.slug },
+  };
 }

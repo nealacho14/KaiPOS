@@ -9,7 +9,7 @@ import {
   useState,
 } from 'react';
 import type { ReactNode } from 'react';
-import { apiJson } from '../lib/api.js';
+import { ApiError, apiJson } from '../lib/api.js';
 import { clearSession, getSession, setSession, type SessionUser } from '../lib/auth-storage.js';
 
 export type AuthStatus = 'idle' | 'loading' | 'authenticated' | 'unauthenticated';
@@ -54,11 +54,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setBusiness(data.business);
         setStatus('authenticated');
       })
-      .catch(() => {
-        clearSession();
-        setUser(null);
-        setBusiness(null);
-        setStatus('unauthenticated');
+      .catch((err: unknown) => {
+        // Only wipe the session when the server explicitly rejects our creds
+        // (401). Transient failures (network offline, 5xx, DNS hiccup) must
+        // NOT force a logout — leave the cached user in place and mark the
+        // status authenticated so the UI stays usable until the next /me
+        // succeeds. `api.ts` already handles TOKEN_EXPIRED via single-flight
+        // refresh; any 401 surfacing here is a truly invalid session.
+        if (err instanceof ApiError && err.status === 401) {
+          clearSession();
+          setUser(null);
+          setBusiness(null);
+          setStatus('unauthenticated');
+          return;
+        }
+        setStatus('authenticated');
       });
   }, []);
 

@@ -76,6 +76,14 @@ export function DebugWebSocket() {
       setApiError('Token is required');
       return;
     }
+    // Per WSClient.setEndpoint's JSDoc, the endpoint change only takes effect
+    // on the next connect — if a socket is already live we must tear it down
+    // first so we don't leak a dangling WebSocket against the old endpoint.
+    const active =
+      ws.status === 'open' || ws.status === 'connecting' || ws.status === 'reconnecting';
+    if (active) {
+      ws.disconnect();
+    }
     ws.setEndpoint(endpoint);
     ws.connect(tokenInput);
   };

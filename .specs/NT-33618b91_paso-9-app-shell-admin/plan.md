@@ -124,16 +124,17 @@
 
 ### Tasks
 
-- [ ] Add `react-router-dom@^7` to `apps/frontend-admin/package.json` dependencies.
-- [ ] Expose the app version to the client:
+- [x] Add `react-router-dom@^7` to `apps/frontend-admin/package.json` dependencies.
+- [x] Expose the app version to the client:
   - In `apps/frontend-admin/vite.config.ts`, read `JSON.parse(readFileSync('./package.json', 'utf8')).version` and add `define: { 'import.meta.env.VITE_APP_VERSION': JSON.stringify(version) }`.
-  - Add `VITE_APP_VERSION?: string` to `apps/frontend-admin/src/vite-env.d.ts`.
-- [ ] Replace `apps/frontend-admin/src/lib/auth-storage.ts` with a session API:
-  - Types: `SessionUser = SafeUser`, `StoredSession = { accessToken: string; refreshToken: string; user?: SafeUser }`.
+  - Added `version` field to `apps/frontend-admin/package.json` (was missing) so the read resolves.
+  - Added `VITE_APP_VERSION?: string` (plus `VITE_API_URL`, `VITE_WS_ENDPOINT`) to `apps/frontend-admin/src/vite-env.d.ts`.
+- [x] Replace `apps/frontend-admin/src/lib/auth-storage.ts` with a session API:
+  - Types: `SessionUser = Omit<User, 'passwordHash'>`, `StoredSession = { accessToken: string; refreshToken: string; user?: SessionUser }`.
   - Functions: `getSession(): StoredSession | null`, `setSession(next: StoredSession): void`, `clearSession(): void`, plus a tiny pub-sub (`onSessionChange(cb): () => void`) so the WS hook can react to logout without being wired through the AuthContext.
   - Keys: `kaipos:accessToken`, `kaipos:refreshToken`, `kaipos:user`.
-  - Keep backward-compat reads: if only the legacy `kaipos:accessToken` is present, treat it as an orphan and clear it on the first `getSession` call.
-- [ ] Create `apps/frontend-admin/src/lib/api.ts`:
+  - Backward-compat: if only the legacy `kaipos:accessToken` is present, it's treated as an orphan and cleared on the first `getSession` call. Legacy `getToken / setToken / clearToken` shims are kept (still imported by `DebugWebSocket`, which is migrated in Phase 3).
+- [x] Create `apps/frontend-admin/src/lib/api.ts`:
   - Exported `api(input: RequestInfo, init?: RequestInit & { skipAuth?: boolean }): Promise<Response>`.
   - Injects `Authorization: Bearer <accessToken>` when a session exists and `skipAuth !== true`.
   - Parses the response body as JSON to look for `{ code: 'TOKEN_EXPIRED' }` on 401. If matched:
@@ -143,13 +144,14 @@
   - Non-TOKEN_EXPIRED 401 / other errors bubble up — let callers handle them.
   - Export typed helpers `apiJson<T>(input, init): Promise<T>` that parses `ApiResponse<T>` and throws `ApiError` on `success: false`.
   - Export `ApiError extends Error { status: number; code: string; details?: ApiErrorDetail[] }`.
-- [ ] Create `apps/frontend-admin/src/context/AuthContext.tsx`:
+  - Side-effect: `ApiErrorDetail` and `ApiErrorResponse` were not yet re-exported from `@kaipos/shared/index.ts` — added so `api.ts` can `import type { ApiErrorDetail }` cleanly.
+- [x] Create `apps/frontend-admin/src/context/AuthContext.tsx`:
   - `AuthProvider` holds `{ status: 'idle' | 'loading' | 'authenticated' | 'unauthenticated'; user: SafeUser | null; business: { _id; name; slug } | null }`.
   - `login(email, password)` → `POST /api/auth/login`, store tokens + user, set `authenticated`, return void (throws `ApiError` on failure).
   - `logout()` → `POST /api/auth/logout` (fire-and-forget on error), then `clearSession()` + set `unauthenticated`.
   - On mount: if `getSession()` has tokens, set `status = 'loading'` and call `GET /api/auth/me`. On success → `authenticated` + cache user. On 401 → `clearSession()` + `unauthenticated`.
   - `useAuth()` hook returning the context.
-- [ ] Create `apps/frontend-admin/src/pages/LoginPage.tsx` replicating `kaiPos-ds/auth-components.jsx · MerchantLogin` **to the letter**:
+- [x] Create `apps/frontend-admin/src/pages/LoginPage.tsx` replicating `kaiPos-ds/auth-components.jsx · MerchantLogin` **to the letter**:
   - Grid `1fr 1fr` ≥ `md`, single-column stack `< md` (only the right panel visible).
   - Left panel (`background: theme.palette.primary.dark`, teal 700):
     - Absolute-positioned grid overlay (`linear-gradient` @ 32px, `rgba(255,255,255,.04)`).
@@ -180,26 +182,26 @@
       - Any other → `Algo salió mal. Inténtalo de nuevo.`
     - Render the mapped error as `<Alert severity="error" ref={alertRef}>` above the SSO row. On error, `alertRef.current?.focus()` (the element must have `tabIndex={-1}`) and `aria-live="polite"`.
   - **Accessibility**: labels linked by `htmlFor` / `id`; password toggle has `aria-label`; alert is focusable; initial focus on email.
-- [ ] Tests (`apps/frontend-admin/src/pages/LoginPage.test.tsx`):
+- [x] Tests (`apps/frontend-admin/src/pages/LoginPage.test.tsx`):
   - Happy path: type email + password → click submit → `api` mocked to resolve → `navigate` called with `/dashboard`.
   - 401 → alert renders mapped copy, receives focus.
   - 429 → alert renders lockout copy.
   - Network error (fetch throws) → alert renders generic copy.
   - Show/hide toggle flips input type.
-- [ ] Tests (`apps/frontend-admin/src/lib/api.test.ts`):
+- [x] Tests (`apps/frontend-admin/src/lib/api.test.ts`):
   - Bearer is injected when a session exists.
   - On `401 TOKEN_EXPIRED`, refresh is called exactly once (two parallel calls share one refresh via single-flight) and the original request is retried.
   - When refresh fails, session is cleared and `window.location.assign('/login')` is called.
   - Non-TOKEN_EXPIRED 401 does **not** trigger a refresh.
-- [ ] Update `apps/frontend-admin/src/main.tsx`: wrap the app in `<BrowserRouter>` and `<AuthProvider>`. Remove the existing `@fontsource` imports from this file (done in Phase 0, but double-check).
+- [x] Update `apps/frontend-admin/src/main.tsx`: wrap the app in `<BrowserRouter>` and `<AuthProvider>`. The legacy `@fontsource` imports were already removed in Phase 0.
 
 ### Verification
 
-- [ ] `pnpm --filter @kaipos/frontend-admin test` passes (new LoginPage + api tests)
-- [ ] `pnpm --filter @kaipos/frontend-admin typecheck` passes
-- [ ] `pnpm --filter @kaipos/frontend-admin build` succeeds
-- [ ] `pnpm typecheck`, `pnpm lint`, `pnpm format:check` pass
-- [ ] Manual verification: against `pnpm docker:up`, navigate to `/login`, log in with `admin@lacocinadekai.com / admin123` → should land on a blank page (AppLayout still lives in Phase 3) **but** the `accessToken` + `refreshToken` + cached user are in `localStorage` and a reload reveals the user via `/api/auth/me`. Zero imports from `@mui/material` in `apps/frontend-admin/src`.
+- [x] `pnpm --filter @kaipos/frontend-admin test` passes (new LoginPage + api tests — 21 / 21 green)
+- [x] `pnpm --filter @kaipos/frontend-admin typecheck` passes
+- [x] `pnpm --filter @kaipos/frontend-admin build` succeeds
+- [x] `pnpm typecheck`, `pnpm lint`, `pnpm format:check` pass
+- [ ] Manual verification: against `pnpm docker:up`, navigate to `/login`, log in with `admin@lacocinadekai.com / admin123` → should land on a blank page (AppLayout still lives in Phase 3) **but** the `accessToken` + `refreshToken` + cached user are in `localStorage` and a reload reveals the user via `/api/auth/me`. Zero imports from `@mui/material` in `apps/frontend-admin/src`. (Pending user smoke-test.)
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 

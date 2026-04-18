@@ -31,6 +31,8 @@ export type {
   AuditAction,
   AuditLog,
   ApiResponse,
+  ApiErrorDetail,
+  ApiErrorResponse,
   PaginatedResponse,
 } from './types/index.js';
 

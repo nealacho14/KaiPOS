@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>kaiPOS — Componentes POS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<style>
+html, body { margin:0; padding:0; background:#f0eee9; }
+body { font-family: "Inter", -apple-system, sans-serif; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="pos-components.jsx"></script>
+<script type="text/babel" src="kds-components.jsx"></script>
+<script type="text/babel" src="floor-components.jsx"></script>
+
+<script type="text/babel" data-presets="env,react">
+const { useState } = React;
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection
+        title="kaiPOS · Componentes de ejemplo"
+        subtitle="Tres pantallas reales construidas con el design system. Interactuables — agrega ítems al carrito, observa los timers del KDS correr en vivo."
+      >
+        <DCArtboard label="01 · POS Terminal — 1280×800 (counter-top)" width={1280} height={800}>
+          <POSTerminal />
+        </DCArtboard>
+
+        <DCArtboard label="02 · Kitchen Display — 1280×800 (wall-mount)" width={1280} height={800}>
+          <KDSDisplay />
+        </DCArtboard>
+
+        <DCArtboard label="03 · Floor Plan — 1280×800 (host station)" width={1280} height={800}>
+          <FloorPlan />
+        </DCArtboard>
+      </DCSection>
+
+      <DCPostIt top={90} left={40} rotate={-3} width={220}>
+        Usa <b>trackpad</b> para hacer zoom y pan. Rueda del mouse también.
+      </DCPostIt>
+      <DCPostIt top={260} left={40} rotate={2} width={220}>
+        Cada ticket del KDS corre su propio timer y la barra de SLA refleja el tiempo real.
+      </DCPostIt>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

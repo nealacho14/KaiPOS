@@ -233,7 +233,7 @@
 - [x] `pnpm typecheck`, `pnpm lint`, `pnpm format:check` pass (two pre-existing `react-refresh/only-export-components` warnings in context files, no errors).
 - [x] `pnpm build` succeeds.
 - [x] Grep: `rg "from '@mui/material" apps/frontend-admin/src` returns zero matches.
-- [ ] Manual verification at 1024×768 (tablet): sidebar collapses behind a drawer trigger in the header; admin sees Usuarios; cashier does not; `/users` typed directly in the URL redirects cashier to `/dashboard`; logout returns to `/login`, clears localStorage, and `WsStatusChip` shows `Inactivo`; reload after login rehydrates via `/me`. (Pending user smoke-test.)
+- [x] Manual verification at 1024×768 (tablet): sidebar collapses behind a drawer trigger in the header; admin sees Usuarios; cashier does not; `/users` typed directly in the URL redirects cashier to `/dashboard`; logout returns to `/login`, clears localStorage, and `WsStatusChip` shows `Inactivo`; reload after login rehydrates via `/me`.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 

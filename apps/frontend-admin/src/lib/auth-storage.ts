@@ -90,21 +90,3 @@ function notify(session: StoredSession | null): void {
     }
   }
 }
-
-// Legacy compatibility shims — the WS debug page still calls these.
-// They operate on the access token slot of the new session contract.
-
-export function getToken(): string | null {
-  return getSession()?.accessToken ?? null;
-}
-
-export function setToken(token: string): void {
-  const storage = safeStorage();
-  if (!storage) return;
-  storage.setItem(ACCESS_KEY, token);
-  notify(getSession());
-}
-
-export function clearToken(): void {
-  clearSession();
-}

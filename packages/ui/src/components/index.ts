@@ -1,6 +1,7 @@
 export { default as Alert, type AlertProps } from '@mui/material/Alert';
 export { default as AlertTitle } from '@mui/material/AlertTitle';
-export { default as Avatar } from '@mui/material/Avatar';
+export { default as AppBar, type AppBarProps } from '@mui/material/AppBar';
+export { default as Avatar, type AvatarProps } from '@mui/material/Avatar';
 export { default as Badge } from '@mui/material/Badge';
 export { default as Box, type BoxProps } from '@mui/material/Box';
 export { default as Button, type ButtonProps } from '@mui/material/Button';
@@ -29,8 +30,13 @@ export { default as IconButton, type IconButtonProps } from '@mui/material/IconB
 export { default as InputLabel } from '@mui/material/InputLabel';
 export { default as LinearProgress } from '@mui/material/LinearProgress';
 export { default as Link, type LinkProps } from '@mui/material/Link';
+export { default as List, type ListProps } from '@mui/material/List';
+export { default as ListItem, type ListItemProps } from '@mui/material/ListItem';
+export { default as ListItemButton, type ListItemButtonProps } from '@mui/material/ListItemButton';
+export { default as ListItemIcon } from '@mui/material/ListItemIcon';
+export { default as ListItemText, type ListItemTextProps } from '@mui/material/ListItemText';
 export { default as Menu, type MenuProps } from '@mui/material/Menu';
-export { default as MenuItem } from '@mui/material/MenuItem';
+export { default as MenuItem, type MenuItemProps } from '@mui/material/MenuItem';
 export { default as Paper } from '@mui/material/Paper';
 export { default as Select, type SelectProps } from '@mui/material/Select';
 export { default as Skeleton } from '@mui/material/Skeleton';
@@ -46,6 +52,7 @@ export { default as TableHead } from '@mui/material/TableHead';
 export { default as TableRow } from '@mui/material/TableRow';
 export { default as Tabs, type TabsProps } from '@mui/material/Tabs';
 export { default as TextField, type TextFieldProps } from '@mui/material/TextField';
+export { default as Toolbar, type ToolbarProps } from '@mui/material/Toolbar';
 export { default as Tooltip, type TooltipProps } from '@mui/material/Tooltip';
 export { default as Typography, type TypographyProps } from '@mui/material/Typography';
 

@@ -1,51 +1,77 @@
+/**
+ * Brand primitives — raw color values for the kaiPOS design canon.
+ *
+ * - `teal` is the primary: deep teal, trust + hospitality. Distinct from fintech blue.
+ * - `amber` is the secondary: warm amber, used for CTAs and "fire" moments in KDS.
+ * - `slate` is a warm neutral (leans 2° warm) tuned for hospitality context.
+ * - `red / orange / green / blue` are semantics tuned for WCAG AA on both schemes.
+ */
+export const brand = {
+  teal: {
+    50: '#E6F2F1',
+    100: '#C2DFDD',
+    200: '#8FC3BF',
+    300: '#5CA6A1',
+    400: '#2E8B85',
+    500: '#0B7A75',
+    600: '#086560',
+    700: '#06504C',
+    800: '#043B38',
+    900: '#022623',
+  },
+  amber: {
+    50: '#FDF2E6',
+    100: '#FADFC2',
+    200: '#F4BC84',
+    300: '#EE9F55',
+    400: '#E8833A',
+    500: '#D46F26',
+    600: '#B0591C',
+    700: '#8A4514',
+    800: '#63310D',
+    900: '#3E1E06',
+  },
+  slate: {
+    0: '#FFFFFF',
+    50: '#F7F7F5',
+    100: '#EEEEEB',
+    200: '#DEDEDA',
+    300: '#C4C4BE',
+    400: '#9A9A93',
+    500: '#6E6E67',
+    600: '#4E4E48',
+    700: '#383833',
+    750: '#2A2A26',
+    800: '#1E1E1B',
+    900: '#141412',
+    950: '#0A0A09',
+  },
+  red: { 50: '#FDECEC', 400: '#E5484D', 500: '#CE2C31', 600: '#B22125', 700: '#8E1A1D' },
+  orange: { 50: '#FEF0E6', 400: '#F76B15', 500: '#E25A05', 600: '#BB4A03' },
+  green: { 50: '#E8F5EC', 400: '#2FA84F', 500: '#1F8A3D', 600: '#176B2F', 700: '#0F4F22' },
+  blue: { 50: '#E8F1FC', 400: '#3B82F6', 500: '#2563EB', 600: '#1D4ED8', 700: '#1E40AF' },
+} as const;
+
+/**
+ * Legacy token surface consumed by existing components (`KaiPOSLogo`) and
+ * older theme code. Derived from `brand` so there's a single source of truth:
+ * primary ≡ teal, secondary ≡ amber, grey ≡ warm slate.
+ */
 export const colors = {
-  primary: {
-    50: '#EFF6FF',
-    100: '#DBEAFE',
-    200: '#BFDBFE',
-    300: '#93C5FD',
-    400: '#60A5FA',
-    500: '#3B82F6',
-    600: '#2563EB',
-    700: '#1D4ED8',
-    800: '#1E3A5F',
-    900: '#0F172A',
-  },
-  secondary: {
-    50: '#FFF8E1',
-    100: '#FFECB3',
-    200: '#FFE082',
-    300: '#FFD54F',
-    400: '#FFCA28',
-    500: '#FFC107',
-    600: '#FFB300',
-    700: '#FFA000',
-    800: '#FF8F00',
-    900: '#FF6F00',
-  },
-  grey: {
-    50: '#FAFAFA',
-    100: '#F5F5F5',
-    200: '#EEEEEE',
-    300: '#E0E0E0',
-    400: '#BDBDBD',
-    500: '#9E9E9E',
-    600: '#757575',
-    700: '#616161',
-    800: '#424242',
-    900: '#212121',
-  },
-  success: { light: '#34D399', main: '#10B981', dark: '#059669' },
-  warning: { light: '#FBBF24', main: '#F59E0B', dark: '#D97706' },
-  error: { light: '#F87171', main: '#EF4444', dark: '#DC2626' },
-  info: { light: '#60A5FA', main: '#3B82F6', dark: '#2563EB' },
+  primary: brand.teal,
+  secondary: brand.amber,
+  grey: brand.slate,
+  success: { light: brand.green[400], main: brand.green[500], dark: brand.green[700] },
+  warning: { light: brand.orange[400], main: brand.orange[500], dark: brand.orange[600] },
+  error: { light: brand.red[400], main: brand.red[500], dark: brand.red[700] },
+  info: { light: brand.blue[400], main: brand.blue[500], dark: brand.blue[700] },
   background: {
-    light: { default: '#F8FAFB', paper: '#FFFFFF', elevated: '#FFFFFF' },
-    dark: { default: '#0A0F14', paper: '#141A21', elevated: '#1C2430' },
+    light: { default: brand.slate[50], paper: brand.slate[0], elevated: brand.slate[0] },
+    dark: { default: brand.slate[950], paper: brand.slate[900], elevated: brand.slate[800] },
   },
   text: {
-    light: { primary: '#1A1A1A', secondary: '#6B7280', disabled: '#9CA3AF' },
-    dark: { primary: '#F9FAFB', secondary: '#9CA3AF', disabled: '#6B7280' },
+    light: { primary: brand.slate[900], secondary: brand.slate[600], disabled: brand.slate[400] },
+    dark: { primary: brand.slate[50], secondary: brand.slate[300], disabled: brand.slate[500] },
   },
-  border: { light: '#E5E7EB', dark: '#2D3748' },
+  border: { light: 'rgba(20,20,18,0.09)', dark: 'rgba(247,247,245,0.12)' },
 } as const;

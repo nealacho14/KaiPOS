@@ -16,6 +16,9 @@
     "lint": "eslint src/",
     "test": "vitest run --passWithNoTests"
   },
+  "dependencies": {
+    "lucide-react": "^0.469.0"
+  },
   "peerDependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",

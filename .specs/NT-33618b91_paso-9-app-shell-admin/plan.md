@@ -22,49 +22,48 @@
 **Branch**: `NT-33618b91/paso-9-app-shell-admin/retokenize-ui-ds`
 **Targets**: `NT-33618b91/paso-9-app-shell-admin/feature`
 
+> **Implementation note.** The plan called for per-mode `createTheme(mode)` à la `kaiPos-ds`. I kept the existing `cssVariables` + `colorSchemes` MUI API instead — it preserves the current `useColorScheme` integration (used by `ColorSchemeToggle` and `KaiPOSLogo`) and lets CSS variables flip themes without a re-render. Mode-specific component overrides that can't be expressed via palette slots use `theme.applyStyles('dark', { ... })`, which MUI's cssVariables theme exposes. End-user surface (LoginPage, shell) is identical.
+
 ### Tasks
 
-- [ ] Add `lucide-react` as a dep of `@kaipos/ui` (peerDep of `react` is already in place). Update `packages/ui/package.json`.
-- [ ] Replace `packages/ui/src/tokens/colors.ts` with the primitives from `kaiPos-ds/theme.ts`:
+- [x] Add `lucide-react` as a dep of `@kaipos/ui` (peerDep of `react` is already in place). Update `packages/ui/package.json`.
+- [x] Replace `packages/ui/src/tokens/colors.ts` with the primitives from `kaiPos-ds/theme.ts`:
   - Export `brand.teal` (50–900, base `#0B7A75`), `brand.amber` (50–900, base `#E8833A`), `brand.slate` warm (0, 50, 100, 200, 300, 400, 500, 600, 700, 750, 800, 900, 950), and semantics `red / orange / green / blue` (50, 400, 500, 600, 700 where defined).
   - Keep the existing named export `colors` **but** derive it from the new primitives (`primary = teal`, `secondary = amber`, `grey = slate`) so existing consumers (`KaiPOSLogo`) keep compiling until they migrate.
-- [ ] Replace `packages/ui/src/tokens/typography.ts` with the Inter + JetBrains Mono stack from `kaiPos-ds/theme.ts`:
+- [x] Replace `packages/ui/src/tokens/typography.ts` with the Inter + JetBrains Mono stack from `kaiPos-ds/theme.ts`:
   - Export `fontFamily.sans` (Inter + fallbacks) and `fontFamily.mono` (JetBrains Mono + fallbacks).
   - Export the heading / body / button / overline / caption / `mono` / `money` / `moneyLg` / `moneyXl` / `orderId` variants matching the spec (px-based).
-- [ ] Replace `packages/ui/src/tokens/radius.ts` with `{ xs: 4, sm: 6, md: 10, lg: 14, xl: 20, pill: 999 }` (the existing file uses a different shape — check and rename exports so consumers keep working; MUI's `shape.borderRadius` keeps pointing at `radius.md`).
-- [ ] Replace `packages/ui/src/tokens/shadows.ts` with the two-layer named scale from `kaiPos-ds/theme.ts` (`xs`, `sm`, `md`, `lg`, `xl`, `inset`, `focus`). Remove the `2xl` slot — the 25-entry MUI array is rebuilt inside the theme file.
-- [ ] Add a new token file `packages/ui/src/tokens/touch.ts` exporting `{ min: 48, pos: 56, kds: 64, desktop: 36, dense: 32 }` and surface it from `packages/ui/src/tokens/index.ts` as `touch`.
-- [ ] Keep `packages/ui/src/tokens/spacing.ts` and `zIndex.ts` as-is if already consistent (spacing unit 4, zIndex rationally ordered) — otherwise align to `kaiPos-ds/theme.ts`.
-- [ ] Rewrite `packages/ui/src/theme/index.ts`:
-  - Port `buildPalette(mode)` with `primary = teal`, `secondary = amber`, semantics tuned to AA (from `kaiPos-ds/theme.ts`), `action` slots bound to teal, plus custom slots `surfaces` (`canvas | default | raised | sunken | overlay | inverse`), `textExt` (`primary | secondary | tertiary | disabled | inverse`), `kds`, and `neutral`.
-  - Port `buildComponents(mode)` covering **all** overrides from `kaiPos-ds/theme.ts`: `MuiCssBaseline`, `MuiButton` (incl. `size="pos"|"kds"` and `variant="tile"|"danger"`), `MuiIconButton`, `MuiCard` (incl. `variant="raised"|"ticket"`), `MuiCardHeader`, `MuiCardContent`, `MuiPaper`, `MuiTextField`, `MuiOutlinedInput`, `MuiInputLabel`, `MuiFormHelperText`, `MuiTable*`, `MuiDialog*`, `MuiBackdrop`, `MuiChip` (with tinted `colorPrimary / Success / Error / Warning / Info`), `MuiTabs`, `MuiTab`, `MuiDrawer`, `MuiList`, `MuiListItemButton`, `MuiListItemIcon`, `MuiListItemText`, `MuiSnackbar`, `MuiSnackbarContent`, `MuiAlert`, `MuiTooltip`, `MuiDivider`, `MuiSwitch`, `MuiCheckbox`, `MuiLinearProgress`.
-  - Swap the MUI `cssVariables` + `colorSchemes` API we use today for `createTheme({ palette: buildPalette(mode), components: buildComponents(mode), ... })` **per mode**, wrapped in a helper `kaiPOSTheme(mode: PaletteMode = 'light')` (same signature as `kaiPos-ds`). The `KaiPOSThemeProvider` continues to drive mode switching — see next task.
-  - Expose custom tokens on the theme: `posSize` (= `touch`), `radii` (= `radius`), `shadowTokens` (= `shadow`). Module augmentation must type these + `surfaces`, `textExt`, `kds`, `neutral`, typography variants (`mono`, `money`, `moneyLg`, `moneyXl`, `orderId`), and the Button/Card prop overrides.
-- [ ] Update `packages/ui/src/providers/KaiPOSThemeProvider.tsx`:
-  - Compute `theme` from `useColorScheme()` so `mode`/`systemMode` drives `kaiPOSTheme('light' | 'dark')` (since per-mode `createTheme` replaces the `colorSchemes` API).
-  - Keep the existing `useColorScheme` hook's contract (`mode`, `systemMode`, `setMode`) so `ColorSchemeToggle` keeps working without changes.
-  - Leave the existing `disableCssBaseline` / `theme` override props alone.
-- [ ] Update `packages/ui/src/components/KaiPOSLogo.tsx` to use brand teal:
-  - `BRAND.bg = colors.primary[500]` (`#0B7A75`) for the filled square and `BRAND.accent = colors.secondary[400]` (`#E8833A`) for the accent node.
-  - Keep `horizontal | stacked | icon | wordmark` and `color | white | dark | auto`.
-  - Wordmark: `kai` in slate primary (or white in white variant), `POS` in teal (or white).
-- [ ] Add `lucide-react` re-export surface to `packages/ui/src/components/index.ts` — re-export the icons we actually need for Phase 3 navigation: `LayoutDashboard`, `Users`, `Radio` (debug WS), `Menu`, `LogOut`, `ChevronDown`, `Eye`, `EyeOff`, `AlertCircle`, `Inbox`. Document the import path so future features pull icons from `@kaipos/ui`, not `lucide-react` directly.
-- [ ] Update `apps/frontend-admin/index.html`:
-  - Add preconnect + Google Fonts CSS link for Inter (weights `400;450;500;550;600;650;700`) and JetBrains Mono (`400;500;600;700`) matching `kaiPos-ds/auth.html`.
-  - Keep `<meta name="color-scheme">` and `lang="es"`.
-- [ ] Update `apps/frontend-admin/src/main.tsx`:
-  - Remove `@fontsource/inter/*` imports (fonts now come from Google Fonts via `index.html`).
-  - Remove `@fontsource/inter` from `apps/frontend-admin/package.json` dependencies.
-- [ ] Verify `packages/ui` test stub still runs (`vitest run --passWithNoTests`) — no new tests required in this phase; the next phase will exercise the theme indirectly via `LoginPage` tests.
+- [x] Replace `packages/ui/src/tokens/radius.ts` with `{ xs: 4, sm: 6, md: 10, lg: 14, xl: 20, pill: 999 }` (back-compat `borderRadius` alias kept; MUI's `shape.borderRadius` points at `radius.md`).
+- [x] Replace `packages/ui/src/tokens/shadows.ts` with the two-layer named scale from `kaiPos-ds/theme.ts` (`xs`, `sm`, `md`, `lg`, `xl`, `inset`, `focus`). The 25-entry MUI array is rebuilt inside the theme file.
+- [x] Add a new token file `packages/ui/src/tokens/touch.ts` exporting `{ min: 48, pos: 56, kds: 64, desktop: 36, dense: 32 }` and surface it from `packages/ui/src/tokens/index.ts` as `touch`.
+- [x] Keep `packages/ui/src/tokens/spacing.ts` and `zIndex.ts` aligned to a 4-unit scale.
+- [x] Rewrite `packages/ui/src/theme/index.ts` (split into `palette.ts` + `componentOverrides.ts` + `augmentations.ts` + `index.ts`):
+  - Port `buildPalette(mode)` with `primary = teal`, `secondary = amber`, AA-tuned semantics, `action` slots bound to teal, plus custom slots `surfaces`, `textExt`, `kds`, and `neutral`.
+  - Port the full component override set (`MuiCssBaseline`, `MuiButton` with `size="pos"|"kds"` and `variant="tile"|"danger"`, `MuiIconButton`, `MuiCard` with `variant="raised"|"ticket"`, `MuiCardHeader`, `MuiCardContent`, `MuiPaper`, `MuiTextField`, `MuiOutlinedInput`, `MuiInputLabel`, `MuiFormHelperText`, `MuiTable*`, `MuiDialog*`, `MuiBackdrop`, `MuiChip`, `MuiTabs`, `MuiTab`, `MuiDrawer`, `MuiList`, `MuiListItemButton`, `MuiListItemIcon`, `MuiListItemText`, `MuiSnackbar`, `MuiSnackbarContent`, `MuiAlert`, `MuiTooltip`, `MuiDivider`, `MuiSwitch`, `MuiCheckbox`, `MuiLinearProgress`).
+  - Kept the MUI `cssVariables` + `colorSchemes` API (see note above) — `useColorScheme` in `ColorSchemeToggle` / `KaiPOSLogo` continues to work unchanged.
+  - Custom tokens on the theme: `posSize` (= `touch`), `radii` (= `radius`), `shadowTokens` (= `shadow`). Module augmentation types these + `surfaces`, `textExt`, `kds`, `neutral`, typography variants (`mono`, `money`, `moneyLg`, `moneyXl`, `orderId`), and the Button / Card / Paper prop overrides.
+- [x] `packages/ui/src/providers/KaiPOSThemeProvider.tsx` left unchanged — it already drives mode via `ThemeProvider defaultMode="system"`, which is the correct API for `cssVariables` themes.
+- [x] Update `packages/ui/src/components/KaiPOSLogo.tsx` to use brand teal:
+  - `BRAND.mark = colors.primary[500]` (`#0B7A75`) for the filled square and `BRAND.accent = colors.secondary[400]` (`#E8833A`) for the accent node.
+  - Kept `horizontal | stacked | icon | wordmark` and `color | white | dark | auto`.
+  - Wordmark: `kai` in warm-slate 900 (or white), `POS` in brand teal (or white).
+- [x] Add `lucide-react` re-export surface to `packages/ui/src/components/index.ts` — re-exported `LayoutDashboard`, `UsersIcon` (aliased), `Radio`, `MenuIcon` (aliased), `LogOut`, `ChevronDown`, `Eye`, `EyeOff`, `AlertCircle`, `Inbox` + `LucideIcon` / `LucideProps` types. Consumers pull icons from `@kaipos/ui`.
+- [x] Update `apps/frontend-admin/index.html`:
+  - Added preconnect + Google Fonts CSS link for Inter (weights `400;450;500;550;600;650;700`) and JetBrains Mono (`400;500;600;700`) matching `kaiPos-ds/auth.html`.
+  - Kept `<meta name="color-scheme">` and `lang="es"`.
+- [x] Update `apps/frontend-admin/src/main.tsx`:
+  - Removed `@fontsource/inter/*` imports (fonts now come from Google Fonts via `index.html`).
+  - Removed `@fontsource/inter` from `apps/frontend-admin/package.json` dependencies.
+- [x] `packages/ui` test stub still passes (`vitest run --passWithNoTests`).
 
 ### Verification
 
-- [ ] `pnpm --filter @kaipos/ui typecheck` passes
-- [ ] `pnpm --filter @kaipos/ui lint` passes
-- [ ] `pnpm --filter @kaipos/frontend-admin typecheck` passes (consumer compiles against the new tokens + logo)
-- [ ] `pnpm --filter @kaipos/frontend-admin build` succeeds
-- [ ] `pnpm typecheck`, `pnpm lint`, `pnpm format:check` pass at the root
-- [ ] Manual verification: `pnpm --filter @kaipos/frontend-admin dev` and eyeball the existing `App.tsx` shell — primary color is teal, `KaiPOSLogo` square is teal with white `K`, body renders Inter, and `ColorSchemeToggle` still flips light/dark.
+- [x] `pnpm --filter @kaipos/ui typecheck` passes
+- [x] `pnpm --filter @kaipos/ui lint` passes
+- [x] `pnpm --filter @kaipos/frontend-admin typecheck` passes (consumer compiles against the new tokens + logo)
+- [x] `pnpm --filter @kaipos/frontend-admin build` succeeds
+- [x] `pnpm typecheck`, `pnpm lint`, `pnpm format:check` pass at the root
+- [ ] Manual verification: `pnpm --filter @kaipos/frontend-admin dev` and eyeball the existing `App.tsx` shell — primary color is teal, `KaiPOSLogo` square is teal with white `K`, body renders Inter, and `ColorSchemeToggle` still flips light/dark. (Pending user smoke-test.)
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 

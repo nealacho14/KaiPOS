@@ -52,3 +52,21 @@ export {
   type LogoSize,
   type LogoVariant,
 } from './KaiPOSLogo.js';
+
+// Icon surface — `lucide-react` is the canonical icon set for the shell.
+// Re-exported here so consumer code never imports `lucide-react` directly,
+// keeping the icon origin swappable without a workspace-wide rewrite.
+export {
+  AlertCircle,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  Inbox,
+  LayoutDashboard,
+  LogOut,
+  Menu as MenuIcon,
+  Radio,
+  Users as UsersIcon,
+  type LucideIcon,
+  type LucideProps,
+} from 'lucide-react';

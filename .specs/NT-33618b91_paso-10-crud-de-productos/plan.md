@@ -177,6 +177,204 @@
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 
+## Phase 3: Backend — `branchProducts` + endpoints + migración de stock
+
+**Branch**: `NT-33618b91/paso-10-crud-de-productos/backend-branch-inventory`
+**Targets**: `NT-33618b91/paso-10-crud-de-productos/frontend-ui` (o `main` si Phase 2 ya mergeada)
+
+> **Por qué**: hoy `Product.stock` es un escalar global que ningún servicio lee/decrementa — sólo el CRUD lo persiste. Multi-branch necesita disponibilidad + stock + override de precio por sucursal. Decisión del usuario: corte limpio — `stock` sale del `Product` y vive sólo en una colección de unión `branchProducts`. Reusa `requireBranchAccess` para tenant-isolation.
+> **Decisiones**: (a) `stock` removido del `Product` (no shim de compat); (b) nueva permission `branches:read` para todos los roles no-super_admin; (c) edición de inventario reusa `products:write`; (d) `inventory:*` granular queda como follow-up.
+
+### Tasks
+
+#### 1. Tipos compartidos
+
+- [ ] `packages/shared/src/types/index.ts` — remover `stock: number` de `interface Product`.
+- [ ] Agregar `interface BranchProduct { _id, businessId, branchId, productId, isAvailable, stock, priceOverride?, createdAt, updatedAt }`.
+- [ ] Agregar `type ProductWithBranch = Product & { branch: { isAvailable: boolean; stock: number; priceOverride?: number } }` (sólo shape de respuesta, no se persiste).
+
+#### 2. RBAC
+
+- [ ] `packages/shared/src/permissions.ts` — agregar `'branches:read'` al union `Permission` y a las listas: `ADMIN_PERMISSIONS`, `manager`, `supervisor`, `cashier`, `waiter`, `kitchen` (todos los roles que ya tienen `branchIds`). Super_admin lo recibe vía bypass.
+
+#### 3. DB validator + accesor
+
+- [ ] `apps/backend/src/db/setup.ts` — bloque `products`: remover `'stock'` de `required` y de `properties`. Tras el `collMod`, ejecutar `db.collection('products').updateMany({ stock: { $exists: true } }, { $unset: { stock: '' } })` (housekeeping idempotente — comentar inline el motivo).
+- [ ] Agregar bloque `branchProducts`: `required: ['_id','businessId','branchId','productId','isAvailable','stock','createdAt','updatedAt']`; `priceOverride` como `bsonType: ['double','int']` opcional. Índices: `{branchId:1, productId:1}` **unique**, `{businessId:1, branchId:1, isAvailable:1}`, `{productId:1}`.
+- [ ] `apps/backend/src/db/collections.ts` — `getBranchProductsCollection(): Promise<Collection<BranchProduct>>` (`getBranchesCollection` ya existe).
+
+#### 4. Schemas Zod
+
+- [ ] `apps/backend/src/schemas/products.ts`:
+  - `createProductSchema`: remover `stock`. Agregar `initialStock: z.number().int().nonnegative().optional()` (default 0 al usarse en el service; se consume sólo en el fan-out).
+  - `updateProductSchema`: remover `stock` (ya no es parte del catálogo).
+- [ ] `apps/backend/src/schemas/branch-products.ts` (nuevo):
+  - `branchIdParamSchema: z.object({ branchId: z.string().uuid() })`.
+  - `branchProductIdParamsSchema: z.object({ branchId: z.string().uuid(), productId: z.string().uuid() })`.
+  - `listBranchProductsQuerySchema`: `q`, `category`, `includeInactive`, `onlyAvailable` — todos `.optional()`; los enums son `'true'|'false'`.
+  - `updateBranchProductSchema`: `isAvailable?: boolean`, `stock?: int>=0`, `priceOverride?: number>=0 | null` (null = limpiar override), `.refine(at-least-one)` patrón existente.
+  - Exportar tipos inferidos.
+
+#### 5. Services
+
+- [ ] **Refactor en `apps/backend/src/services/products.ts`**: extraer `buildProductFilter(actor, query)` (scope + isActive + category + `$or` con regex escapado) como función exportada. `listProducts` la consume internamente.
+- [ ] `apps/backend/src/services/branches.ts` (nuevo):
+  - `listForActor(actor)`: super_admin → `find({ isActive: true })`; tiene `branches:manage` (admin) → `find({ businessId: actor.businessId, isActive: true })`; resto → `find({ businessId: actor.businessId, _id: { $in: actor.branchIds ?? [] }, isActive: true })`. Si `branchIds` vacío → `[]` sin query.
+- [ ] `apps/backend/src/services/branch-products.ts` (nuevo):
+  - `listByBranch(actor, branchId, query)`:
+    - `assertBranchAccess(actor, branchId)`.
+    - `branches.findOne({ _id: branchId })`. Si no existe o cross-tenant (no super_admin) → `NotFoundError('Branch')`.
+    - Productos vía `buildProductFilter` (con businessId del branch).
+    - `branchProducts.find({ branchId, productId: { $in: ids } }).toArray()`, join in-memory.
+    - Productos sin row → defaults `{ isAvailable: true, stock: 0, priceOverride: undefined }`.
+    - `query.onlyAvailable === 'true'` → filtro post-join.
+    - Retorna `ProductWithBranch[]`.
+  - `updateOne(actor, branchId, productId, patch, _context)`:
+    - `assertBranchAccess(actor, branchId)`.
+    - `getProductById(actor, productId)` (propaga `NotFoundError` cross-tenant).
+    - `findOne({ branchId, productId })` → si existe `$set` whitelisted (`isAvailable`,`stock`,`priceOverride`,`updatedAt`); `priceOverride === null` → `$unset: { priceOverride: '' }`. Si no existe → `insertOne` con UUID + defaults sobreescritos por `patch`. Try/catch `E11000` para race en el unique index.
+    - Refresca + join product → retorna `ProductWithBranch`. `log.info(...)`.
+
+#### 6. Fan-out en `createProduct`
+
+- [ ] `apps/backend/src/services/products.ts::createProduct` — después del `insertOne(newProduct)` exitoso:
+  - `branches = await getBranchesCollection().find({ businessId: targetBusinessId, isActive: true }, { projection: { _id: 1 } }).toArray()`.
+  - Si hay branches: `getBranchProductsCollection().insertMany(...)` con `{ _id: crypto.randomUUID(), businessId, branchId: b._id, productId: newProduct._id, isAvailable: true, stock: data.initialStock ?? 0, createdAt: now, updatedAt: now }` por branch, `{ ordered: false }`.
+  - **Atomicidad**: Mongo single-node sin RS no soporta multi-doc transactions. Si el `insertMany` falla, log `warn({ productId, error }, 'branchProducts fan-out failed')`, NO rollback. `listByBranch` cae al default y `updateOne` upsert remedia. Documentar en JSDoc + agregar follow-up de reconciliación.
+- [ ] No tocar `updateProduct` ni `softDeleteProduct` — el inventario es independiente del catálogo.
+
+#### 7. Routes
+
+- [ ] `apps/backend/src/routes/branches.ts` (nuevo): `GET /api/branches` — `requireAuth()` + `requirePermission('branches:read')` → `listForActor`. Devuelve `Branch[]`.
+- [ ] `apps/backend/src/routes/branch-products.ts` (nuevo):
+  - `GET /api/branches/:branchId/products` — `requireAuth()` + `requirePermission('products:read')` + `requireBranchAccess('branchId')` + `validate({ params: branchIdParamSchema, query: listBranchProductsQuerySchema })` → `listByBranch`.
+  - `PATCH /api/branches/:branchId/products/:productId` — `requireAuth()` + `requirePermission('products:write')` + `requireBranchAccess('branchId')` + `validate({ params: branchProductIdParamsSchema, body: updateBranchProductSchema })` → `updateOne`. Status 200, devuelve `ProductWithBranch`.
+- [ ] `apps/backend/src/app.ts` — registrar ambos routers.
+
+#### 8. Seed
+
+- [ ] `apps/backend/src/db/seed.ts` — remover `stock` de los 10 productos demo. Tras insertar productos + branch demo, insertar 10 filas `branchProducts` con `isAvailable: true` y los stocks que estaban (100, 50, 30, …). Idempotencia: skip si `branchProducts.countDocuments() > 0`.
+
+#### 9. Tests
+
+- [ ] `apps/backend/src/services/branches.test.ts` (nuevo) — super_admin, admin (scope business), supervisor con `branchIds`, cashier sin `branchIds` → `[]`.
+- [ ] `apps/backend/src/services/branch-products.test.ts` (nuevo):
+  - `listByBranch`: 403 sin acceso al branch; cross-tenant branch → `NotFoundError`; defaults para productos sin row; `onlyAvailable` filtra; `q`/`category` heredan de `buildProductFilter`.
+  - `updateOne`: insert cuando no existe; update con whitelist (no toca `_id/businessId/branchId/productId/createdAt`); `priceOverride: null` → `$unset`; producto cross-tenant → `NotFoundError`.
+- [ ] `apps/backend/src/services/products.test.ts` — extender `createProduct`:
+  - 2 branches activos → `insertMany` con 2 rows correctas (stock = `initialStock` o 0).
+  - `insertMany` falla → producto creado, log.warn invocado (spy), sin propagar.
+  - `updateProduct` ya no acepta `stock` (zod debe rechazar).
+- [ ] `apps/backend/src/routes/branches.test.ts` (nuevo) — 401 sin token, 200 admin/cashier/waiter (todos tienen `branches:read`).
+- [ ] `apps/backend/src/routes/branch-products.test.ts` (nuevo):
+  - `GET`: cross-branch → 403 vía `requireBranchAccess`; admin → 200 con bloque `branch`; uuid inválido → 400.
+  - `PATCH`: admin/manager → 200; cashier sin `products:write` → 403 + audit `authorization_failed`; body inválido → 400; `priceOverride: null` aceptado.
+- [ ] `apps/backend/src/routes/products.test.ts` — POST sin `stock`, opcionalmente con `initialStock`.
+- [ ] `packages/shared/src/permissions.test.ts` — verificar `branches:read` en cada rol no-super_admin.
+
+#### 10. Docs
+
+- [ ] `CLAUDE.md` — sección RBAC: agregar `branches:read`. Sección Database scripts: mencionar la nueva colección `branchProducts`.
+
+### Verification
+
+- [ ] `pnpm --filter @kaipos/backend typecheck` passes
+- [ ] `pnpm --filter @kaipos/shared typecheck` passes
+- [ ] `pnpm lint` passes (backend + shared)
+- [ ] `pnpm format:check` passes
+- [ ] `pnpm --filter @kaipos/backend test` passes
+- [ ] `pnpm --filter @kaipos/shared test` passes
+- [ ] `pnpm --filter @kaipos/backend build` succeeds
+- [ ] Manual (`pnpm docker:up` + `pnpm db:setup` + `pnpm db:seed`):
+  - `db.products.findOne()` ya **no** tiene `stock`; `db.branchProducts.find({}).toArray()` muestra 10 rows.
+  - `db.branchProducts.getIndexes()` muestra el unique `{branchId, productId}`.
+  - `GET /api/branches` admin → 1 branch; cajero → 1 branch.
+  - `GET /api/branches/branch_seed_001/products` admin → 10 productos con bloque `branch`.
+  - `PATCH /api/branches/branch_seed_001/products/<pid>` con `{ stock:5, isAvailable:false }` persiste.
+  - `PATCH` con `{ priceOverride: 12.5 }` luego `{ priceOverride: null }` → `$unset` en la doc.
+  - `POST /api/products` admin con `{ initialStock: 25 }` → branchProducts row `stock:25`; sin `initialStock` → `stock:0`.
+  - Cross-branch: cajero del branch A pidiendo branch B → 403 + audit `authorization_failed`.
+
+<!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
+
+## Phase 4: Frontend — selector de sucursal + edición inline de inventario
+
+**Branch**: `NT-33618b91/paso-10-crud-de-productos/frontend-branch-inventory`
+**Targets**: `NT-33618b91/paso-10-crud-de-productos/backend-branch-inventory`
+
+### Tasks
+
+#### 1. Hook `useBranches`
+
+- [ ] `apps/frontend-admin/src/hooks/useBranches.ts` (nuevo): `{ status, data, error }`, one-shot fetch `/api/branches` vía `apiJson<Branch[]>`, `mapError` en español, cache simple por sesión (module-level promise). Sin React Query.
+
+#### 2. Selector "Sucursal" en `ProductsListPage`
+
+- [ ] `apps/frontend-admin/src/pages/ProductsListPage.tsx` — `Select` "Sucursal" como primer elemento de la toolbar:
+  - `"Catálogo (todas)"` (valor `''`) → comportamiento Phase 2.
+  - Una opción por branch del hook.
+- [ ] Persistir en `useSearchParams` como `?branchId=`.
+- [ ] `branches.length === 0` → no renderizar Select.
+- [ ] `branches.length === 1` y rol no-admin → pre-seleccionar.
+- [ ] `branches.length === 1` y rol admin → no pre-seleccionar.
+
+#### 3. Fetch condicional + columnas
+
+- [ ] Con `branchId !== ''`: `GET /api/branches/${branchId}/products?${qs}` (mismo `qs` + nuevo `onlyAvailable`).
+- [ ] Sin `branchId`: comportamiento Phase 2.
+- [ ] Toolbar: nuevo `Switch "Sólo disponibles"` visible sólo con branch seleccionado.
+- [ ] Tabla — columnas condicionales:
+  - Sin branch: Phase 2 (Nombre/SKU/Categoría/Precio/Estado/Acciones-catálogo).
+  - Con branch: ocultar "Estado" del catálogo. Mostrar "Disponible" (`Chip`), "Stock" (número), "Precio sucursal" (override en bold; sin override = precio base en `text.disabled` con tooltip), "Editar inventario" (`IconButton Pencil`, gateado por `products:write`).
+- [ ] "Editar"/"Eliminar" del catálogo se mantienen sólo en modo catálogo (no mezclar conceptos).
+- [ ] `mapError`: 403 por branch-access → "No tienes acceso a esta sucursal."
+
+#### 4. `BranchProductEditDialog`
+
+- [ ] Co-ubicado en `ProductsListPage.tsx`. **NO** reutilizar `ProductFormDialog`.
+- [ ] Props: `{ open, branchId, product: ProductWithBranch, onClose, onSaved }`.
+- [ ] Campos: `Switch "Disponible"`, `TextField number "Stock"` (min 0 int), `TextField number "Precio sucursal (opcional)"` con checkbox `"Usar precio del catálogo"` que envía `priceOverride: null`.
+- [ ] Validación cliente: `stock >= 0 int`; `priceOverride >= 0` si está definido.
+- [ ] Submit: `PATCH /api/branches/:branchId/products/:productId` con sólo campos cambiados.
+- [ ] Errores: 400 `details[]` → fields; 403 → `Alert`; 404 → cerrar + refrescar; otro → `Alert` genérico.
+- [ ] Al éxito: cerrar + `reloadKey++`.
+
+#### 5. `ProductFormDialog` — quitar Stock del catálogo
+
+- [ ] Remover el campo "Stock" del dialog del catálogo.
+- [ ] En modo `create`, agregar campo opcional `"Stock inicial por sucursal"` → mapea a `initialStock` (sólo se envía si > 0).
+
+#### 6. Convenciones
+
+- [ ] Sólo componentes/iconos de `@kaipos/ui`. `rg "from '@mui/material" apps/frontend-admin/src` y `rg "from 'lucide-react'"` → 0.
+- [ ] Mensajes en español coherentes con Phase 2.
+- [ ] Editar inventario gateado por `hasPermission(user.role, 'products:write')`.
+
+#### 7. Docs
+
+- [ ] `apps/frontend-admin/README.md` — `/products` admite `?branchId=<id>`; describir `BranchProductEditDialog` + permission gate.
+
+### Verification
+
+- [ ] `pnpm --filter @kaipos/frontend-admin typecheck` passes
+- [ ] `pnpm --filter @kaipos/frontend-admin lint` passes
+- [ ] `pnpm format:check` passes
+- [ ] `pnpm --filter @kaipos/frontend-admin build` succeeds
+- [ ] `pnpm --filter @kaipos/frontend-admin test` passes
+- [ ] `rg "from '@mui/material" apps/frontend-admin/src` → 0
+- [ ] `rg "from 'lucide-react'" apps/frontend-admin/src` → 0
+- [ ] Manual end-to-end (`pnpm docker:up` + admin login):
+  - `/products` sin selector → vista Phase 2 idéntica.
+  - Seleccionar sucursal → URL pasa a `?branchId=...`; columnas Disponible/Stock/Precio sucursal aparecen.
+  - Lápiz abre `BranchProductEditDialog` con valores actuales.
+  - Toggle Disponible OFF + Guardar → Chip "No"; Switch "Sólo disponibles" lo oculta.
+  - `priceOverride: 12.50` → columna en bold; "Usar catálogo" + Guardar → vuelve a precio base en gris.
+  - Crear producto con "Stock inicial" = 30 → al cambiar al branch, aparece con stock 30.
+  - Cajero → ve sucursal y datos; **no** ve lápiz de inventario.
+  - URL `/products?branchId=branch_seed_001` restaura estado al load.
+
+<!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
+
 ## QA Plan
 
 - [ ] Full E2E contra `pnpm docker:up` (backend + frontend + Mongo local) con los tres roles: admin, manager, cajero.

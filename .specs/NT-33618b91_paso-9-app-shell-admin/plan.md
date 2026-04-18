@@ -212,66 +212,28 @@
 
 ### Tasks
 
-- [ ] Create the components module under `apps/frontend-admin/src/components/` with:
-  - `Header.tsx` — 64px top bar, `background: background.paper`, `border-bottom: divider`:
-    - Left: `KaiPOSLogo variant="horizontal"` at `md` / `variant="icon"` below `md`, divider, business name (`useAuth().business?.name ?? 'Admin global'`), `Chip` with role label (`colorPrimary` for admin, `colorSuccess` for manager, etc. — map in a tiny `roleToChipColor()` helper).
-    - Right: `WsStatusChip` (see below), `ColorSchemeToggle`, `UserMenu` (avatar initials + dropdown `nombre · email · Cerrar sesión`).
-  - `Sidebar.tsx` — 240px fixed `Drawer variant="permanent"` ≥ `md`, `Drawer variant="temporary"` (controlled via prop) `< md`:
-    - Items: `{ label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard, show: true }`, `{ label: 'Usuarios', to: '/users', icon: Users, show: hasPermission(user.role, 'users:read') }`, `{ label: 'Debug · WebSocket', to: '/debug/ws', icon: Radio, show: true }`.
-    - Active item: `NavLink` `isActive` → `ListItemButton.selected = true` + a 3px teal left border via a pseudo-element or inline `borderLeft`. Hover respects `action.hover`.
-  - `UserMenu.tsx` — `Avatar` with initials inside a `Box` whose `bgcolor` is role-keyed (teal 500 / amber 400 / slate 600), `ChevronDown` icon, clickable `Menu` with `MenuItem` nombre (disabled, subtitle email), `Divider`, `MenuItem` `LogOut` icon + `Cerrar sesión`.
-  - `WsStatusChip.tsx` — `Chip` with a 8px circular dot on the left (inline `Box` styled) and text `Conectado | Conectando… | Reconectando… | Desconectado | Inactivo` keyed off status. Color map: `open → success`, `connecting / reconnecting → warning`, `closed / idle → default`.
-  - `PageHeader.tsx` — title (`h4`), optional subtitle (`body2 text.secondary`), optional `actions` slot on the right. Responsible for top-of-page spacing.
-  - `EmptyState.tsx` — icon + title + subtitle + optional CTA, centered.
-  - Index barrel at `components/index.ts`.
-- [ ] Create `apps/frontend-admin/src/components/guards/` with:
-  - `RequireAuth.tsx`: `useAuth()` → `status === 'loading'` renders a centered `CircularProgress`; `unauthenticated` → `<Navigate to="/login" replace state={{ from: location }} />`; `authenticated` renders `<Outlet />`.
-  - `RequirePermission.tsx` (props: `permission: Permission`): calls `useAuth()` and `hasPermission(user.role, permission)` → allow or `<Navigate to="/dashboard" replace />`.
-- [ ] Create `apps/frontend-admin/src/layouts/AppLayout.tsx`:
-  - Top-level grid: `Header` full-width, body = `Sidebar` + `<Outlet />` (with padding + responsive max-width).
-  - Wire a `useWebSocket({ endpoint: import.meta.env.VITE_WS_ENDPOINT })` and call `connect(session.accessToken)` when `status === 'authenticated'`; call `disconnect()` on logout. The hook's `status` feeds `WsStatusChip`. If `VITE_WS_ENDPOINT` is not set (local without WS), render the chip as `Inactivo` and skip the connect.
-  - Manage sidebar open/close state for the tablet drawer.
-- [ ] Create `apps/frontend-admin/src/pages/DashboardPage.tsx`:
-  - `PageHeader` title `Dashboard` + subtitle `Bienvenido, {user.name}`.
-  - `Box display="grid" gridTemplateColumns={{ xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }}` with `Card`s:
-    - `Usuario` — name, email, role chip.
-    - `Negocio` — business name (or `Admin global`), slug in `mono`, number of branches (`user.branchIds?.length ?? '—'`).
-    - `Sucursales` — list of `branchIds` as small `Chip`s.
-    - `Tiempo real` — current `WsStatusChip` + list of subscribed channels.
-- [ ] Create `apps/frontend-admin/src/pages/UsersListPage.tsx`:
-  - `PageHeader` title `Usuarios` + subtitle `Equipo de tu negocio`.
-  - `useEffect` fetches `api('/api/users')` → sets `{ status, data, error }`.
-  - Loading → `Table` with 6 `TableRow`s of `Skeleton` cells.
-  - Error → `<Alert severity="error">{mapped message}</Alert>` + `Button variant="outlined"` `Reintentar`.
-  - Empty (`data.length === 0`) → `<EmptyState icon={<Inbox />} title="Aún no hay miembros" subtitle="Invita a tu equipo cuando esté listo." />`.
-  - Data → `Table` columns: `Nombre`, `Email`, `Rol` (`Chip color="primary"` by role), `Sucursales` (joined branch IDs or count), `Estado` (`Chip color={isActive ? 'success' : 'default'}`).
-- [ ] Create `apps/frontend-admin/src/pages/NotFoundPage.tsx`:
-  - `EmptyState` icon + title `No encontramos esa página.` + subtitle + `Button variant="contained"` `Volver al dashboard` linking to `/dashboard`.
-- [ ] Migrate `apps/frontend-admin/src/pages/DebugWebSocket.tsx` to live under the new router:
-  - Keep the file / component; remove any top-level container styling that overlaps with `AppLayout`. Rely on `AppLayout` for chrome.
-  - It continues to use `useWebSocket` — confirm two simultaneous hook instances don't create duplicate sockets. If they do, lift the hook into a `WebSocketContext` owned by `AppLayout` and expose via `useWebSocketContext()` — refactor `DebugWebSocket.tsx` to consume the context instead of instantiating its own client.
-- [ ] Rewrite `apps/frontend-admin/src/App.tsx` as the router root:
-  - `<Routes>` with `/login` (public, renders `LoginPage`), a parent `/` route wrapped in `RequireAuth` + `AppLayout`, and children `/dashboard`, `/users` (additionally wrapped in `RequirePermission('users:read')`), `/debug/ws`. `path: '/'` redirects to `/dashboard`. `*` → `NotFoundPage`.
-  - Delete the legacy `readHashRoute` / `/api/health` fetch — health is no longer part of the shell.
-- [ ] Delete the obsolete `apps/frontend-admin/src/App.test.tsx` if its assertions are tied to the old health-check shell; replace with router-oriented smoke tests covering redirects.
-- [ ] Tests (`apps/frontend-admin/src/components/guards/RequirePermission.test.tsx`):
-  - Admin with `users:read` renders `<Outlet />`.
-  - Cashier without `users:read` redirects to `/dashboard`.
-- [ ] Tests (`apps/frontend-admin/src/layouts/AppLayout.test.tsx`):
-  - Logged-in admin sees `Dashboard`, `Usuarios`, `Debug · WebSocket` nav items.
-  - Logged-in cashier does **not** see `Usuarios`.
-  - Logout click clears session and navigates to `/login`.
-- [ ] Update documentation:
-  - Add a short "Frontend Admin Shell" section to `apps/frontend-admin/README.md` (or create one) describing routes, guards, and the DS consumption rule (no direct `@mui/material` imports).
-  - Update the root `CLAUDE.md` if a convention changes (we gain the "no direct MUI imports" rule and the shared `@kaipos/shared/permissions` subpath) — surface this in the `Key Conventions` block.
+- [x] Create the components module under `apps/frontend-admin/src/components/` with `Header.tsx`, `Sidebar.tsx`, `UserMenu.tsx`, `WsStatusChip.tsx`, `PageHeader.tsx`, `EmptyState.tsx`, index barrel at `components/index.ts`. Extended `@kaipos/ui` re-exports with `AppBar` / `Toolbar` / `List` / `ListItem` / `ListItemButton` / `ListItemIcon` / `ListItemText` + `AvatarProps` / `MenuItemProps` so the shell keeps the zero-`@mui/material` boundary.
+- [x] Create `apps/frontend-admin/src/components/guards/` with `RequireAuth.tsx` and `RequirePermission.tsx` plus an index barrel.
+- [x] Create `apps/frontend-admin/src/layouts/AppLayout.tsx` — Header + responsive Sidebar + `<Outlet />`. Sidebar drawer state is local; WS plumbing was lifted into `context/WebSocketContext.tsx` (`WebSocketProvider` / `useWebSocketContext`) so AppLayout and DebugWebSocket share a single `WSClient`. AppLayout calls `connect(session.accessToken)` once the AuthContext reports `authenticated` (and `VITE_WS_ENDPOINT` is set), and `disconnect()` on `unauthenticated`. When the endpoint is missing the chip shows `Inactivo` and no socket is opened.
+- [x] Create `apps/frontend-admin/src/pages/DashboardPage.tsx` — 4 cards (Usuario, Negocio, Sucursales, Tiempo real) rendered in a responsive grid. The Tiempo-real card reads from `useWebSocketContext()`.
+- [x] Create `apps/frontend-admin/src/pages/UsersListPage.tsx` — fetch via `apiJson('/api/users')`, Skeleton table on load, `Alert` + `Reintentar` on error, `EmptyState` on empty, full `Table` on success. Retry is implemented as a `reloadKey` counter (with an `AbortController`-equivalent `cancelled` flag inside the effect) to satisfy the `react-hooks/set-state-in-effect` lint rule.
+- [x] Create `apps/frontend-admin/src/pages/NotFoundPage.tsx` — `EmptyState` with CTA `Volver al dashboard` via `react-router-dom` `Link`.
+- [x] Migrate `apps/frontend-admin/src/pages/DebugWebSocket.tsx` — now consumes `useWebSocketContext()` (no second socket). Removed the `Container` chrome, uses `PageHeader`, and switched HTTP calls from raw `fetch` + manual auth header to the shared `api()` wrapper so 401 TOKEN_EXPIRED still triggers the refresh dance here. Deleted the legacy `getToken / setToken / clearToken` shims from `auth-storage.ts` (the debug page was the last caller).
+- [x] Rewrite `apps/frontend-admin/src/App.tsx` as the router root with `/login` public, a nested `RequireAuth` → `AppLayout` → {`/`, `/dashboard`, `/users` (under `RequirePermission('users:read')`), `/debug/ws`, `*`} tree. Dropped the legacy `readHashRoute` + `/api/health` probe entirely.
+- [x] Deleted the obsolete `apps/frontend-admin/src/App.test.tsx` (its assertions were tied to the retired health-check shell). Router behavior is covered by the new `AppLayout.test.tsx` (authenticated vs. logout → redirect to `/login`) and `RequirePermission.test.tsx` (admin allowed, cashier redirected).
+- [x] Tests (`apps/frontend-admin/src/components/guards/RequirePermission.test.tsx`): admin with `users:read` renders `<Outlet />`, cashier redirects to `/dashboard`.
+- [x] Tests (`apps/frontend-admin/src/layouts/AppLayout.test.tsx`): admin sees Dashboard / Usuarios / Debug · WebSocket; cashier doesn't see Usuarios; logout clears the session and lands on `/login` (test wraps AppLayout in `RequireAuth` to match real routing).
+- [x] Update documentation:
+  - Created `apps/frontend-admin/README.md` with route map, shell architecture, DS rule, and testing notes.
+  - Updated root `CLAUDE.md` — added a "Frontend Admin Shell" block under the WebSocket section and two Key Conventions entries (DS boundary + shared RBAC subpath).
 
 ### Verification
 
-- [ ] `pnpm --filter @kaipos/frontend-admin test` passes (guards, AppLayout, prior LoginPage/api suites remain green)
-- [ ] `pnpm typecheck`, `pnpm lint`, `pnpm format:check` pass
-- [ ] `pnpm build` succeeds
-- [ ] Grep: `rg "from '@mui/material" apps/frontend-admin/src` returns zero matches
-- [ ] Manual verification at 1024×768 (tablet): sidebar collapses behind a drawer trigger in the header; admin sees Usuarios; cashier does not; `/users` typed directly in the URL redirects cashier to `/dashboard`; logout returns to `/login`, clears localStorage, and `WsStatusChip` shows `Inactivo`; reload after login rehydrates via `/me`.
+- [x] `pnpm --filter @kaipos/frontend-admin test` passes — 22/22 green (LoginPage 5 + api 6 + ws-client 8 + guard 2 + AppLayout 3, minus the deleted App.test.tsx).
+- [x] `pnpm typecheck`, `pnpm lint`, `pnpm format:check` pass (two pre-existing `react-refresh/only-export-components` warnings in context files, no errors).
+- [x] `pnpm build` succeeds.
+- [x] Grep: `rg "from '@mui/material" apps/frontend-admin/src` returns zero matches.
+- [ ] Manual verification at 1024×768 (tablet): sidebar collapses behind a drawer trigger in the header; admin sees Usuarios; cashier does not; `/users` typed directly in the URL redirects cashier to `/dashboard`; logout returns to `/login`, clears localStorage, and `WsStatusChip` shows `Inactivo`; reload after login rehydrates via `/me`. (Pending user smoke-test.)
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 

@@ -97,6 +97,7 @@ export interface Product {
   category: string;
   sku: string;
   stock: number;
+  imageUrl?: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;

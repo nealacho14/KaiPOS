@@ -171,6 +171,7 @@ const collections: CollectionSetup[] = [
           category: { bsonType: 'string' },
           sku: { bsonType: 'string' },
           stock: { bsonType: 'int' },
+          imageUrl: { bsonType: 'string' },
           isActive: { bsonType: 'bool' },
           createdAt: { bsonType: 'date' },
           updatedAt: { bsonType: 'date' },

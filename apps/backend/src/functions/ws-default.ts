@@ -15,8 +15,8 @@ import {
   type WSClientRequest,
   type WSMessage,
 } from '@kaipos/shared/types';
+import { SUPER_ADMIN_BUSINESS_ID } from '@kaipos/shared/permissions';
 import { createWsRequestLogger } from '../lib/lambda-runtime.js';
-import { SUPER_ADMIN_BUSINESS_ID } from '../lib/permissions.js';
 import {
   addChannel,
   getConnectionContext,

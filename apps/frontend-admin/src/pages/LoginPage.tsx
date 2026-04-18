@@ -4,7 +4,6 @@ import {
   Button,
   Checkbox,
   CircularProgress,
-  Divider,
   Eye,
   EyeOff,
   FormControlLabel,
@@ -12,7 +11,6 @@ import {
   KaiPOSLogo,
   Stack,
   TextField,
-  Tooltip,
   Typography,
   useTheme,
 } from '@kaipos/ui';
@@ -278,48 +276,6 @@ export function LoginPage() {
               {errorMessage}
             </Alert>
           )}
-
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 1.25,
-              marginBottom: 2.5,
-            }}
-          >
-            <Tooltip title="Próximamente">
-              <span>
-                <Button variant="outlined" disabled fullWidth sx={{ minHeight: 44 }}>
-                  Continuar con Google
-                </Button>
-              </span>
-            </Tooltip>
-            <Tooltip title="Próximamente">
-              <span>
-                <Button variant="outlined" disabled fullWidth sx={{ minHeight: 44 }}>
-                  Continuar con Apple
-                </Button>
-              </span>
-            </Tooltip>
-          </Box>
-
-          <Stack
-            direction="row"
-            alignItems="center"
-            spacing={1.5}
-            sx={{
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: 'text.disabled',
-              margin: '4px 0 20px',
-            }}
-          >
-            <Divider sx={{ flex: 1 }} />
-            <span>o con email</span>
-            <Divider sx={{ flex: 1 }} />
-          </Stack>
 
           <Box component="form" onSubmit={handleSubmit} noValidate>
             <Stack spacing={2}>

@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from 'hono';
+import { hasPermission, type Permission } from '@kaipos/shared/permissions';
 import { ForbiddenError, UnauthorizedError } from '../lib/errors.js';
-import { hasPermission, type Permission } from '../lib/permissions.js';
 import { logAuditEvent } from '../services/audit.js';
 import type { AppEnv } from '../types.js';
 

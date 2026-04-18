@@ -8,11 +8,11 @@ import {
   type OrderStatus,
   type TokenPayload,
 } from '@kaipos/shared';
+import { SUPER_ADMIN_BUSINESS_ID } from '@kaipos/shared/permissions';
 import { getOrdersCollection } from '../db/collections.js';
 import { NotFoundError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
 import { assertBranchAccess } from '../middleware/branch-access.js';
-import { SUPER_ADMIN_BUSINESS_ID } from '../lib/permissions.js';
 import { publishToChannel } from '../lib/ws-publish.js';
 import type { CreateOrderInput } from '../schemas/orders.js';
 import { logAuditEvent } from './audit.js';

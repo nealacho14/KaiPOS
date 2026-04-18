@@ -1,7 +1,7 @@
 import type { MiddlewareHandler } from 'hono';
 import type { TokenPayload } from '@kaipos/shared/types';
+import { hasPermission } from '@kaipos/shared/permissions';
 import { ForbiddenError } from '../lib/errors.js';
-import { hasPermission } from '../lib/permissions.js';
 import type { AppEnv } from '../types.js';
 
 /**

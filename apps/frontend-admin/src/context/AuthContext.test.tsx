@@ -1,6 +1,7 @@
 import type { User } from '@kaipos/shared';
 import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { clearSession, getSession, setSession } from '../lib/auth-storage.js';
 import { AuthProvider, useAuth } from './AuthContext.js';
 
@@ -32,9 +33,11 @@ function Probe() {
 
 function renderWithProvider() {
   return render(
-    <AuthProvider>
-      <Probe />
-    </AuthProvider>,
+    <MemoryRouter>
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>
+    </MemoryRouter>,
   );
 }
 

@@ -152,22 +152,22 @@
 
 ### Tasks
 
-- [ ] Create `apps/frontend-admin/src/pages/ProductsListPage.tsx` mirroring the `UsersListPage` state machine (`loading | error | success`).
-- [ ] Header row: local `PageHeader` with title "Productos" + subtitle; right-aligned `BranchSelector`; "Nuevo producto" primary button (visible only with `products:write`) navigating to `/products/new?branchId=<active>`.
-- [ ] Controls row: debounced `TextField` for `q` (300ms via a small local debounce helper or `useEffect` + `setTimeout`; don't add a new dep), `Select` for `category` (options = distinct categories from the current result set), `Checkbox` for `includeInactive` (visible with `products:write`).
-- [ ] Table columns: Imagen (thumb 40×40 via `<img>` with `imageUrl` fallback placeholder), Nombre, SKU (mono), Categoría (Chip), Precio (right-aligned, mono, via `formatCurrency` from `@kaipos/shared/utils`), Estado (Chip Activo/Inactivo), Acciones (edit button → `/products/:id/edit` if `products:write`; delete button with confirm dialog if `products:delete`).
-- [ ] Delete flow: `@kaipos/ui` `Dialog` confirm → call `DELETE /api/products/:id` → optimistic remove from list (or refetch). On error, show `Alert`.
-- [ ] Empty state: `EmptyState` component with `Inbox` icon when the filtered list is empty.
-- [ ] Error state: `Alert severity="error"` with `mapError()`-translated message + "Reintentar" button.
-- [ ] Route wiring in `apps/frontend-admin/src/App.tsx`: add `<Route element={<RequirePermission permission="products:read" />}><Route path="/products" element={<ProductsListPage />} /></Route>` inside the `AppLayout` block.
-- [ ] Handle "no active branch" gracefully: if `useActiveBranch().branchId` is null (user has zero branches), render an `Alert` prompting contact to admin; do not call the list endpoint.
+- [x] Create `apps/frontend-admin/src/pages/ProductsListPage.tsx` mirroring the `UsersListPage` state machine (`loading | error | success`).
+- [x] Header row: local `PageHeader` with title "Productos" + subtitle; right-aligned `BranchSelector`; "Nuevo producto" primary button (visible only with `products:write`) navigating to `/products/new?branchId=<active>`.
+- [x] Controls row: debounced `TextField` for `q` (300ms via a small local debounce helper or `useEffect` + `setTimeout`; don't add a new dep), `Select` for `category` (options = distinct categories from the current result set), `Checkbox` for `includeInactive` (visible with `products:write`).
+- [x] Table columns: Imagen (thumb 40×40 via `<img>` with `imageUrl` fallback placeholder), Nombre, SKU (mono), Categoría (Chip), Precio (right-aligned, mono, via `formatCurrency` from `@kaipos/shared/utils`), Estado (Chip Activo/Inactivo), Acciones (edit button → `/products/:id/edit` if `products:write`; delete button with confirm dialog if `products:delete`).
+- [x] Delete flow: `@kaipos/ui` `Dialog` confirm → call `DELETE /api/products/:id` → optimistic remove from list (or refetch). On error, show `Alert`.
+- [x] Empty state: `EmptyState` component with `Inbox` icon when the filtered list is empty.
+- [x] Error state: `Alert severity="error"` with `mapError()`-translated message + "Reintentar" button.
+- [x] Route wiring in `apps/frontend-admin/src/App.tsx`: add `<Route element={<RequirePermission permission="products:read" />}><Route path="/products" element={<ProductsListPage />} /></Route>` inside the `AppLayout` block.
+- [x] Handle "no active branch" gracefully: if `useActiveBranch().branchId` is null (user has zero branches), render an `Alert` prompting contact to admin; do not call the list endpoint.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
 - [ ] Manual verification in `pnpm dev`: navigate to `/products` as admin (seed user). See 10 seeded products. Search by name filters the table. Toggle `includeInactive` shows/hides soft-deleted rows. Switch branch (needs a second seeded branch, optional) → list refetches. Delete a product → row disappears; `includeInactive` brings it back.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->

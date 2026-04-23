@@ -118,30 +118,30 @@
 
 ### Tasks
 
-- [ ] Extend `@kaipos/ui` icon re-exports (`packages/ui/src/components/index.ts` or `packages/ui/src/icons/index.ts` — follow the existing re-export style): `Package`, `Edit` (or `Pencil`), `Trash2`, `Plus`, `Upload`, `X`, `ChevronRight`, `Check`, `ImageIcon`. Match the existing Lucide re-export pattern (named re-export, no aliasing unless the Lucide name collides with an MUI component).
-- [ ] Create `apps/frontend-admin/src/hooks/useActiveBranch.ts`:
+- [x] Extend `@kaipos/ui` icon re-exports (`packages/ui/src/components/index.ts` or `packages/ui/src/icons/index.ts` — follow the existing re-export style): `Package`, `Edit` (or `Pencil`), `Trash2`, `Plus`, `Upload`, `X`, `ChevronRight`, `Check`, `ImageIcon`. Match the existing Lucide re-export pattern (named re-export, no aliasing unless the Lucide name collides with an MUI component).
+- [x] Create `apps/frontend-admin/src/hooks/useActiveBranch.ts`:
   - Signature: `useActiveBranch(): { branchId: string | null; setBranchId: (id: string) => void; branchIds: string[]; canManage: boolean }`.
   - Sources: `useAuth().user` for `branchIds` and role; `hasPermission(role, 'branches:manage')` for `canManage`.
   - Persistence: `sessionStorage` under `kaipos.activeBranchId`, with URL `?branchId=` sync via `useSearchParams` when the hook is used in pages that put branch in the URL. Hook accepts an options arg `{ syncToSearchParam?: boolean }` defaulting to `false`.
   - Auto-select single branch when `branchIds.length === 1 && !canManage`.
-- [ ] Create `apps/frontend-admin/src/components/BranchSelector.tsx`:
+- [x] Create `apps/frontend-admin/src/components/BranchSelector.tsx`:
   - Props: `value: string | null`, `onChange: (branchId: string) => void`.
   - On mount, fetch `/api/branches` (admin/super_admin see all; others see only those in `user.branchIds`). If the endpoint does not already exist under `/api/branches`, fall back to the user's `branchIds` and display them as simple ids (document as a follow-up; do not build a new branches endpoint here — out of scope).
   - Renders `@kaipos/ui` `Select` with branch names. When `branchIds.length === 1 && !canManage`, render a readonly `Chip` with the branch name instead of a `Select`.
   - Emits `onChange` immediately; parent persists via `useActiveBranch`.
-- [ ] Add `Productos` entry to `apps/frontend-admin/src/components/Sidebar.tsx`: `{ label: 'Productos', to: '/products', icon: Package, permission: 'products:read' }`. Position between Dashboard and Usuarios (or per existing order convention).
-- [ ] Create `apps/frontend-admin/src/lib/products-api.ts` (optional thin helper). Purpose: typed wrappers around `apiJson` for list/get/create/update/delete/uploadUrl. Keep thin — one function per endpoint, exports the `ProductsApiError` mapping for `SKU_ALREADY_EXISTS` handling.
-- [ ] No route wiring yet — the list and form pages land in Phase 4/5.
+- [x] Add `Productos` entry to `apps/frontend-admin/src/components/Sidebar.tsx`: `{ label: 'Productos', to: '/products', icon: Package, permission: 'products:read' }`. Position between Dashboard and Usuarios (or per existing order convention).
+- [x] Create `apps/frontend-admin/src/lib/products-api.ts` (optional thin helper). Purpose: typed wrappers around `apiJson` for list/get/create/update/delete/uploadUrl. Keep thin — one function per endpoint, exports the `ProductsApiError` mapping for `SKU_ALREADY_EXISTS` handling.
+- [x] No route wiring yet — the list and form pages land in Phase 4/5.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
 - [ ] Manual verification: sidebar shows the "Productos" item for an admin user in `pnpm dev`; clicking it currently 404s (no route yet — that's expected, will be added next phase).
-- [ ] `rg "from '@mui/material" apps/frontend-admin/src` → zero matches (no regressions).
-- [ ] `rg "from 'lucide-react'" apps/frontend-admin/src` → zero matches.
+- [x] `rg "from '@mui/material" apps/frontend-admin/src` → zero matches (no regressions).
+- [x] `rg "from 'lucide-react'" apps/frontend-admin/src` → zero matches.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 

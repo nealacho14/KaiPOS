@@ -34,16 +34,11 @@ export interface Category {
   createdBy: string;
 }
 
-export interface ModifierOption {
-  name: string;
-  price: number;
-}
-
 export interface Modifier {
   _id: string;
   businessId: string;
   name: string;
-  options: ModifierOption[];
+  options: Array<{ name: string; price: number }>;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -88,15 +83,64 @@ export interface Transaction {
   createdBy: string;
 }
 
+export type Allergen =
+  | 'gluten'
+  | 'dairy'
+  | 'egg'
+  | 'peanut'
+  | 'tree-nut'
+  | 'soy'
+  | 'fish'
+  | 'shellfish'
+  | 'sesame';
+
+export type DietaryTag = 'vegetarian' | 'vegan' | 'gluten-free' | 'keto' | 'halal' | 'kosher';
+
+export type StockUnit = 'unit' | 'kg' | 'L';
+
+export type ServiceSchedule = 'breakfast' | 'lunch' | 'dinner';
+
+export interface ProductAvailability {
+  pos: boolean;
+  online: boolean;
+  kiosk: boolean;
+}
+
+export interface ModifierOption {
+  id: string;
+  label: string;
+  priceDelta: number;
+}
+
+export interface ModifierGroup {
+  id: string;
+  name: string;
+  required: boolean;
+  options: ModifierOption[];
+}
+
 export interface Product {
   _id: string;
   businessId: string;
+  branchId: string;
   name: string;
   description: string;
   price: number;
   category: string;
   sku: string;
   stock: number;
+  imageUrl?: string;
+  cost?: number;
+  taxRate?: number;
+  trackStock: boolean;
+  lowStockThreshold?: number;
+  stockUnit: StockUnit;
+  availability: ProductAvailability;
+  serviceSchedules: ServiceSchedule[];
+  allergens: Allergen[];
+  dietaryTags: DietaryTag[];
+  modifierGroups: ModifierGroup[];
+  kitchenStationIds: string[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;

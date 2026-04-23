@@ -26,29 +26,29 @@
 
 ### Tasks
 
-- [ ] Extend `packages/shared/src/types/index.ts`:
+- [x] Extend `packages/shared/src/types/index.ts`:
   - Add `Allergen`, `DietaryTag`, `StockUnit`, `ServiceSchedule` string-literal union types (exact enums from spec).
   - Add `ProductAvailability` (`{ pos: boolean; online: boolean; kiosk: boolean }`), `ModifierOption` (`{ id, label, priceDelta }`), `ModifierGroup` (`{ id, name, required, options }`).
   - Extend `Product` with: `branchId`, `imageUrl?`, `cost?`, `taxRate?`, `trackStock`, `lowStockThreshold?`, `stockUnit`, `availability`, `serviceSchedules`, `allergens`, `dietaryTags`, `modifierGroups`, `kitchenStationIds`.
-- [ ] Re-export the new types from `packages/shared/src/index.ts` (no subpath split; they live on the root types index).
-- [ ] Update `apps/backend/src/db/setup.ts` `products` entry:
+- [x] Re-export the new types from `packages/shared/src/index.ts` (no subpath split; they live on the root types index).
+- [x] Update `apps/backend/src/db/setup.ts` `products` entry:
   - Add `branchId` to `required` and `properties`.
   - Add the new optional + required fields to `properties` with correct `bsonType` (arrays use `bsonType: 'array'` with `items` shape for the embedded `modifierGroups`, `kitchenStationIds`, enums).
   - **Drop** indexes `{ businessId: 1, sku: 1 }` (unique) and `{ businessId: 1, category: 1, isActive: 1 }`.
   - **Create** `{ branchId: 1, sku: 1 }` unique, `{ branchId: 1, category: 1, isActive: 1 }`, `{ businessId: 1, branchId: 1 }`.
   - Confirm `collMod` + `createIndex` path is idempotent for the added/removed indexes (log warnings are acceptable; runs should succeed on a second invocation).
-- [ ] Update `apps/backend/src/db/seed.ts` products block:
+- [x] Update `apps/backend/src/db/seed.ts` products block:
   - Add `branchId: 'branch_seed_001'` and defaults for every new required field (`trackStock: true, stockUnit: 'unit', availability: { pos: true, online: false, kiosk: false }, serviceSchedules: [], allergens: [], dietaryTags: [], modifierGroups: [], kitchenStationIds: []`) to each of the 10 seeded products.
   - Keep the Atlas guard (`MONGO_SECRET_ARN` / `mongodb+srv://`) and the "skip if business exists" idempotency.
-- [ ] Run `pnpm --filter @kaipos/backend db:setup` locally to verify the validator applies cleanly, then re-seed and spot-check one document in Mongo to confirm shape.
+- [x] Run `pnpm --filter @kaipos/backend db:setup` locally to verify the validator applies cleanly, then re-seed and spot-check one document in Mongo to confirm shape.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] Manual verification: `pnpm --filter @kaipos/backend db:setup` runs twice without error; `pnpm --filter @kaipos/backend db:seed` completes and a sample seeded product in Mongo Compass shows the new fields.
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] Manual verification: `pnpm --filter @kaipos/backend db:setup` runs twice without error; `pnpm --filter @kaipos/backend db:seed` completes and a sample seeded product in Mongo Compass shows the new fields.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 

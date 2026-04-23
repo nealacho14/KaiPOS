@@ -3,3 +3,5 @@ dist
 .turbo
 cdk.out
 pnpm-lock.yaml
+kaiPos (2)/
+.specs/

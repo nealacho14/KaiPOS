@@ -8,6 +8,7 @@ import authRoutes from './routes/auth.js';
 import usersRoutes from './routes/users.js';
 import kitchenStationsRoutes from './routes/kitchen-stations.js';
 import ordersRoutes from './routes/orders.js';
+import productsRoutes from './routes/products.js';
 import type { AppEnv } from './types.js';
 
 const app = new Hono<AppEnv>();
@@ -26,5 +27,6 @@ app.route('/', authRoutes);
 app.route('/', usersRoutes);
 app.route('/', kitchenStationsRoutes);
 app.route('/', ordersRoutes);
+app.route('/', productsRoutes);
 
 export default app;

@@ -59,14 +59,14 @@
 
 ### Tasks
 
-- [ ] Add deps to `apps/backend/package.json`: `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner` (matching ^3.693.0 range used by siblings). Update `tsup.config.ts` externals if needed (should stay external — Lambda runtime bundles no S3 client, but our config already externalizes `@aws-sdk/*`; verify and note).
-- [ ] Create `apps/backend/src/schemas/products.ts`:
+- [x] Add deps to `apps/backend/package.json`: `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner` (matching ^3.693.0 range used by siblings). Update `tsup.config.ts` externals if needed (should stay external — Lambda runtime bundles no S3 client, but our config already externalizes `@aws-sdk/*`; verify and note).
+- [x] Create `apps/backend/src/schemas/products.ts`:
   - `createProductSchema` — required `branchId`, `name`, `description`, `price`, `category`, `sku`, `stock`, with all new fields (enum-validated via `z.enum`), defaults applied per spec.
   - `updateProductSchema` — `createProductSchema.partial().omit({ branchId: true })` (branchId not editable).
   - `listProductsQuerySchema` — `branchId` required, optional `q`, `category`, `includeInactive` (coerced boolean), `businessId` (super_admin cross-tenant).
   - `uploadUrlSchema` — `{ branchId, contentType: z.enum(['image/jpeg','image/png','image/webp']), fileSize: z.number().int().positive().max(2 * 1024 * 1024) }`.
   - `productIdParamSchema` — `{ id: z.string().uuid() }` (align with `users.ts` convention).
-- [ ] Create `apps/backend/src/services/products.ts`:
+- [x] Create `apps/backend/src/services/products.ts`:
   - `listProducts(actor, query)` — resolves businessId (super_admin via `query.businessId`), `assertBranchAccess`, builds `{ businessId, branchId, ... }` filter, applies `q` as `$or` regex over `name`/`sku` (case-insensitive, Mongo `$regex` + `$options: 'i'`), `category` filter, `isActive: true` unless `includeInactive`. Returns array.
   - `getProductById(actor, id)` — finds by `_id`, then validates branch + tenant from the loaded doc; cross-tenant or cross-branch → `NotFoundError` (no audit, don't leak existence).
   - `createProduct(actor, input)` — `assertBranchAccess(actor, input.branchId)` inline, validate `kitchenStationIds` against `kitchen-stations` collection (each must match `branchId + businessId`; if not, throw `ValidationError` with `field: 'kitchenStationIds'`), check SKU uniqueness via `{ branchId, sku }` query (Mongo unique index is the authoritative gate, but pre-check for clean 409 with `{ code: 'SKU_ALREADY_EXISTS', field: 'sku' }`), insert, `logAuditEvent({ action: 'product_created', ... })`.
@@ -74,16 +74,16 @@
   - `deleteProduct(actor, id)` — same validation pattern; `$set: { isActive: false, updatedAt: now() }`. Return void (route handler sends 204).
   - `generateUploadUrl(actor, input)` — `assertBranchAccess`, validate `ASSETS_BUCKET_NAME` env (503 with code `ASSETS_NOT_CONFIGURED` if missing — supports local dev), build key `products/<branchId>/<crypto.randomUUID()>.<ext from contentType>`, call `getSignedUrl(new PutObjectCommand({ Bucket, Key, ContentType, ContentLength }), { expiresIn: 60 })`. Compute `publicUrl` as `https://<ASSETS_CDN_DOMAIN>/<key>`. Return `{ uploadUrl, publicUrl, expiresIn: 60 }`. Fallback `publicUrl = uploadUrl`'s origin if `ASSETS_CDN_DOMAIN` not set (document behavior).
   - All DB writes bump `updatedAt` to `new Date()`.
-- [ ] Create `apps/backend/src/routes/products.ts`:
+- [x] Create `apps/backend/src/routes/products.ts`:
   - `POST /api/products/upload-url` → `requireAuth`, `requirePermission('products:write')`, `validate({ body: uploadUrlSchema })`, handler calls `generateUploadUrl`, returns 201 with `{ success: true, data }`.
   - `GET /api/products` → `requireAuth`, `requirePermission('products:read')`, `validate({ query: listProductsQuerySchema })`, `requireBranchAccess('branchId')` (middleware reads from query), handler.
   - `GET /api/products/:id` → `requireAuth`, `requirePermission('products:read')`, `validate({ params: productIdParamSchema })`. Branch check is inside the service (needs the doc).
   - `POST /api/products` → `requireAuth`, `requirePermission('products:write')`, `validate({ body: createProductSchema })`, handler returns 201.
   - `PATCH /api/products/:id` → `requireAuth`, `requirePermission('products:write')`, `validate({ params, body: updateProductSchema })`, handler returns 200.
   - `DELETE /api/products/:id` → `requireAuth`, `requirePermission('products:delete')`, `validate({ params })`, handler returns 204 No Content (no body).
-- [ ] Mount in `apps/backend/src/app.ts`: `import productsRoutes from './routes/products.js'` and `app.route('/', productsRoutes);` alongside the existing routes.
-- [ ] Read `ASSETS_BUCKET_NAME` and `ASSETS_CDN_DOMAIN` env vars in the upload service. Document in `apps/backend/.env.example` (create if missing) + root `CLAUDE.md`'s "Environment Variables" section (append two lines).
-- [ ] Tests — `apps/backend/src/services/products.test.ts`:
+- [x] Mount in `apps/backend/src/app.ts`: `import productsRoutes from './routes/products.js'` and `app.route('/', productsRoutes);` alongside the existing routes.
+- [x] Read `ASSETS_BUCKET_NAME` and `ASSETS_CDN_DOMAIN` env vars in the upload service. Document in `apps/backend/.env.example` (create if missing) + root `CLAUDE.md`'s "Environment Variables" section (append two lines).
+- [x] Tests — `apps/backend/src/services/products.test.ts`:
   - Multi-tenant: cross-business `getById`/`list`/`update`/`delete` → 404 (read) / 403+audit (mutate).
   - Multi-branch: cashier assigned to branch A cannot read/mutate branch B → 404 / 403+audit.
   - Permission denial: cashier calling `createProduct` → 403 + audit (simulated via middleware in route tests; service test covers `assertBranchAccess` branch).
@@ -93,7 +93,7 @@
   - SKU uniqueness: same SKU in same branch → 409 with `{ code: 'SKU_ALREADY_EXISTS', field: 'sku' }`; same SKU across branches → allowed.
   - Super_admin cross-tenant via `query.businessId`; admin with `branches:manage` operates on any branch.
   - `kitchenStationIds` validation: id from another branch → `ValidationError` with field `kitchenStationIds`.
-- [ ] Tests — `apps/backend/src/routes/products.test.ts`:
+- [x] Tests — `apps/backend/src/routes/products.test.ts`:
   - HTTP codes: 201 create, 200 read/list/update, 204 delete.
   - `requireBranchAccess` gating on `GET /api/products`.
   - `assertBranchAccess` inline on `POST` (mock service to throw `ForbiddenError`).
@@ -102,12 +102,12 @@
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm --filter @kaipos/backend test` passes (new products tests + no regressions)
-- [ ] Manual verification via curl or HTTP client against `pnpm dev`: admin can create/list/edit/soft-delete a product; cashier gets 403 on create with audit log row visible in `auditLogs` collection.
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm --filter @kaipos/backend test` passes (new products tests + no regressions)
+- [x] Manual verification via curl or HTTP client against `pnpm dev`: admin can create/list/edit/soft-delete a product; cashier gets 403 on create with audit log row visible in `auditLogs` collection.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 

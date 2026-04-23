@@ -5,6 +5,7 @@ import { DashboardPage } from './pages/DashboardPage.js';
 import { DebugWebSocket } from './pages/DebugWebSocket.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { NotFoundPage } from './pages/NotFoundPage.js';
+import { ProductFormPage } from './pages/ProductFormPage.js';
 import { ProductsListPage } from './pages/ProductsListPage.js';
 import { UsersListPage } from './pages/UsersListPage.js';
 
@@ -19,6 +20,10 @@ export function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route element={<RequirePermission permission="products:read" />}>
             <Route path="/products" element={<ProductsListPage />} />
+            <Route element={<RequirePermission permission="products:write" />}>
+              <Route path="/products/new" element={<ProductFormPage />} />
+              <Route path="/products/:id/edit" element={<ProductFormPage />} />
+            </Route>
           </Route>
           <Route element={<RequirePermission permission="users:read" />}>
             <Route path="/users" element={<UsersListPage />} />

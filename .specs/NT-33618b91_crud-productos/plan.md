@@ -179,22 +179,22 @@
 
 ### Tasks
 
-- [ ] Create `apps/frontend-admin/src/pages/ProductFormPage.tsx`. Single file handles both `new` (no `:id`) and `edit` (`:id`) modes by reading `useParams().id`.
-- [ ] Top bar: breadcrumb `← Productos / <Categoría> / <Nombre | Nuevo producto>`; status label "Borrador · guardado hace Xs" (static, with `// TODO: real auto-save` comment); disabled "Vista previa" and "Guardar borrador"; primary "Publicar producto" button.
-- [ ] Layout: two columns on ≥md — left column stacks the form Cards; right column is a sticky sidebar. On `<md`, collapse to single column (sidebar moves below the form).
-- [ ] Left column cards (all built from `@kaipos/ui` primitives):
+- [x] Create `apps/frontend-admin/src/pages/ProductFormPage.tsx`. Single file handles both `new` (no `:id`) and `edit` (`:id`) modes by reading `useParams().id`.
+- [x] Top bar: breadcrumb `← Productos / <Categoría> / <Nombre | Nuevo producto>`; status label "Borrador · guardado hace Xs" (static, with `// TODO: real auto-save` comment); disabled "Vista previa" and "Guardar borrador"; primary "Publicar producto" button.
+- [x] Layout: two columns on ≥md — left column stacks the form Cards; right column is a sticky sidebar. On `<md`, collapse to single column (sidebar moves below the form).
+- [x] Left column cards (all built from `@kaipos/ui` primitives):
   - **Información básica**: Name (`TextField`), Category (`Select` with existing categories from the branch's current list + "+ Crear nueva" option that swaps the select for a `TextField`), SKU (monospace `TextField`, auto-filled from `<CAT>-<3LETRAS-NAME>-<001>` pattern on first name/category change when empty; stays editable after), Short description (`TextField` multiline).
   - **Precio y costos**: Price (`TextField` type=number with `$` adornment), Cost (`TextField` type=number with `$` adornment, optional), IVA (`TextField` type=number with `%` adornment, optional). Below, a green info card shows `Margen: XX%` and `Ganancia por unidad: $X.XX` computed client-side; hidden when `price === 0` or `cost` empty.
   - **Inventario**: `Switch` for `trackStock`. When on: Stock (`TextField` int), Alerta en (`TextField` int for `lowStockThreshold`), Unidad (`Select` for `stockUnit`).
   - **Modificadores**: dynamic list of `ModifierGroup`. Each group card has name field, `Switch` for required/optional, list of options (label + priceDelta number), "+ Opción" button. "+ Grupo nuevo" button at bottom. Use `crypto.randomUUID()` for group/option ids client-side. No drag-and-drop (TODO marker with `⋮⋮` icon visible but non-functional).
   - **Etiquetas y alérgenos**: Two chip groups. Allergens = static enum (9 chips, toggleable). Dietary tags = static enum (6 chips, toggleable).
-- [ ] Right sticky sidebar:
+- [x] Right sticky sidebar:
   - **Vista en POS**: small card reading form state in real time. Shows name, price (via `formatCurrency`), and allergen chips (rendered small) when any allergen is selected. Placeholder thumbnail until image uploaded.
   - **Disponibilidad**: three `Switch` rows (POS, Online, Kiosko) bound to `availability`. Service schedule: three chips (Desayuno/Almuerzo/Cena) toggleable, bound to `serviceSchedules`.
   - **Imagen**: dropzone `<div>` that also accepts click → hidden `<input type="file">`. On select, validate MIME in `{image/jpeg,image/png,image/webp}` and size `≤ 2 MB`. If valid: `POST /api/products/upload-url` → PUT file to `uploadUrl` with `Content-Type` header → set `imageUrl` to `publicUrl`. Show thumbnail when set; "Remover" button clears `imageUrl`. On validation fail or upload error, show inline `Alert`.
   - **Ruta en cocina**: fetch `/api/kitchen-stations?branchId=<active>` on mount / when branch changes. Render chips (multi-select). If empty: `EmptyState` with link to `/kitchen-stations?branchId=<active>`.
-- [ ] Edit mode: on mount, `GET /api/products/:id`; hydrate form state; render `branchId` as a readonly `Chip` labeled "Sucursal: <name>" (branch name comes from the `BranchSelector`'s branch list or the `business.branches` cache — if not available, show the id).
-- [ ] Submit handler:
+- [x] Edit mode: on mount, `GET /api/products/:id`; hydrate form state; render `branchId` as a readonly `Chip` labeled "Sucursal: <name>" (branch name comes from the `BranchSelector`'s branch list or the `business.branches` cache — if not available, show the id).
+- [x] Submit handler:
   - Client-side required-field check (name, price, category, sku, branchId).
   - `POST /api/products` (create) or `PATCH /api/products/:id` (edit).
   - On success, navigate to `/products?branchId=<branchId>`.
@@ -202,17 +202,17 @@
   - On 403: top-of-form `Alert` "No tienes permiso para publicar productos en esta sucursal.".
   - On validation errors (`VALIDATION_ERROR` from backend): map `details[].field` to per-field inline errors.
   - Generic errors: top-of-form `Alert` with `mapError` output.
-- [ ] Route wiring: add two protected routes in `App.tsx` nested under `RequirePermission permission="products:read"`, each wrapped in a second `RequirePermission permission="products:write"`:
+- [x] Route wiring: add two protected routes in `App.tsx` nested under `RequirePermission permission="products:read"`, each wrapped in a second `RequirePermission permission="products:write"`:
   - `/products/new` → `<ProductFormPage mode="new" />` (or read mode from absent `:id`)
   - `/products/:id/edit` → `<ProductFormPage mode="edit" />`
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `rg "from '@mui/material" apps/frontend-admin/src` → zero matches
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `rg "from '@mui/material" apps/frontend-admin/src` → zero matches
 - [ ] Manual verification (golden path): in `pnpm dev` as admin seed user, go to `/products/new?branchId=branch_seed_001`, fill name/category/price, publish → redirected to list, new row present; click Edit → fields hydrated; change price, publish → list reflects new price; delete from list → disappears, reappears with `includeInactive`.
 - [ ] Manual verification (image upload, requires infra phase deployed OR local `ASSETS_BUCKET_NAME` unset → verify graceful 503 flow with a visible error banner).
 - [ ] Manual verification (negative): cashier seed user sees `/products` list but no "Nuevo producto" button and no edit/delete actions; attempting to navigate directly to `/products/new` redirects to `/products`.

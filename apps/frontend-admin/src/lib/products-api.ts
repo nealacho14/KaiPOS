@@ -13,9 +13,12 @@ export interface ListProductsParams {
   businessId?: string;
 }
 
+// `createdBy` is stamped on the server from the authenticated actor, never
+// supplied from the client, so it is excluded here alongside the other
+// server-managed fields.
 export type CreateProductPayload = Omit<
   Product,
-  '_id' | 'businessId' | 'isActive' | 'createdAt' | 'updatedAt'
+  '_id' | 'businessId' | 'isActive' | 'createdAt' | 'updatedAt' | 'createdBy'
 >;
 
 export type UpdateProductPayload = Partial<Omit<CreateProductPayload, 'branchId'>> & {

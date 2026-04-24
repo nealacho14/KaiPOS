@@ -50,10 +50,14 @@ async function seedData(db: Db): Promise<void> {
   }
 
   const now = new Date();
-  const businessId = 'biz_seed_001';
-  const branchId = 'branch_seed_001';
-  const adminUserId = 'user_seed_admin';
-  const cashierUserId = 'user_seed_cashier';
+  // All seed _id values are UUID v4 to match production (services mint ids with
+  // `crypto.randomUUID()`) and to satisfy the `z.string().uuid()` validators on
+  // API route params. The fixed pattern `00000000-0000-4000-8000-NNNNNNNNNNNN`
+  // keeps them stable, debuggable, and obviously non-random.
+  const businessId = '00000000-0000-4000-8000-000000000100';
+  const branchId = '00000000-0000-4000-8000-000000000200';
+  const adminUserId = '00000000-0000-4000-8000-000000000301';
+  const cashierUserId = '00000000-0000-4000-8000-000000000302';
 
   await businessesCol.insertOne({
     _id: businessId as never,
@@ -119,7 +123,7 @@ async function seedData(db: Db): Promise<void> {
 
   const categories = [
     {
-      _id: 'cat_seed_appetizers' as never,
+      _id: '00000000-0000-4000-8000-000000000401' as never,
       businessId,
       name: 'Entradas',
       description: 'Aperitivos y entradas',
@@ -130,7 +134,7 @@ async function seedData(db: Db): Promise<void> {
       createdBy: adminUserId,
     },
     {
-      _id: 'cat_seed_main' as never,
+      _id: '00000000-0000-4000-8000-000000000402' as never,
       businessId,
       name: 'Platos Principales',
       description: 'Platos fuertes',
@@ -141,7 +145,7 @@ async function seedData(db: Db): Promise<void> {
       createdBy: adminUserId,
     },
     {
-      _id: 'cat_seed_drinks' as never,
+      _id: '00000000-0000-4000-8000-000000000403' as never,
       businessId,
       name: 'Bebidas',
       description: 'Jugos, refrescos y cócteles',
@@ -152,7 +156,7 @@ async function seedData(db: Db): Promise<void> {
       createdBy: adminUserId,
     },
     {
-      _id: 'cat_seed_desserts' as never,
+      _id: '00000000-0000-4000-8000-000000000404' as never,
       businessId,
       name: 'Postres',
       description: 'Dulces y postres',
@@ -163,7 +167,7 @@ async function seedData(db: Db): Promise<void> {
       createdBy: adminUserId,
     },
     {
-      _id: 'cat_seed_sides' as never,
+      _id: '00000000-0000-4000-8000-000000000405' as never,
       businessId,
       name: 'Acompañantes',
       description: 'Arroz, ensaladas y más',
@@ -194,11 +198,9 @@ async function seedData(db: Db): Promise<void> {
     createdBy: adminUserId,
   };
 
-  // Explicit string _id values — products' $jsonSchema requires _id as string;
-  // without this MongoDB auto-generates an ObjectId which violates the validator.
   const products = [
     {
-      _id: 'prod_seed_ent_001' as never,
+      _id: '00000000-0000-4000-8000-000000000001' as never,
       ...productDefaults,
       name: 'Tostones con Salami',
       description: 'Tostones crujientes con salami frito',
@@ -208,7 +210,7 @@ async function seedData(db: Db): Promise<void> {
       stock: 100,
     },
     {
-      _id: 'prod_seed_ent_002' as never,
+      _id: '00000000-0000-4000-8000-000000000002' as never,
       ...productDefaults,
       name: 'Yuca Frita',
       description: 'Yuca frita con salsa de ajo',
@@ -218,7 +220,7 @@ async function seedData(db: Db): Promise<void> {
       stock: 100,
     },
     {
-      _id: 'prod_seed_pla_001' as never,
+      _id: '00000000-0000-4000-8000-000000000003' as never,
       ...productDefaults,
       name: 'Pollo al Horno',
       description: 'Medio pollo al horno con especias criollas',
@@ -228,7 +230,7 @@ async function seedData(db: Db): Promise<void> {
       stock: 50,
     },
     {
-      _id: 'prod_seed_pla_002' as never,
+      _id: '00000000-0000-4000-8000-000000000004' as never,
       ...productDefaults,
       name: 'Churrasco de Res',
       description: 'Churrasco a la parrilla con chimichurri',
@@ -238,7 +240,7 @@ async function seedData(db: Db): Promise<void> {
       stock: 30,
     },
     {
-      _id: 'prod_seed_pla_003' as never,
+      _id: '00000000-0000-4000-8000-000000000005' as never,
       ...productDefaults,
       name: 'Mofongo de Chicharrón',
       description: 'Mofongo relleno de chicharrón con caldo',
@@ -248,7 +250,7 @@ async function seedData(db: Db): Promise<void> {
       stock: 40,
     },
     {
-      _id: 'prod_seed_pla_004' as never,
+      _id: '00000000-0000-4000-8000-000000000006' as never,
       ...productDefaults,
       name: 'Bandera Dominicana',
       description: 'Arroz blanco, habichuelas rojas y carne guisada',
@@ -258,7 +260,7 @@ async function seedData(db: Db): Promise<void> {
       stock: 60,
     },
     {
-      _id: 'prod_seed_beb_001' as never,
+      _id: '00000000-0000-4000-8000-000000000007' as never,
       ...productDefaults,
       name: 'Jugo de Chinola',
       description: 'Jugo natural de chinola (maracuyá)',
@@ -268,7 +270,7 @@ async function seedData(db: Db): Promise<void> {
       stock: 200,
     },
     {
-      _id: 'prod_seed_beb_002' as never,
+      _id: '00000000-0000-4000-8000-000000000008' as never,
       ...productDefaults,
       name: 'Morir Soñando',
       description: 'Leche con jugo de naranja y azúcar',
@@ -278,7 +280,7 @@ async function seedData(db: Db): Promise<void> {
       stock: 200,
     },
     {
-      _id: 'prod_seed_pos_001' as never,
+      _id: '00000000-0000-4000-8000-000000000009' as never,
       ...productDefaults,
       name: 'Habichuelas con Dulce',
       description: 'Postre tradicional de habichuelas dulces con leche',
@@ -288,7 +290,7 @@ async function seedData(db: Db): Promise<void> {
       stock: 30,
     },
     {
-      _id: 'prod_seed_pos_002' as never,
+      _id: '00000000-0000-4000-8000-00000000000a' as never,
       ...productDefaults,
       name: 'Flan de Coco',
       description: 'Flan cremoso de coco con caramelo',
@@ -301,10 +303,9 @@ async function seedData(db: Db): Promise<void> {
   await db.collection('products').insertMany(products);
   logger.info('  Seeded 10 products');
 
-  // Explicit string _id values — both collections' $jsonSchema requires _id as string.
   const modifiers = [
     {
-      _id: 'mod_seed_size' as never,
+      _id: '00000000-0000-4000-8000-000000000501' as never,
       businessId,
       name: 'Tamaño',
       options: [
@@ -317,7 +318,7 @@ async function seedData(db: Db): Promise<void> {
       createdBy: adminUserId,
     },
     {
-      _id: 'mod_seed_extras' as never,
+      _id: '00000000-0000-4000-8000-000000000502' as never,
       businessId,
       name: 'Extras',
       options: [
@@ -331,7 +332,7 @@ async function seedData(db: Db): Promise<void> {
       createdBy: adminUserId,
     },
     {
-      _id: 'mod_seed_spice' as never,
+      _id: '00000000-0000-4000-8000-000000000503' as never,
       businessId,
       name: 'Nivel de Picante',
       options: [
@@ -349,18 +350,54 @@ async function seedData(db: Db): Promise<void> {
   logger.info('  Seeded 3 modifiers');
 
   const tables = [
-    { _id: 'table_seed_1', branchId, number: 1, capacity: 2, status: 'available' },
-    { _id: 'table_seed_2', branchId, number: 2, capacity: 4, status: 'available' },
-    { _id: 'table_seed_3', branchId, number: 3, capacity: 4, status: 'available' },
-    { _id: 'table_seed_4', branchId, number: 4, capacity: 6, status: 'available' },
-    { _id: 'table_seed_5', branchId, number: 5, capacity: 8, status: 'available' },
-    { _id: 'table_seed_6', branchId, number: 6, capacity: 2, status: 'available' },
+    {
+      _id: '00000000-0000-4000-8000-000000000601',
+      branchId,
+      number: 1,
+      capacity: 2,
+      status: 'available',
+    },
+    {
+      _id: '00000000-0000-4000-8000-000000000602',
+      branchId,
+      number: 2,
+      capacity: 4,
+      status: 'available',
+    },
+    {
+      _id: '00000000-0000-4000-8000-000000000603',
+      branchId,
+      number: 3,
+      capacity: 4,
+      status: 'available',
+    },
+    {
+      _id: '00000000-0000-4000-8000-000000000604',
+      branchId,
+      number: 4,
+      capacity: 6,
+      status: 'available',
+    },
+    {
+      _id: '00000000-0000-4000-8000-000000000605',
+      branchId,
+      number: 5,
+      capacity: 8,
+      status: 'available',
+    },
+    {
+      _id: '00000000-0000-4000-8000-000000000606',
+      branchId,
+      number: 6,
+      capacity: 2,
+      status: 'available',
+    },
   ].map((t) => ({ ...t, createdAt: now, updatedAt: now, createdBy: adminUserId }));
   await db.collection('tables').insertMany(tables as never);
   logger.info('  Seeded 6 tables');
 
   await db.collection('kitchenStations').insertOne({
-    _id: 'station_seed_001' as never,
+    _id: '00000000-0000-4000-8000-000000000701' as never,
     businessId,
     branchId,
     name: 'Cocina caliente',

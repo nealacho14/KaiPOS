@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.js';
 
-const STORAGE_KEY = 'kaipos.activeBranchId';
+export const ACTIVE_BRANCH_STORAGE_KEY = 'kaipos.activeBranchId';
 const SEARCH_PARAM = 'branchId';
 
 export interface UseActiveBranchOptions {
@@ -19,7 +19,9 @@ export interface UseActiveBranchResult {
 
 function readStored(): string | null {
   try {
-    return typeof window !== 'undefined' ? window.sessionStorage.getItem(STORAGE_KEY) : null;
+    return typeof window !== 'undefined'
+      ? window.sessionStorage.getItem(ACTIVE_BRANCH_STORAGE_KEY)
+      : null;
   } catch {
     return null;
   }
@@ -28,7 +30,7 @@ function readStored(): string | null {
 function writeStored(id: string): void {
   try {
     if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem(STORAGE_KEY, id);
+    window.sessionStorage.setItem(ACTIVE_BRANCH_STORAGE_KEY, id);
   } catch {
     // sessionStorage may be unavailable (private mode, etc.) — treat as ephemeral.
   }

@@ -54,7 +54,7 @@ La UI de administración vive en `apps/frontend-admin` (React 19 + React Router 
   - **Eliminar**: `{ businessId: 1, sku: 1 }` único, `{ businessId: 1, category: 1, isActive: 1 }`.
   - **Crear**: `{ branchId: 1, sku: 1 }` único (mismo SKU permitido en branches distintos), `{ branchId: 1, category: 1, isActive: 1 }`, `{ businessId: 1, branchId: 1 }`.
 - `db/setup.ts` es idempotente (`collMod` + `createIndex`), corre contra local, Docker y Atlas. No hay data productiva; basta correr `db:setup` para aplicar el nuevo validador + índices.
-- **`db/seed.ts`** — actualizar los 10 productos seed existentes para traer `branchId: 'branch_seed_001'`, defaults razonables de los nuevos campos (`trackStock: true, stockUnit: 'unit', availability: { pos: true, online: false, kiosk: false }, serviceSchedules: [], allergens: [], dietaryTags: [], modifierGroups: [], kitchenStationIds: []`). Mantener la guarda contra Atlas (`MONGO_SECRET_ARN` / `mongodb+srv://`) y la idempotencia (skip si la business slug ya existe).
+- **`db/seed.ts`** — actualizar los 10 productos seed existentes para traer `branchId: '00000000-0000-4000-8000-000000000200'` (UUID v4 para satisfacer `productIdParamSchema`), defaults razonables de los nuevos campos (`trackStock: true, stockUnit: 'unit', availability: { pos: true, online: false, kiosk: false }, serviceSchedules: [], allergens: [], dietaryTags: [], modifierGroups: [], kitchenStationIds: []`). Mantener la guarda contra Atlas (`MONGO_SECRET_ARN` / `mongodb+srv://`) y la idempotencia (skip si la business slug ya existe).
 
 ### Backend — RBAC y aislamiento
 

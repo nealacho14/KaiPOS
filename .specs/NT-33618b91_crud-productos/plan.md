@@ -38,7 +38,7 @@
   - **Create** `{ branchId: 1, sku: 1 }` unique, `{ branchId: 1, category: 1, isActive: 1 }`, `{ businessId: 1, branchId: 1 }`.
   - Confirm `collMod` + `createIndex` path is idempotent for the added/removed indexes (log warnings are acceptable; runs should succeed on a second invocation).
 - [x] Update `apps/backend/src/db/seed.ts` products block:
-  - Add `branchId: 'branch_seed_001'` and defaults for every new required field (`trackStock: true, stockUnit: 'unit', availability: { pos: true, online: false, kiosk: false }, serviceSchedules: [], allergens: [], dietaryTags: [], modifierGroups: [], kitchenStationIds: []`) to each of the 10 seeded products.
+  - Add `branchId: '00000000-0000-4000-8000-000000000200'` and defaults for every new required field (`trackStock: true, stockUnit: 'unit', availability: { pos: true, online: false, kiosk: false }, serviceSchedules: [], allergens: [], dietaryTags: [], modifierGroups: [], kitchenStationIds: []`) to each of the 10 seeded products.
   - Keep the Atlas guard (`MONGO_SECRET_ARN` / `mongodb+srv://`) and the "skip if business exists" idempotency.
 - [x] Run `pnpm --filter @kaipos/backend db:setup` locally to verify the validator applies cleanly, then re-seed and spot-check one document in Mongo to confirm shape.
 
@@ -213,7 +213,7 @@
 - [x] `pnpm format:check` passes
 - [x] `pnpm build` succeeds
 - [x] `rg "from '@mui/material" apps/frontend-admin/src` → zero matches
-- [ ] Manual verification (golden path): in `pnpm dev` as admin seed user, go to `/products/new?branchId=branch_seed_001`, fill name/category/price, publish → redirected to list, new row present; click Edit → fields hydrated; change price, publish → list reflects new price; delete from list → disappears, reappears with `includeInactive`.
+- [ ] Manual verification (golden path): in `pnpm dev` as admin seed user, go to `/products/new?branchId=00000000-0000-4000-8000-000000000200`, fill name/category/price, publish → redirected to list, new row present; click Edit → fields hydrated; change price, publish → list reflects new price; delete from list → disappears, reappears with `includeInactive`.
 - [ ] Manual verification (image upload, requires infra phase deployed OR local `ASSETS_BUCKET_NAME` unset → verify graceful 503 flow with a visible error banner).
 - [ ] Manual verification (negative): cashier seed user sees `/products` list but no "Nuevo producto" button and no edit/delete actions; attempting to navigate directly to `/products/new` redirects to `/products`.
 

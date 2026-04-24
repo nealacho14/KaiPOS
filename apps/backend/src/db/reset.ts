@@ -64,18 +64,9 @@ async function main(): Promise<void> {
   const db = client.db(dbName);
 
   logger.info(`Target: ${maskUri(uri)} (db: ${dbName})`);
-  logger.info('Dropping collections...');
-  // Atlas `readWrite` roles cannot run `dropDatabase`, but CAN drop individual
-  // collections. Iterate and drop each one so the script works without
-  // elevating the Atlas user to `dbAdmin`.
-  const existing = await db.listCollections({}, { nameOnly: true }).toArray();
-  for (const { name } of existing) {
-    await db.collection(name).drop();
-    logger.info(`  Dropped "${name}"`);
-  }
-  if (existing.length === 0) {
-    logger.info('  (nothing to drop)');
-  }
+  logger.info('Dropping database...');
+  await db.dropDatabase();
+  logger.info('  Dropped.');
 
   logger.info('Applying schemas + indexes...');
   await setupCollections(db);

@@ -1,12 +1,18 @@
 import { hasPermission } from '@kaipos/shared';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useActiveBranchContext } from '../context/ActiveBranchContext.js';
 import { useAuth } from '../context/AuthContext.js';
 
 export const ACTIVE_BRANCH_STORAGE_KEY = 'kaipos.activeBranchId';
 const SEARCH_PARAM = 'branchId';
 
 export interface UseActiveBranchOptions {
+  // When true, reads/writes `?branchId=...` in the current location so the
+  // page URL reflects the active branch (useful for shareable links). The
+  // source of truth is still the `ActiveBranchProvider` context — URL sync
+  // is just a one-way mirror into the address bar with a one-time hydration
+  // on mount to honor a link opened in a new tab.
   syncToSearchParam?: boolean;
 }
 
@@ -17,60 +23,43 @@ export interface UseActiveBranchResult {
   canManage: boolean;
 }
 
-function readStored(): string | null {
-  try {
-    return typeof window !== 'undefined'
-      ? window.sessionStorage.getItem(ACTIVE_BRANCH_STORAGE_KEY)
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStored(id: string): void {
-  try {
-    if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem(ACTIVE_BRANCH_STORAGE_KEY, id);
-  } catch {
-    // sessionStorage may be unavailable (private mode, etc.) — treat as ephemeral.
-  }
-}
-
 export function useActiveBranch(options: UseActiveBranchOptions = {}): UseActiveBranchResult {
   const { syncToSearchParam = false } = options;
   const { user } = useAuth();
+  const { selectedBranchId, setSelectedBranchId } = useActiveBranchContext();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const branchIds = useMemo(() => user?.branchIds ?? [], [user?.branchIds]);
   const canManage = user ? hasPermission(user.role, 'branches:manage') : false;
 
-  // Explicit user selection is the only thing we keep in state. The *effective*
-  // branchId is derived from (override → url → storage → auto-select) on each
-  // render, which keeps the hook free of setState-in-effect cascades.
-  const [override, setOverride] = useState<string | null>(null);
-
+  // Hydrate from URL on mount if the param is present and differs from the
+  // context — this lets a deep link like `/products?branchId=X` win over any
+  // previously stored value without breaking subsequent in-app navigations.
   const paramBranchId = syncToSearchParam ? searchParams.get(SEARCH_PARAM) : null;
+  useEffect(() => {
+    if (!syncToSearchParam) return;
+    if (paramBranchId && paramBranchId !== selectedBranchId) {
+      setSelectedBranchId(paramBranchId);
+    }
+  }, [paramBranchId, selectedBranchId, setSelectedBranchId, syncToSearchParam]);
 
   const branchId = useMemo<string | null>(() => {
-    if (override) return override;
-    if (paramBranchId) return paramBranchId;
-    const stored = readStored();
-    if (stored) return stored;
+    if (selectedBranchId) return selectedBranchId;
+    // Single-branch non-manager auto-selects their only branch.
     if (!canManage && branchIds.length === 1) return branchIds[0] ?? null;
     return null;
-  }, [override, paramBranchId, canManage, branchIds]);
+  }, [selectedBranchId, canManage, branchIds]);
 
   const setBranchId = useCallback(
     (id: string) => {
-      setOverride(id);
-      writeStored(id);
+      setSelectedBranchId(id);
       if (syncToSearchParam) {
         const next = new URLSearchParams(searchParams);
         next.set(SEARCH_PARAM, id);
         setSearchParams(next, { replace: true });
       }
     },
-    [syncToSearchParam, searchParams, setSearchParams],
+    [setSelectedBranchId, syncToSearchParam, searchParams, setSearchParams],
   );
 
   return { branchId, setBranchId, branchIds, canManage };

@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { type Db } from 'mongodb';
 import { AUDIT_ACTIONS } from '@kaipos/shared';
 import { logger } from '../lib/logger.js';
@@ -547,7 +548,7 @@ const collections: CollectionSetup[] = [
 // Setup: create/update collections with validators and indexes
 // ---------------------------------------------------------------------------
 
-async function setupCollections(db: Db): Promise<void> {
+export async function setupCollections(db: Db): Promise<void> {
   const existing = new Set(
     await db
       .listCollections({}, { nameOnly: true })
@@ -630,7 +631,12 @@ async function main(): Promise<void> {
   await closeConnection();
 }
 
-main().catch((err) => {
-  logger.error({ err }, 'Setup failed');
-  process.exit(1);
-});
+// Only run as a script when this file is the entry point — other modules
+// (e.g. `db:reset`) import `setupCollections` without kicking off a second
+// top-level `main()` that would race against theirs.
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch((err) => {
+    logger.error({ err }, 'Setup failed');
+    process.exit(1);
+  });
+}

@@ -8,6 +8,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Package,
   Radio,
   UsersIcon,
   type LucideIcon,
@@ -27,6 +28,7 @@ interface SidebarItem {
 
 const ITEMS: SidebarItem[] = [
   { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
+  { label: 'Productos', to: '/products', icon: Package, permission: 'products:read' },
   { label: 'Usuarios', to: '/users', icon: UsersIcon, permission: 'users:read' },
   { label: 'Debug · WebSocket', to: '/debug/ws', icon: Radio },
 ];

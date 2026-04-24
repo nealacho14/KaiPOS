@@ -177,143 +177,134 @@ async function seedData(db: Db): Promise<void> {
   await db.collection('categories').insertMany(categories);
   logger.info('  Seeded 5 categories');
 
+  const productDefaults = {
+    businessId,
+    branchId,
+    trackStock: true,
+    stockUnit: 'unit' as const,
+    availability: { pos: true, online: false, kiosk: false },
+    serviceSchedules: [] as string[],
+    allergens: [] as string[],
+    dietaryTags: [] as string[],
+    modifierGroups: [] as Array<Record<string, unknown>>,
+    kitchenStationIds: [] as string[],
+    isActive: true,
+    createdAt: now,
+    updatedAt: now,
+    createdBy: adminUserId,
+  };
+
+  // Explicit string _id values — products' $jsonSchema requires _id as string;
+  // without this MongoDB auto-generates an ObjectId which violates the validator.
   const products = [
     {
-      businessId,
+      _id: 'prod_seed_ent_001' as never,
+      ...productDefaults,
       name: 'Tostones con Salami',
       description: 'Tostones crujientes con salami frito',
       price: 350,
       category: 'Entradas',
       sku: 'ENT-001',
       stock: 100,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: 'prod_seed_ent_002' as never,
+      ...productDefaults,
       name: 'Yuca Frita',
       description: 'Yuca frita con salsa de ajo',
       price: 250,
       category: 'Entradas',
       sku: 'ENT-002',
       stock: 100,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: 'prod_seed_pla_001' as never,
+      ...productDefaults,
       name: 'Pollo al Horno',
       description: 'Medio pollo al horno con especias criollas',
       price: 650,
       category: 'Platos Principales',
       sku: 'PLA-001',
       stock: 50,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: 'prod_seed_pla_002' as never,
+      ...productDefaults,
       name: 'Churrasco de Res',
       description: 'Churrasco a la parrilla con chimichurri',
       price: 950,
       category: 'Platos Principales',
       sku: 'PLA-002',
       stock: 30,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: 'prod_seed_pla_003' as never,
+      ...productDefaults,
       name: 'Mofongo de Chicharrón',
       description: 'Mofongo relleno de chicharrón con caldo',
       price: 550,
       category: 'Platos Principales',
       sku: 'PLA-003',
       stock: 40,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: 'prod_seed_pla_004' as never,
+      ...productDefaults,
       name: 'Bandera Dominicana',
       description: 'Arroz blanco, habichuelas rojas y carne guisada',
       price: 450,
       category: 'Platos Principales',
       sku: 'PLA-004',
       stock: 60,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: 'prod_seed_beb_001' as never,
+      ...productDefaults,
       name: 'Jugo de Chinola',
       description: 'Jugo natural de chinola (maracuyá)',
       price: 150,
       category: 'Bebidas',
       sku: 'BEB-001',
       stock: 200,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: 'prod_seed_beb_002' as never,
+      ...productDefaults,
       name: 'Morir Soñando',
       description: 'Leche con jugo de naranja y azúcar',
       price: 180,
       category: 'Bebidas',
       sku: 'BEB-002',
       stock: 200,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: 'prod_seed_pos_001' as never,
+      ...productDefaults,
       name: 'Habichuelas con Dulce',
       description: 'Postre tradicional de habichuelas dulces con leche',
       price: 200,
       category: 'Postres',
       sku: 'POS-001',
       stock: 30,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: 'prod_seed_pos_002' as never,
+      ...productDefaults,
       name: 'Flan de Coco',
       description: 'Flan cremoso de coco con caramelo',
       price: 220,
       category: 'Postres',
       sku: 'POS-002',
       stock: 25,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
   ];
   await db.collection('products').insertMany(products);
   logger.info('  Seeded 10 products');
 
+  // Explicit string _id values — both collections' $jsonSchema requires _id as string.
   const modifiers = [
     {
+      _id: 'mod_seed_size' as never,
       businessId,
       name: 'Tamaño',
       options: [
@@ -326,6 +317,7 @@ async function seedData(db: Db): Promise<void> {
       createdBy: adminUserId,
     },
     {
+      _id: 'mod_seed_extras' as never,
       businessId,
       name: 'Extras',
       options: [
@@ -339,6 +331,7 @@ async function seedData(db: Db): Promise<void> {
       createdBy: adminUserId,
     },
     {
+      _id: 'mod_seed_spice' as never,
       businessId,
       name: 'Nivel de Picante',
       options: [
@@ -356,14 +349,14 @@ async function seedData(db: Db): Promise<void> {
   logger.info('  Seeded 3 modifiers');
 
   const tables = [
-    { branchId, number: 1, capacity: 2, status: 'available' },
-    { branchId, number: 2, capacity: 4, status: 'available' },
-    { branchId, number: 3, capacity: 4, status: 'available' },
-    { branchId, number: 4, capacity: 6, status: 'available' },
-    { branchId, number: 5, capacity: 8, status: 'available' },
-    { branchId, number: 6, capacity: 2, status: 'available' },
+    { _id: 'table_seed_1', branchId, number: 1, capacity: 2, status: 'available' },
+    { _id: 'table_seed_2', branchId, number: 2, capacity: 4, status: 'available' },
+    { _id: 'table_seed_3', branchId, number: 3, capacity: 4, status: 'available' },
+    { _id: 'table_seed_4', branchId, number: 4, capacity: 6, status: 'available' },
+    { _id: 'table_seed_5', branchId, number: 5, capacity: 8, status: 'available' },
+    { _id: 'table_seed_6', branchId, number: 6, capacity: 2, status: 'available' },
   ].map((t) => ({ ...t, createdAt: now, updatedAt: now, createdBy: adminUserId }));
-  await db.collection('tables').insertMany(tables);
+  await db.collection('tables').insertMany(tables as never);
   logger.info('  Seeded 6 tables');
 
   await db.collection('kitchenStations').insertOne({

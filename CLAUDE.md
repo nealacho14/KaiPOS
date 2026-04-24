@@ -100,6 +100,8 @@ Authorization is enforced per-route after `requireAuth()` via the `requirePermis
 - `MONGO_SECRET_ARN` — ARN of the Secrets Manager secret holding the Atlas URI. Injected by CDK into the Lambda only in AWS prod. Never set locally. Also used as a signal by `db:seed` to refuse execution.
 - `JWT_SECRET` — HMAC secret for signing access tokens. Loaded from root `.env` in local dev and in Docker (via `env_file: .env` in `docker-compose.yml`). In AWS prod replaced by `JWT_SECRET_ARN` (Secrets Manager).
 - `CLOUDFRONT_SECRET` — Shared secret for CloudFront origin verification. Injected by CDK into the Lambda in AWS prod. Not set locally (middleware skips the check).
+- `ASSETS_BUCKET_NAME` — S3 bucket receiving pre-signed PUTs from `POST /api/products/upload-url` (keys scoped to `products/<branchId>/<uuid>.<ext>`). Injected by CDK from `AssetsStack` in AWS prod. If unset locally, the upload endpoint returns 503 `ASSETS_NOT_CONFIGURED` instead of calling AWS.
+- `ASSETS_CDN_DOMAIN` — CloudFront domain fronting the assets bucket. Used to compute the `publicUrl` returned alongside the pre-signed URL. Injected by CDK in AWS prod; unset locally (the service falls back to the S3 URL's origin).
 - Root `.env` is loaded by the backend dev script using `DOTENV_CONFIG_PATH=../../.env`. In Docker, the same `.env` is loaded via Compose's `env_file:` directive on the backend service.
 
 ### Infrastructure & secrets

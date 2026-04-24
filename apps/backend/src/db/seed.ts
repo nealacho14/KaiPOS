@@ -56,6 +56,7 @@ async function seedData(db: Db): Promise<void> {
   // keeps them stable, debuggable, and obviously non-random.
   const businessId = '00000000-0000-4000-8000-000000000100';
   const branchId = '00000000-0000-4000-8000-000000000200';
+  const branchIdNaco = '00000000-0000-4000-8000-000000000201';
   const adminUserId = '00000000-0000-4000-8000-000000000301';
   const cashierUserId = '00000000-0000-4000-8000-000000000302';
 
@@ -72,18 +73,31 @@ async function seedData(db: Db): Promise<void> {
   });
   logger.info('  Seeded business: La Cocina de Kai');
 
-  await db.collection('branches').insertOne({
-    _id: branchId as never,
-    businessId,
-    name: 'Sucursal Piantini',
-    address: 'Calle Gustavo Mejía Ricart 54, Piantini',
-    phone: '809-555-0101',
-    isActive: true,
-    createdAt: now,
-    updatedAt: now,
-    createdBy: adminUserId,
-  });
-  logger.info('  Seeded branch: Sucursal Piantini');
+  await db.collection('branches').insertMany([
+    {
+      _id: branchId as never,
+      businessId,
+      name: 'Sucursal Piantini',
+      address: 'Calle Gustavo Mejía Ricart 54, Piantini',
+      phone: '809-555-0101',
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: adminUserId,
+    },
+    {
+      _id: branchIdNaco as never,
+      businessId,
+      name: 'Sucursal Naco',
+      address: 'Av. Tiradentes 12, Naco',
+      phone: '809-555-0102',
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: adminUserId,
+    },
+  ]);
+  logger.info('  Seeded 2 branches: Piantini, Naco');
 
   const [adminHash, cashierHash] = await Promise.all([
     hashPassword('admin123'),
@@ -98,7 +112,7 @@ async function seedData(db: Db): Promise<void> {
       name: 'Carlos Méndez',
       passwordHash: adminHash,
       role: 'admin',
-      branchIds: [branchId],
+      branchIds: [branchId, branchIdNaco],
       isActive: true,
       createdAt: now,
       updatedAt: now,
@@ -299,9 +313,43 @@ async function seedData(db: Db): Promise<void> {
       sku: 'POS-002',
       stock: 25,
     },
+    // Naco branch — a small catalog so the branch switcher is meaningful.
+    {
+      _id: '00000000-0000-4000-8000-00000000000b' as never,
+      ...productDefaults,
+      branchId: branchIdNaco,
+      name: 'Sancocho de 7 Carnes',
+      description: 'Sancocho tradicional dominicano con siete carnes',
+      price: 850,
+      category: 'Platos Principales',
+      sku: 'NAC-PLA-001',
+      stock: 20,
+    },
+    {
+      _id: '00000000-0000-4000-8000-00000000000c' as never,
+      ...productDefaults,
+      branchId: branchIdNaco,
+      name: 'Empanadas de Pollo',
+      description: 'Empanadas fritas rellenas de pollo guisado',
+      price: 120,
+      category: 'Entradas',
+      sku: 'NAC-ENT-001',
+      stock: 80,
+    },
+    {
+      _id: '00000000-0000-4000-8000-00000000000d' as never,
+      ...productDefaults,
+      branchId: branchIdNaco,
+      name: 'Mamajuana',
+      description: 'Bebida tradicional con ron, vino tinto y miel',
+      price: 300,
+      category: 'Bebidas',
+      sku: 'NAC-BEB-001',
+      stock: 40,
+    },
   ];
   await db.collection('products').insertMany(products);
-  logger.info('  Seeded 10 products');
+  logger.info('  Seeded 13 products (10 Piantini, 3 Naco)');
 
   const modifiers = [
     {

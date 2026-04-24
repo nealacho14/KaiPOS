@@ -29,7 +29,8 @@ let s3ClientSingleton: S3Client | null = null;
 
 function getS3Client(): S3Client {
   if (!s3ClientSingleton) {
-    s3ClientSingleton = new S3Client({});
+    const endpoint = process.env.S3_ENDPOINT;
+    s3ClientSingleton = new S3Client(endpoint ? { endpoint, forcePathStyle: true } : {});
   }
   return s3ClientSingleton;
 }
@@ -401,9 +402,12 @@ export async function generateUploadUrl(
   });
 
   const cdnDomain = process.env.ASSETS_CDN_DOMAIN;
-  const publicUrl = cdnDomain
-    ? `https://${cdnDomain}/${key}`
-    : new URL(uploadUrl).origin + `/${key}`;
+  // Strip the query string off the signed URL to get the raw object URL. This
+  // works uniformly for virtual-hosted S3 (`https://bucket.s3.../key`) and for
+  // path-style MinIO (`http://localhost:9000/bucket/key`) — previously we
+  // rebuilt from `URL.origin + key`, which dropped the bucket segment in
+  // path-style mode.
+  const publicUrl = cdnDomain ? `https://${cdnDomain}/${key}` : uploadUrl.split('?')[0];
 
   log.info(
     { branchId: input.branchId, key, contentType: input.contentType, fileSize: input.fileSize },

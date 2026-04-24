@@ -12,6 +12,7 @@ import { formatCurrency, hasPermission } from '@kaipos/shared';
 import {
   Alert,
   AlertTitle,
+  alpha,
   Box,
   Button,
   Card,
@@ -882,25 +883,31 @@ function PricingCard({ form, updateForm, fieldErrors }: PricingCardProps) {
         </Stack>
         {margin && (
           <Box
-            sx={{
+            sx={(theme) => ({
               mt: 1,
-              p: 2,
-              borderRadius: 2,
-              bgcolor: 'success.main',
-              color: 'success.contrastText',
+              px: '14px',
+              py: '14px',
+              borderRadius: '10px',
+              bgcolor: alpha(
+                theme.palette.success.main,
+                theme.palette.mode === 'light' ? 0.1 : 0.14,
+              ),
+              border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+              color: 'success.dark',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
               gap: 2,
-            }}
+            })}
           >
             <Box>
               <Typography
-                variant="caption"
                 sx={{
+                  fontSize: 11,
                   fontWeight: 700,
                   letterSpacing: '.08em',
                   textTransform: 'uppercase',
+                  lineHeight: 1,
                 }}
               >
                 Margen
@@ -910,16 +917,19 @@ function PricingCard({ form, updateForm, fieldErrors }: PricingCardProps) {
                   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
                   fontSize: 22,
                   fontWeight: 700,
+                  letterSpacing: '-0.01em',
+                  mt: '2px',
                 }}
               >
                 {margin.pct.toFixed(1)}%
               </Typography>
             </Box>
             <Box sx={{ textAlign: 'right' }}>
-              <Typography variant="body2">Ganancia por unidad</Typography>
+              <Typography sx={{ fontSize: 13 }}>Ganancia por unidad</Typography>
               <Typography
                 sx={{
                   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                  fontSize: 16,
                   fontWeight: 700,
                 }}
               >

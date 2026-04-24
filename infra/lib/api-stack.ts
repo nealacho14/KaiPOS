@@ -15,6 +15,7 @@ interface ApiStackProps extends cdk.StackProps {
   mongoSecret: secretsmanager.ISecret;
   jwtSecret: secretsmanager.ISecret;
   assetsBucket: s3.IBucket;
+  assetsCdnDomain: string;
   webSocketStage: apigw.WebSocketStage;
   connectionsTable: dynamodb.ITable;
 }
@@ -25,8 +26,15 @@ export class ApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
-    const { config, mongoSecret, jwtSecret, assetsBucket, webSocketStage, connectionsTable } =
-      props;
+    const {
+      config,
+      mongoSecret,
+      jwtSecret,
+      assetsBucket,
+      assetsCdnDomain,
+      webSocketStage,
+      connectionsTable,
+    } = props;
 
     // Lambda runs outside any VPC and reaches MongoDB Atlas directly over the
     // public internet. Atlas access is restricted via its own IP allowlist.
@@ -44,6 +52,7 @@ export class ApiStack extends cdk.Stack {
         MONGO_SECRET_ARN: mongoSecret.secretArn,
         JWT_SECRET_ARN: jwtSecret.secretArn,
         ASSETS_BUCKET_NAME: assetsBucket.bucketName,
+        ASSETS_CDN_DOMAIN: assetsCdnDomain,
         CLOUDFRONT_SECRET: config.cloudfrontSecret,
         SES_SENDER_EMAIL: config.sesSenderEmail,
         PASSWORD_RESET_BASE_URL: config.passwordResetBaseUrl,
@@ -54,7 +63,17 @@ export class ApiStack extends cdk.Stack {
 
     mongoSecret.grantRead(apiFunction);
     jwtSecret.grantRead(apiFunction);
-    assetsBucket.grantReadWrite(apiFunction);
+
+    // Pre-signed PUT URLs issued by the upload service are signed with the
+    // Lambda's credentials, so the Lambda role must hold s3:PutObject on the
+    // same scope. Narrow to the `products/` prefix so compromise of the
+    // Lambda role cannot overwrite arbitrary objects in the bucket.
+    apiFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:PutObject'],
+        resources: [`${assetsBucket.bucketArn}/products/*`],
+      }),
+    );
 
     // Allow sending password-reset emails via SES
     apiFunction.addToRolePolicy(

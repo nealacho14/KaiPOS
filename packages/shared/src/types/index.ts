@@ -295,6 +295,9 @@ export const AUDIT_ACTIONS = [
   'authorization_failed',
   'order_created',
   'order_status_changed',
+  'product_created',
+  'product_updated',
+  'product_deleted',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

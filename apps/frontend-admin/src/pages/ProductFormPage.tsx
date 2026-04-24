@@ -481,8 +481,7 @@ export function ProductFormPage() {
       } else if (id) {
         await updateProduct(id, formToUpdatePayload(form));
       }
-      const qs = branchId ? `?branchId=${encodeURIComponent(branchId)}` : '';
-      navigate(`/products${qs}`);
+      navigate('/products');
     } catch (err) {
       const mapped = toProductsApiError(err);
       if (mapped.code === 'SKU_ALREADY_EXISTS') {

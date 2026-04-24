@@ -70,7 +70,7 @@ function useDebounced<T>(value: T, delayMs: number): T {
 export function ProductsListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { branchId, branchIds } = useActiveBranch({ syncToSearchParam: true });
+  const { branchId, branchIds } = useActiveBranch();
   const { branches } = useBranches();
 
   const branchName = useMemo(() => {

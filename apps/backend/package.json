@@ -9,8 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:setup": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/setup.ts",
-    "db:seed": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/seed.ts",
-    "db:reset": "tsx src/db/reset.ts"
+    "db:seed": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-apigatewaymanagementapi": "^3.693.0",

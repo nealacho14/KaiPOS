@@ -43,6 +43,7 @@ const api = new ApiStack(app, `${prefix}-api`, {
   mongoSecret: secrets.mongoSecret,
   jwtSecret: secrets.jwtSecret,
   assetsBucket: assets.assetsBucket,
+  assetsCdnDomain: assets.cdnDomain,
   webSocketStage: ws.webSocketStage,
   connectionsTable: ws.connectionsTable,
 });

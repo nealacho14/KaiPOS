@@ -13,6 +13,7 @@ import {
   useTheme,
 } from '@kaipos/ui';
 import { useAuth } from '../context/AuthContext.js';
+import { ActiveBranchSwitcher } from './ActiveBranchSwitcher.js';
 import { UserMenu } from './UserMenu.js';
 import { WsStatusChip, type WsStatusChipStatus } from './WsStatusChip.js';
 
@@ -112,6 +113,7 @@ export function Header({ wsStatus, onMenuToggle }: HeaderProps) {
         alignItems="center"
         sx={{ flexShrink: 0 }}
       >
+        {user && <ActiveBranchSwitcher />}
         <WsStatusChip status={wsStatus} compact={isXs} />
         <ColorSchemeToggle />
         <UserMenu />

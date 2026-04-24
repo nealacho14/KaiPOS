@@ -1,4 +1,5 @@
 import type { User } from '@kaipos/shared';
+import { ACTIVE_BRANCH_STORAGE_KEY } from '../hooks/useActiveBranch.js';
 
 export type SessionUser = Omit<User, 'passwordHash'>;
 
@@ -71,6 +72,13 @@ export function clearSession(): void {
   storage.removeItem(ACCESS_KEY);
   storage.removeItem(REFRESH_KEY);
   storage.removeItem(USER_KEY);
+  try {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(ACTIVE_BRANCH_STORAGE_KEY);
+    }
+  } catch {
+    // sessionStorage may be unavailable (private mode, etc.)
+  }
   notify(null);
 }
 

@@ -94,12 +94,26 @@ Authorization is enforced per-route after `requireAuth()` via the `requirePermis
 - `src/db/setup.ts` — creates all collections with `$jsonSchema` validators and indexes (idempotent via `collMod` + `createIndex`). Runs anywhere: local, Docker, and Atlas prod. Exposed as `pnpm --filter @kaipos/backend db:setup`.
 - `src/db/seed.ts` — inserts demo data (1 business "La Cocina de Kai", 1 branch, 2 users, 5 categories, 10 products, 3 modifiers, 6 tables). **Guard: refuses to run if `MONGO_SECRET_ARN` is set or `MONGO_URI` contains `mongodb+srv://`** — Docker/local only. Passwords hashed at runtime via `src/lib/password.ts` (`hashPassword`). Seeded users: `admin@lacocinadekai.com` / `admin123` and `cajero@lacocinadekai.com` / `cajero123`. Idempotent: skips if business `la-cocina-de-kai` already exists. Exposed as `pnpm --filter @kaipos/backend db:seed`.
 
+### Local object storage (MinIO)
+
+`pnpm docker:up` starts a MinIO service (S3-compatible) so product image uploads work locally. The backend only ever **presigns** PUT URLs — it never uploads itself — so the endpoint is set to `http://localhost:9000` from inside the container; the browser on the host opens the signed URL directly.
+
+- **S3 API:** `http://localhost:9000` (path-style; bucket in the URL path).
+- **Console UI:** `http://localhost:9001` — login with `kaipos` / `kaiposdev123`.
+- **Bucket:** `kaipos-assets-dev`, created automatically by the `minio-init` one-shot service with `anonymous download` policy so `<img src>` works against the raw object URL.
+- **Credentials:** the root user is passed in via `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD`; the backend reuses them through `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
+- **Persistence:** stored in the `minio_data` docker volume. Wipe with `docker compose down -v` if you want a clean bucket.
+
 ### Environment Variables
 
 - `MONGO_URI` — MongoDB connection string. For `pnpm dev`, loaded from root `.env` via dotenv. For Docker, set in `docker-compose.yml` (the `environment:` block overrides `.env` so the container always uses `mongodb://mongo:27017/kaipos`). **Not used in AWS prod.**
 - `MONGO_SECRET_ARN` — ARN of the Secrets Manager secret holding the Atlas URI. Injected by CDK into the Lambda only in AWS prod. Never set locally. Also used as a signal by `db:seed` to refuse execution.
 - `JWT_SECRET` — HMAC secret for signing access tokens. Loaded from root `.env` in local dev and in Docker (via `env_file: .env` in `docker-compose.yml`). In AWS prod replaced by `JWT_SECRET_ARN` (Secrets Manager).
 - `CLOUDFRONT_SECRET` — Shared secret for CloudFront origin verification. Injected by CDK into the Lambda in AWS prod. Not set locally (middleware skips the check).
+- `ASSETS_BUCKET_NAME` — S3 bucket receiving pre-signed PUTs from `POST /api/products/upload-url` (keys scoped to `products/<branchId>/<uuid>.<ext>`). Injected by CDK from `AssetsStack` in AWS prod; set to `kaipos-assets-dev` in `docker-compose.yml`. If unset (e.g. `pnpm dev` without extra config), the upload endpoint returns 503 `ASSETS_NOT_CONFIGURED` instead of calling AWS.
+- `ASSETS_CDN_DOMAIN` — CloudFront domain fronting the assets bucket. Used to compute the `publicUrl` returned alongside the pre-signed URL. Injected by CDK in AWS prod; unset locally (the service falls back to the signed URL's host — `localhost:9000` in Docker, the S3 hostname otherwise).
+- `S3_ENDPOINT` — Custom S3 API endpoint. When set, the backend's S3 client uses it with `forcePathStyle: true` (needed for MinIO). Set to `http://localhost:9000` in `docker-compose.yml` so the pre-signed URL the browser opens points at the host-exposed MinIO port. Unset in AWS prod (SDK uses the default AWS endpoint with virtual-hosted addressing).
+- `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` — Standard AWS SDK credentials. In Docker these point at MinIO (`kaipos` / `kaiposdev123` / `us-east-1`). In AWS prod they come from the Lambda execution role (IAM), not env vars.
 - Root `.env` is loaded by the backend dev script using `DOTENV_CONFIG_PATH=../../.env`. In Docker, the same `.env` is loaded via Compose's `env_file:` directive on the backend service.
 
 ### Infrastructure & secrets

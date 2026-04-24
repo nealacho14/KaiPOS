@@ -6,8 +6,10 @@ import { originVerify } from './middleware/origin-verify.js';
 import { checkHealth } from './services/health.js';
 import authRoutes from './routes/auth.js';
 import usersRoutes from './routes/users.js';
+import branchesRoutes from './routes/branches.js';
 import kitchenStationsRoutes from './routes/kitchen-stations.js';
 import ordersRoutes from './routes/orders.js';
+import productsRoutes from './routes/products.js';
 import type { AppEnv } from './types.js';
 
 const app = new Hono<AppEnv>();
@@ -24,7 +26,9 @@ app.get('/api/health', async (c) => {
 
 app.route('/', authRoutes);
 app.route('/', usersRoutes);
+app.route('/', branchesRoutes);
 app.route('/', kitchenStationsRoutes);
 app.route('/', ordersRoutes);
+app.route('/', productsRoutes);
 
 export default app;

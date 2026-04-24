@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Header, Sidebar, SIDEBAR_WIDTH } from '../components/index.js';
 import type { WsStatusChipStatus } from '../components/index.js';
+import { ActiveBranchProvider } from '../context/ActiveBranchContext.js';
 import { useAuth } from '../context/AuthContext.js';
 import { WebSocketProvider, useWebSocketContext } from '../context/WebSocketContext.js';
 import { getSession } from '../lib/auth-storage.js';
@@ -71,8 +72,10 @@ function AppLayoutShell() {
 
 export function AppLayout() {
   return (
-    <WebSocketProvider initialEndpoint={getWsEndpoint()}>
-      <AppLayoutShell />
-    </WebSocketProvider>
+    <ActiveBranchProvider>
+      <WebSocketProvider initialEndpoint={getWsEndpoint()}>
+        <AppLayoutShell />
+      </WebSocketProvider>
+    </ActiveBranchProvider>
   );
 }

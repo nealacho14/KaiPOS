@@ -1,3 +1,4 @@
+export { ActiveBranchSwitcher, type ActiveBranchSwitcherProps } from './ActiveBranchSwitcher.js';
 export { EmptyState, type EmptyStateProps } from './EmptyState.js';
 export { Header, type HeaderProps } from './Header.js';
 export { PageHeader, type PageHeaderProps } from './PageHeader.js';

@@ -627,14 +627,21 @@ export const componentOverrides: Components<ThemedTheme> = {
     styleOverrides: {
       root: { padding: 8 },
       switchBase: ({ theme }) => ({
+        // Thumb stays white in both states so it reads against the colored
+        // track — otherwise the checked-teal thumb disappears onto the
+        // checked-teal track in light mode.
+        color: '#fff',
         '&.Mui-checked': {
-          color: vars(theme).palette.primary.main,
+          color: '#fff',
           '& + .MuiSwitch-track': {
             backgroundColor: vars(theme).palette.primary.main,
             opacity: 1,
           },
         },
       }),
+      thumb: {
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+      },
       track: ({ theme }) => ({
         borderRadius: 11,
         backgroundColor: vars(theme).palette.grey[300],

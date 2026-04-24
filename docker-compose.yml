@@ -14,8 +14,22 @@ services:
       - NODE_ENV=development
       - MONGO_URI=mongodb://mongo:27017/kaipos
       - PORT=4001
+      # MinIO (S3-compatible) for product image uploads. The endpoint is set to
+      # localhost:9000 because this URL gets embedded in the pre-signed PUT
+      # returned to the browser — the browser runs on the host and must be able
+      # to reach it. The backend itself never makes network calls to S3 (only
+      # presigns, which is pure signature math), so using a host-facing
+      # endpoint from inside the container is safe.
+      - ASSETS_BUCKET_NAME=kaipos-assets-dev
+      - S3_ENDPOINT=http://localhost:9000
+      - AWS_ACCESS_KEY_ID=kaipos
+      - AWS_SECRET_ACCESS_KEY=kaiposdev123
+      - AWS_REGION=us-east-1
     depends_on:
-      - mongo
+      mongo:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
 
   frontend-admin:
     build:
@@ -42,5 +56,44 @@ services:
     environment:
       - MONGO_INITDB_DATABASE=kaipos
 
+  # S3-compatible object store for product images in local dev. Console UI is
+  # exposed on :9001 (login with MINIO_ROOT_USER / MINIO_ROOT_PASSWORD below).
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    environment:
+      - MINIO_ROOT_USER=kaipos
+      - MINIO_ROOT_PASSWORD=kaiposdev123
+    healthcheck:
+      test: ['CMD-SHELL', 'mc ready local || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # One-shot init container: creates the assets bucket and opens anonymous GET
+  # so the frontend can display images directly by URL. Runs once and exits;
+  # the backend depends on this completing successfully.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        mc alias set kaipos http://minio:9000 kaipos kaiposdev123
+        mc mb --ignore-existing kaipos/kaipos-assets-dev
+        mc anonymous set download kaipos/kaipos-assets-dev
+    restart: 'no'
+
 volumes:
   mongo_data:
+  minio_data:

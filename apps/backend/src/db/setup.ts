@@ -14,6 +14,10 @@ interface CollectionSetup {
     key: Record<string, 1 | -1>;
     options?: Record<string, unknown>;
   }>;
+  // Optional: index key shapes to drop before (re)creating indexes. Used when
+  // reshaping a collection (e.g. moving from a businessId-scoped index to a
+  // branchId-scoped one). Idempotent — missing indexes are ignored.
+  dropIndexes?: Array<Record<string, 1 | -1>>;
 }
 
 const collections: CollectionSetup[] = [
@@ -151,12 +155,21 @@ const collections: CollectionSetup[] = [
         bsonType: 'object',
         required: [
           'businessId',
+          'branchId',
           'name',
           'description',
           'price',
           'category',
           'sku',
           'stock',
+          'trackStock',
+          'stockUnit',
+          'availability',
+          'serviceSchedules',
+          'allergens',
+          'dietaryTags',
+          'modifierGroups',
+          'kitchenStationIds',
           'isActive',
           'createdAt',
           'updatedAt',
@@ -165,12 +178,87 @@ const collections: CollectionSetup[] = [
         properties: {
           _id: { bsonType: 'string' },
           businessId: { bsonType: 'string' },
+          branchId: { bsonType: 'string' },
           name: { bsonType: 'string' },
           description: { bsonType: 'string' },
           price: { bsonType: 'number' },
           category: { bsonType: 'string' },
           sku: { bsonType: 'string' },
-          stock: { bsonType: 'int' },
+          // stock / lowStockThreshold use bsonType 'number' (not 'int') because the
+          // Node MongoDB driver serializes plain JS integer literals as BSON double
+          // by default. Requiring 'int' would reject routine writes unless every
+          // call site wraps values in Int32 — see orders.subtotal / transactions.amount
+          // for the same convention in this codebase.
+          stock: { bsonType: 'number' },
+          imageUrl: { bsonType: 'string' },
+          cost: { bsonType: 'number' },
+          taxRate: { bsonType: 'number' },
+          trackStock: { bsonType: 'bool' },
+          lowStockThreshold: { bsonType: 'number' },
+          stockUnit: { enum: ['unit', 'kg', 'L'] },
+          availability: {
+            bsonType: 'object',
+            required: ['pos', 'online', 'kiosk'],
+            properties: {
+              pos: { bsonType: 'bool' },
+              online: { bsonType: 'bool' },
+              kiosk: { bsonType: 'bool' },
+            },
+          },
+          serviceSchedules: {
+            bsonType: 'array',
+            items: { enum: ['breakfast', 'lunch', 'dinner'] },
+          },
+          allergens: {
+            bsonType: 'array',
+            items: {
+              enum: [
+                'gluten',
+                'dairy',
+                'egg',
+                'peanut',
+                'tree-nut',
+                'soy',
+                'fish',
+                'shellfish',
+                'sesame',
+              ],
+            },
+          },
+          dietaryTags: {
+            bsonType: 'array',
+            items: {
+              enum: ['vegetarian', 'vegan', 'gluten-free', 'keto', 'halal', 'kosher'],
+            },
+          },
+          modifierGroups: {
+            bsonType: 'array',
+            items: {
+              bsonType: 'object',
+              required: ['id', 'name', 'required', 'options'],
+              properties: {
+                id: { bsonType: 'string' },
+                name: { bsonType: 'string' },
+                required: { bsonType: 'bool' },
+                options: {
+                  bsonType: 'array',
+                  items: {
+                    bsonType: 'object',
+                    required: ['id', 'label', 'priceDelta'],
+                    properties: {
+                      id: { bsonType: 'string' },
+                      label: { bsonType: 'string' },
+                      priceDelta: { bsonType: 'number' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          kitchenStationIds: {
+            bsonType: 'array',
+            items: { bsonType: 'string' },
+          },
           isActive: { bsonType: 'bool' },
           createdAt: { bsonType: 'date' },
           updatedAt: { bsonType: 'date' },
@@ -178,9 +266,16 @@ const collections: CollectionSetup[] = [
         },
       },
     },
+    // Branch-scoped reshape (Paso 10): replace businessId-scoped indexes with
+    // branchId-scoped ones so two branches of the same business can reuse SKUs.
+    dropIndexes: [
+      { businessId: 1, sku: 1 },
+      { businessId: 1, category: 1, isActive: 1 },
+    ],
     indexes: [
-      { key: { businessId: 1, sku: 1 }, options: { unique: true } },
-      { key: { businessId: 1, category: 1, isActive: 1 } },
+      { key: { branchId: 1, sku: 1 }, options: { unique: true } },
+      { key: { branchId: 1, category: 1, isActive: 1 } },
+      { key: { businessId: 1, branchId: 1 } },
     ],
   },
 
@@ -488,8 +583,29 @@ async function setupCollections(db: Db): Promise<void> {
       logger.info(`  Created collection "${col.name}"`);
     }
 
-    // Create indexes (idempotent)
     const collection = db.collection(col.name);
+
+    // Drop obsolete indexes first (idempotent — missing indexes are ignored).
+    if (col.dropIndexes?.length) {
+      for (const key of col.dropIndexes) {
+        // Mongo's default auto-generated index name is the concatenation of
+        // `${field}_${direction}` pairs joined by `_` (e.g. `businessId_1_sku_1`).
+        const indexName = Object.entries(key)
+          .map(([field, dir]) => `${field}_${dir}`)
+          .join('_');
+        try {
+          await collection.dropIndex(indexName);
+          logger.info(`  Dropped obsolete index on "${col.name}": ${indexName}`);
+        } catch (err) {
+          const code = (err as { code?: number; codeName?: string }).code;
+          // 27 = IndexNotFound, 26 = NamespaceNotFound
+          if (code === 27 || code === 26) continue;
+          throw err;
+        }
+      }
+    }
+
+    // Create indexes (idempotent)
     for (const idx of col.indexes) {
       await collection.createIndex(idx.key, idx.options);
     }

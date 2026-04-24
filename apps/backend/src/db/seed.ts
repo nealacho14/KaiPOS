@@ -50,10 +50,15 @@ async function seedData(db: Db): Promise<void> {
   }
 
   const now = new Date();
-  const businessId = 'biz_seed_001';
-  const branchId = 'branch_seed_001';
-  const adminUserId = 'user_seed_admin';
-  const cashierUserId = 'user_seed_cashier';
+  // All seed _id values are UUID v4 to match production (services mint ids with
+  // `crypto.randomUUID()`) and to satisfy the `z.string().uuid()` validators on
+  // API route params. The fixed pattern `00000000-0000-4000-8000-NNNNNNNNNNNN`
+  // keeps them stable, debuggable, and obviously non-random.
+  const businessId = '00000000-0000-4000-8000-000000000100';
+  const branchId = '00000000-0000-4000-8000-000000000200';
+  const branchIdNaco = '00000000-0000-4000-8000-000000000201';
+  const adminUserId = '00000000-0000-4000-8000-000000000301';
+  const cashierUserId = '00000000-0000-4000-8000-000000000302';
 
   await businessesCol.insertOne({
     _id: businessId as never,
@@ -68,18 +73,31 @@ async function seedData(db: Db): Promise<void> {
   });
   logger.info('  Seeded business: La Cocina de Kai');
 
-  await db.collection('branches').insertOne({
-    _id: branchId as never,
-    businessId,
-    name: 'Sucursal Piantini',
-    address: 'Calle Gustavo Mejía Ricart 54, Piantini',
-    phone: '809-555-0101',
-    isActive: true,
-    createdAt: now,
-    updatedAt: now,
-    createdBy: adminUserId,
-  });
-  logger.info('  Seeded branch: Sucursal Piantini');
+  await db.collection('branches').insertMany([
+    {
+      _id: branchId as never,
+      businessId,
+      name: 'Sucursal Piantini',
+      address: 'Calle Gustavo Mejía Ricart 54, Piantini',
+      phone: '809-555-0101',
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: adminUserId,
+    },
+    {
+      _id: branchIdNaco as never,
+      businessId,
+      name: 'Sucursal Naco',
+      address: 'Av. Tiradentes 12, Naco',
+      phone: '809-555-0102',
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: adminUserId,
+    },
+  ]);
+  logger.info('  Seeded 2 branches: Piantini, Naco');
 
   const [adminHash, cashierHash] = await Promise.all([
     hashPassword('admin123'),
@@ -94,7 +112,7 @@ async function seedData(db: Db): Promise<void> {
       name: 'Carlos Méndez',
       passwordHash: adminHash,
       role: 'admin',
-      branchIds: [branchId],
+      branchIds: [branchId, branchIdNaco],
       isActive: true,
       createdAt: now,
       updatedAt: now,
@@ -119,7 +137,7 @@ async function seedData(db: Db): Promise<void> {
 
   const categories = [
     {
-      _id: 'cat_seed_appetizers' as never,
+      _id: '00000000-0000-4000-8000-000000000401' as never,
       businessId,
       name: 'Entradas',
       description: 'Aperitivos y entradas',
@@ -130,7 +148,7 @@ async function seedData(db: Db): Promise<void> {
       createdBy: adminUserId,
     },
     {
-      _id: 'cat_seed_main' as never,
+      _id: '00000000-0000-4000-8000-000000000402' as never,
       businessId,
       name: 'Platos Principales',
       description: 'Platos fuertes',
@@ -141,7 +159,7 @@ async function seedData(db: Db): Promise<void> {
       createdBy: adminUserId,
     },
     {
-      _id: 'cat_seed_drinks' as never,
+      _id: '00000000-0000-4000-8000-000000000403' as never,
       businessId,
       name: 'Bebidas',
       description: 'Jugos, refrescos y cócteles',
@@ -152,7 +170,7 @@ async function seedData(db: Db): Promise<void> {
       createdBy: adminUserId,
     },
     {
-      _id: 'cat_seed_desserts' as never,
+      _id: '00000000-0000-4000-8000-000000000404' as never,
       businessId,
       name: 'Postres',
       description: 'Dulces y postres',
@@ -163,7 +181,7 @@ async function seedData(db: Db): Promise<void> {
       createdBy: adminUserId,
     },
     {
-      _id: 'cat_seed_sides' as never,
+      _id: '00000000-0000-4000-8000-000000000405' as never,
       businessId,
       name: 'Acompañantes',
       description: 'Arroz, ensaladas y más',
@@ -177,143 +195,165 @@ async function seedData(db: Db): Promise<void> {
   await db.collection('categories').insertMany(categories);
   logger.info('  Seeded 5 categories');
 
+  const productDefaults = {
+    businessId,
+    branchId,
+    trackStock: true,
+    stockUnit: 'unit' as const,
+    availability: { pos: true, online: false, kiosk: false },
+    serviceSchedules: [] as string[],
+    allergens: [] as string[],
+    dietaryTags: [] as string[],
+    modifierGroups: [] as Array<Record<string, unknown>>,
+    kitchenStationIds: [] as string[],
+    isActive: true,
+    createdAt: now,
+    updatedAt: now,
+    createdBy: adminUserId,
+  };
+
   const products = [
     {
-      businessId,
+      _id: '00000000-0000-4000-8000-000000000001' as never,
+      ...productDefaults,
       name: 'Tostones con Salami',
       description: 'Tostones crujientes con salami frito',
       price: 350,
       category: 'Entradas',
       sku: 'ENT-001',
       stock: 100,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: '00000000-0000-4000-8000-000000000002' as never,
+      ...productDefaults,
       name: 'Yuca Frita',
       description: 'Yuca frita con salsa de ajo',
       price: 250,
       category: 'Entradas',
       sku: 'ENT-002',
       stock: 100,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: '00000000-0000-4000-8000-000000000003' as never,
+      ...productDefaults,
       name: 'Pollo al Horno',
       description: 'Medio pollo al horno con especias criollas',
       price: 650,
       category: 'Platos Principales',
       sku: 'PLA-001',
       stock: 50,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: '00000000-0000-4000-8000-000000000004' as never,
+      ...productDefaults,
       name: 'Churrasco de Res',
       description: 'Churrasco a la parrilla con chimichurri',
       price: 950,
       category: 'Platos Principales',
       sku: 'PLA-002',
       stock: 30,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: '00000000-0000-4000-8000-000000000005' as never,
+      ...productDefaults,
       name: 'Mofongo de Chicharrón',
       description: 'Mofongo relleno de chicharrón con caldo',
       price: 550,
       category: 'Platos Principales',
       sku: 'PLA-003',
       stock: 40,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: '00000000-0000-4000-8000-000000000006' as never,
+      ...productDefaults,
       name: 'Bandera Dominicana',
       description: 'Arroz blanco, habichuelas rojas y carne guisada',
       price: 450,
       category: 'Platos Principales',
       sku: 'PLA-004',
       stock: 60,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: '00000000-0000-4000-8000-000000000007' as never,
+      ...productDefaults,
       name: 'Jugo de Chinola',
       description: 'Jugo natural de chinola (maracuyá)',
       price: 150,
       category: 'Bebidas',
       sku: 'BEB-001',
       stock: 200,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: '00000000-0000-4000-8000-000000000008' as never,
+      ...productDefaults,
       name: 'Morir Soñando',
       description: 'Leche con jugo de naranja y azúcar',
       price: 180,
       category: 'Bebidas',
       sku: 'BEB-002',
       stock: 200,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: '00000000-0000-4000-8000-000000000009' as never,
+      ...productDefaults,
       name: 'Habichuelas con Dulce',
       description: 'Postre tradicional de habichuelas dulces con leche',
       price: 200,
       category: 'Postres',
       sku: 'POS-001',
       stock: 30,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
     },
     {
-      businessId,
+      _id: '00000000-0000-4000-8000-00000000000a' as never,
+      ...productDefaults,
       name: 'Flan de Coco',
       description: 'Flan cremoso de coco con caramelo',
       price: 220,
       category: 'Postres',
       sku: 'POS-002',
       stock: 25,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
+    },
+    // Naco branch — a small catalog so the branch switcher is meaningful.
+    {
+      _id: '00000000-0000-4000-8000-00000000000b' as never,
+      ...productDefaults,
+      branchId: branchIdNaco,
+      name: 'Sancocho de 7 Carnes',
+      description: 'Sancocho tradicional dominicano con siete carnes',
+      price: 850,
+      category: 'Platos Principales',
+      sku: 'NAC-PLA-001',
+      stock: 20,
+    },
+    {
+      _id: '00000000-0000-4000-8000-00000000000c' as never,
+      ...productDefaults,
+      branchId: branchIdNaco,
+      name: 'Empanadas de Pollo',
+      description: 'Empanadas fritas rellenas de pollo guisado',
+      price: 120,
+      category: 'Entradas',
+      sku: 'NAC-ENT-001',
+      stock: 80,
+    },
+    {
+      _id: '00000000-0000-4000-8000-00000000000d' as never,
+      ...productDefaults,
+      branchId: branchIdNaco,
+      name: 'Mamajuana',
+      description: 'Bebida tradicional con ron, vino tinto y miel',
+      price: 300,
+      category: 'Bebidas',
+      sku: 'NAC-BEB-001',
+      stock: 40,
     },
   ];
   await db.collection('products').insertMany(products);
-  logger.info('  Seeded 10 products');
+  logger.info('  Seeded 13 products (10 Piantini, 3 Naco)');
 
   const modifiers = [
     {
+      _id: '00000000-0000-4000-8000-000000000501' as never,
       businessId,
       name: 'Tamaño',
       options: [
@@ -326,6 +366,7 @@ async function seedData(db: Db): Promise<void> {
       createdBy: adminUserId,
     },
     {
+      _id: '00000000-0000-4000-8000-000000000502' as never,
       businessId,
       name: 'Extras',
       options: [
@@ -339,6 +380,7 @@ async function seedData(db: Db): Promise<void> {
       createdBy: adminUserId,
     },
     {
+      _id: '00000000-0000-4000-8000-000000000503' as never,
       businessId,
       name: 'Nivel de Picante',
       options: [
@@ -356,18 +398,54 @@ async function seedData(db: Db): Promise<void> {
   logger.info('  Seeded 3 modifiers');
 
   const tables = [
-    { branchId, number: 1, capacity: 2, status: 'available' },
-    { branchId, number: 2, capacity: 4, status: 'available' },
-    { branchId, number: 3, capacity: 4, status: 'available' },
-    { branchId, number: 4, capacity: 6, status: 'available' },
-    { branchId, number: 5, capacity: 8, status: 'available' },
-    { branchId, number: 6, capacity: 2, status: 'available' },
+    {
+      _id: '00000000-0000-4000-8000-000000000601',
+      branchId,
+      number: 1,
+      capacity: 2,
+      status: 'available',
+    },
+    {
+      _id: '00000000-0000-4000-8000-000000000602',
+      branchId,
+      number: 2,
+      capacity: 4,
+      status: 'available',
+    },
+    {
+      _id: '00000000-0000-4000-8000-000000000603',
+      branchId,
+      number: 3,
+      capacity: 4,
+      status: 'available',
+    },
+    {
+      _id: '00000000-0000-4000-8000-000000000604',
+      branchId,
+      number: 4,
+      capacity: 6,
+      status: 'available',
+    },
+    {
+      _id: '00000000-0000-4000-8000-000000000605',
+      branchId,
+      number: 5,
+      capacity: 8,
+      status: 'available',
+    },
+    {
+      _id: '00000000-0000-4000-8000-000000000606',
+      branchId,
+      number: 6,
+      capacity: 2,
+      status: 'available',
+    },
   ].map((t) => ({ ...t, createdAt: now, updatedAt: now, createdBy: adminUserId }));
-  await db.collection('tables').insertMany(tables);
+  await db.collection('tables').insertMany(tables as never);
   logger.info('  Seeded 6 tables');
 
   await db.collection('kitchenStations').insertOne({
-    _id: 'station_seed_001' as never,
+    _id: '00000000-0000-4000-8000-000000000701' as never,
     businessId,
     branchId,
     name: 'Cocina caliente',

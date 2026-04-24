@@ -34,10 +34,10 @@ import {
 } from '@kaipos/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BranchSelector } from '../components/BranchSelector.js';
 import { EmptyState, PageHeader } from '../components/index.js';
 import { useAuth } from '../context/AuthContext.js';
 import { useActiveBranch } from '../hooks/useActiveBranch.js';
+import { useBranches } from '../hooks/useBranches.js';
 import { ApiError } from '../lib/api.js';
 import { deleteProduct, listProducts } from '../lib/products-api.js';
 
@@ -70,7 +70,14 @@ function useDebounced<T>(value: T, delayMs: number): T {
 export function ProductsListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { branchId, setBranchId, branchIds } = useActiveBranch({ syncToSearchParam: true });
+  const { branchId, branchIds } = useActiveBranch({ syncToSearchParam: true });
+  const { branches } = useBranches();
+
+  const branchName = useMemo(() => {
+    if (!branchId) return null;
+    const match = branches.find((b) => b._id === branchId);
+    return match?.name ?? null;
+  }, [branches, branchId]);
 
   const canWrite = user ? hasPermission(user.role, 'products:write') : false;
   const canDelete = user ? hasPermission(user.role, 'products:delete') : false;
@@ -144,7 +151,9 @@ export function ProductsListPage() {
 
   const actions = (
     <Stack direction="row" spacing={2} alignItems="center">
-      <BranchSelector value={branchId} onChange={setBranchId} />
+      {branchId && (
+        <Chip size="small" label={`Sucursal: ${branchName ?? '—'}`} variant="outlined" />
+      )}
       {canWrite && (
         <Button
           variant="contained"

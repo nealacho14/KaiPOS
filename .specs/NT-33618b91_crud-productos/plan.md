@@ -226,31 +226,31 @@
 
 ### Tasks
 
-- [ ] Update `infra/lib/assets-stack.ts`:
+- [x] Update `infra/lib/assets-stack.ts`:
   - Add `cors` array to the `s3.Bucket` constructor: one rule with `allowedMethods: [s3.HttpMethods.PUT]`, `allowedOrigins: [<frontend distribution URL>, 'http://localhost:3000', 'http://localhost:3001']`, `allowedHeaders: ['*']`, `maxAge: 300`.
   - Add a `cloudfront.Distribution` (or extend if one exists) with:
     - Default behavior: 403/404 (just a placeholder so the distribution has a sensible root).
     - `/products/*` additional behavior: S3 origin = `kaipos-assets-prod` with `S3OriginAccessControl` (or legacy OAI if cleaner), `CACHING_OPTIMIZED` policy, `viewerProtocolPolicy: REDIRECT_TO_HTTPS`.
   - Grant the CloudFront distribution read access to the bucket (bucket policy statement scoped to the distribution's service principal).
   - Export two new `CfnOutput`s: `AssetsCdnDomain` (distribution domain) and confirm `AssetsBucketName` already present.
-- [ ] Update `infra/lib/api-stack.ts`:
+- [x] Update `infra/lib/api-stack.ts`:
   - Replace `assetsBucket.grantReadWrite(apiFunction)` (if that is the current call — confirm from code) with narrower grants:
     - `apiFunction.addToRolePolicy(new iam.PolicyStatement({ actions: ['s3:PutObject'], resources: [\`\${assetsBucket.bucketArn}/products/\*\`] }))`
     - `apiFunction.addToRolePolicy(new iam.PolicyStatement({ actions: ['s3:GetObject'], resources: [\`\${assetsBucket.bucketArn}/products/\*\`] }))` (optional — not needed if we don't read from the Lambda; delete this line if unused).
   - Inject env var `ASSETS_CDN_DOMAIN` (from new CfnOutput, cross-stack via prop) alongside existing `ASSETS_BUCKET_NAME`.
-- [ ] Update `infra/lib/config.ts` if needed to carry the assets CDN config (only if anything stage-specific is required; otherwise rely on CDK's auto-generated distribution domain).
-- [ ] Update `infra/bin/infra.ts` to pass the new output from AssetsStack to ApiStack (extend the existing cross-stack reference pattern).
-- [ ] Document in `infra/DEPLOYMENT.md` (append a short "Assets CDN" section): the new distribution, CORS allowlist, and that `ASSETS_CDN_DOMAIN` is injected into the api Lambda automatically.
-- [ ] `pnpm --filter @kaipos/infra build` (or equivalent CDK synth command) to verify the template compiles; `cdk synth -c stage=prod` without errors.
-- [ ] **No automatic deploy** — deployment is a manual user step after review. Plan the deploy order: run `pnpm deploy:prod:api` (which deploys AssetsStack → ApiStack per dependency graph), then confirm the new CfnOutput is visible, then `pnpm deploy:prod:frontend` to pick up any bundled changes.
+- [x] Update `infra/lib/config.ts` if needed to carry the assets CDN config (only if anything stage-specific is required; otherwise rely on CDK's auto-generated distribution domain).
+- [x] Update `infra/bin/infra.ts` to pass the new output from AssetsStack to ApiStack (extend the existing cross-stack reference pattern).
+- [x] Document in `infra/DEPLOYMENT.md` (append a short "Assets CDN" section): the new distribution, CORS allowlist, and that `ASSETS_CDN_DOMAIN` is injected into the api Lambda automatically.
+- [x] `pnpm --filter @kaipos/infra build` (or equivalent CDK synth command) to verify the template compiles; `cdk synth -c stage=prod` without errors.
+- [x] **No automatic deploy** — deployment is a manual user step after review. Plan the deploy order: run `pnpm deploy:prod:api` (which deploys AssetsStack → ApiStack per dependency graph), then confirm the new CfnOutput is visible, then `pnpm deploy:prod:frontend` to pick up any bundled changes.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm --filter @kaipos/infra exec cdk synth -c stage=prod` succeeds without errors
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm --filter @kaipos/infra exec cdk synth -c stage=prod` succeeds without errors
 - [ ] Manual verification (post-deploy, staged carefully): image upload from `/products/new` works end-to-end against prod; the `publicUrl` resolves via the new CloudFront distribution; unauthorized direct PUT (without pre-signed URL) is rejected by S3.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->

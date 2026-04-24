@@ -6,7 +6,7 @@ Single AWS environment: **`prod`**. Local development (`dev`) runs via `pnpm dev
 ## Stacks
 
 - `kaipos-prod-secrets` — Secrets Manager secret `kaipos/prod/mongo-uri` (empty on create, populated out-of-band).
-- `kaipos-prod-assets` — Private versioned S3 bucket `kaipos-assets-prod`.
+- `kaipos-prod-assets` — Private versioned S3 bucket `kaipos-assets-prod` plus a public CloudFront distribution that fronts it for read access (`/products/*` behavior). Exports `AssetsBucketName` and `AssetsCdnDomain`.
 - `kaipos-prod-websocket` — API Gateway WebSocket API + DynamoDB connections table + three Lambda handlers (`$connect`, `$disconnect`, `$default`). Outputs the `wss://...` URL that the frontend SPA needs.
 - `kaipos-prod-api` — API Gateway HTTP API + Lambda for backend functions. Lambda runs **outside any VPC** and connects to MongoDB Atlas directly over the public internet (protected by Atlas IP allowlist). This keeps monthly cost near zero by avoiding a NAT Gateway (~$33/month).
 - `kaipos-prod-frontend` — S3 + CloudFront for the admin SPA. The Vite build embeds `VITE_WS_ENDPOINT` from the websocket stack's output, which is why `deploy:prod` runs in two phases (see below).
@@ -96,6 +96,16 @@ pnpm --filter @kaipos/infra diff:prod
 ```
 
 **Why two phases?** The frontend bundle bakes `VITE_WS_ENDPOINT` at Vite build time. That URL only exists after `kaipos-prod-websocket` is deployed. `scripts/deploy-prod.sh` deploys everything except the frontend, reads `WebSocketEndpoint` via `aws cloudformation describe-stacks`, then builds + deploys the frontend with the env var set. Skipping this step (e.g. running only the Vite build without the env var) leaves the `#/debug/ws` endpoint field blank.
+
+## Assets CDN
+
+Product images (and any future menu assets) are served through a dedicated CloudFront distribution in `kaipos-prod-assets`:
+
+- **Upload path.** Browser → `POST /api/products/upload-url` → pre-signed `PUT` URL (60s TTL) → browser uploads directly to `s3://kaipos-assets-prod/products/<branchId>/<uuid>.<ext>`. The Lambda role holds `s3:PutObject` only on the `products/*` prefix, so a compromised Lambda cannot overwrite objects elsewhere in the bucket.
+- **Read path.** `https://<AssetsCdnDomain>/products/<branchId>/<uuid>.<ext>`. The distribution uses an Origin Access Identity so the bucket stays fully private; only CloudFront can read it. `/products/*` uses `CACHING_OPTIMIZED`; the default behavior is a placeholder and returns 403 for paths outside `/products/*`.
+- **CORS.** The bucket allows `PUT` from `https://*.cloudfront.net`, `http://localhost:3000`, and `http://localhost:3001`. The pre-signature is the primary access control — CORS just prevents random origins from forwarding browser PUTs.
+- **Env injection.** `ApiStack` reads `AssetsCdnDomain` from `AssetsStack` (cross-stack) and injects it into the API Lambda as `ASSETS_CDN_DOMAIN` alongside `ASSETS_BUCKET_NAME`. The `generateUploadUrl` service uses it to compute the returned `publicUrl`. Locally both vars are unset and the service falls back to `503 ASSETS_NOT_CONFIGURED`.
+- **Deploy order.** `pnpm deploy:prod:api` picks up both `AssetsStack` and `ApiStack` via CDK's dependency graph. After the first deploy, note the `AssetsCdnDomain` output and verify it resolves (`curl -I https://<domain>/products/...`).
 
 ## Rotate the Mongo secret
 

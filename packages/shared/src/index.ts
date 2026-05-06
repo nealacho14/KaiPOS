@@ -59,5 +59,7 @@ export {
   calculateOrderTotal,
 } from './utils/index.js';
 
+export { paginationQuerySchema, type PaginationQuery } from './schemas/pagination.js';
+
 export type { Permission } from './permissions.js';
 export { SUPER_ADMIN_BUSINESS_ID, ROLE_PERMISSIONS, hasPermission } from './permissions.js';

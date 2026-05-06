@@ -96,7 +96,13 @@ describe('users routes', () => {
     });
 
     it('admin lists users in their business', async () => {
-      mockUsersService.listUsers.mockResolvedValue([sampleUser]);
+      mockUsersService.listUsers.mockResolvedValue({
+        data: [sampleUser],
+        total: 1,
+        page: 1,
+        limit: 50,
+        totalPages: 1,
+      });
 
       const app = createApp();
       const res = await app.request('/api/users', withToken(adminPayload));
@@ -107,6 +113,8 @@ describe('users routes', () => {
       expect(body.data).toHaveLength(1);
       expect(mockUsersService.listUsers).toHaveBeenCalledWith(adminPayload, {
         businessId: undefined,
+        page: 1,
+        limit: 50,
       });
     });
 
@@ -131,7 +139,13 @@ describe('users routes', () => {
     });
 
     it('super_admin can list across all businesses', async () => {
-      mockUsersService.listUsers.mockResolvedValue([sampleUser]);
+      mockUsersService.listUsers.mockResolvedValue({
+        data: [sampleUser],
+        total: 1,
+        page: 1,
+        limit: 50,
+        totalPages: 1,
+      });
 
       const app = createApp();
       const res = await app.request('/api/users', withToken(superAdminPayload));
@@ -139,11 +153,19 @@ describe('users routes', () => {
       expect(res.status).toBe(200);
       expect(mockUsersService.listUsers).toHaveBeenCalledWith(superAdminPayload, {
         businessId: undefined,
+        page: 1,
+        limit: 50,
       });
     });
 
     it('super_admin filters with ?businessId=', async () => {
-      mockUsersService.listUsers.mockResolvedValue([]);
+      mockUsersService.listUsers.mockResolvedValue({
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 50,
+        totalPages: 1,
+      });
 
       const app = createApp();
       const res = await app.request('/api/users?businessId=biz-99', withToken(superAdminPayload));
@@ -151,6 +173,8 @@ describe('users routes', () => {
       expect(res.status).toBe(200);
       expect(mockUsersService.listUsers).toHaveBeenCalledWith(superAdminPayload, {
         businessId: 'biz-99',
+        page: 1,
+        limit: 50,
       });
     });
   });

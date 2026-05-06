@@ -49,6 +49,10 @@ export { default as TableBody } from '@mui/material/TableBody';
 export { default as TableCell } from '@mui/material/TableCell';
 export { default as TableContainer } from '@mui/material/TableContainer';
 export { default as TableHead } from '@mui/material/TableHead';
+export {
+  default as TablePagination,
+  type TablePaginationProps,
+} from '@mui/material/TablePagination';
 export { default as TableRow } from '@mui/material/TableRow';
 export { default as Tabs, type TabsProps } from '@mui/material/Tabs';
 export { default as TextField, type TextFieldProps } from '@mui/material/TextField';

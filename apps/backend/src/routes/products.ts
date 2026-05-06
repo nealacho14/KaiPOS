@@ -16,6 +16,7 @@ import {
   type UploadUrlInput,
 } from '../schemas/products.js';
 import * as productsService from '../services/products.js';
+import { toPaginatedResponse } from '../lib/paginate.js';
 
 const products = new Hono<AppEnv>();
 
@@ -42,7 +43,7 @@ products.get(
     const user = c.get('user')!;
     const parsed = listProductsQuerySchema.parse(c.req.query()) as ListProductsQuery;
     const result = await productsService.listProducts(user, parsed);
-    return c.json({ success: true, data: result });
+    return c.json(toPaginatedResponse(result));
   },
 );
 

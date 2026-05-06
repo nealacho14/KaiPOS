@@ -63,7 +63,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { EmptyState, PageHeader } from '../components/index.js';
 import { useAuth } from '../context/AuthContext.js';
 import { useActiveBranch } from '../hooks/useActiveBranch.js';
-import { ApiError, apiJson } from '../lib/api.js';
+import { ApiError } from '../lib/api.js';
+import { listKitchenStations } from '../lib/kitchen-stations-api.js';
 import {
   createProduct,
   generateUploadUrl,
@@ -416,10 +417,10 @@ export function ProductFormPage() {
   // reachable or the user lacks `categories:read`.
   useEffect(() => {
     let cancelled = false;
-    listCategories()
-      .then((categories) => {
+    listCategories({ limit: 100 })
+      .then(({ data }) => {
         if (cancelled) return;
-        setCategoryOptions(categories.map((c) => c.name).sort((a, b) => a.localeCompare(b, 'es')));
+        setCategoryOptions(data.map((c) => c.name).sort((a, b) => a.localeCompare(b, 'es')));
       })
       .catch(() => {
         if (!cancelled) setCategoryOptions([]);
@@ -435,8 +436,8 @@ export function ProductFormPage() {
     let cancelled = false;
     setStations(null);
     setStationsError(null);
-    apiJson<KitchenStation[]>(`/api/kitchen-stations?branchId=${encodeURIComponent(branchId)}`)
-      .then((data) => {
+    listKitchenStations({ branchId, limit: 100 })
+      .then(({ data }) => {
         if (!cancelled) setStations(data);
       })
       .catch((err: unknown) => {

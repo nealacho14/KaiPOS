@@ -10,6 +10,7 @@ import {
   updateCategorySchema,
 } from '../schemas/categories.js';
 import * as categoriesService from '../services/categories.js';
+import { toPaginatedResponse } from '../lib/paginate.js';
 
 const categories = new Hono<AppEnv>();
 
@@ -20,12 +21,9 @@ categories.get(
   validate({ query: listCategoriesQuerySchema }),
   async (c) => {
     const user = c.get('user')!;
-    const query = c.req.query();
-    const result = await categoriesService.listCategories(user, {
-      businessId: query.businessId,
-      includeInactive: query.includeInactive === 'true' || query.includeInactive === '1',
-    });
-    return c.json({ success: true, data: result });
+    const parsed = listCategoriesQuerySchema.parse(c.req.query());
+    const result = await categoriesService.listCategories(user, parsed);
+    return c.json(toPaginatedResponse(result));
   },
 );
 

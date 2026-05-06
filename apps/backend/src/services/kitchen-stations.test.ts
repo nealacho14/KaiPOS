@@ -5,7 +5,9 @@ import { create, listByBranch } from './kitchen-stations.js';
 const { mockCollection } = vi.hoisted(() => ({
   mockCollection: {
     find: vi.fn(),
+    findOne: vi.fn(),
     insertOne: vi.fn(),
+    countDocuments: vi.fn(),
   },
 }));
 
@@ -18,7 +20,13 @@ vi.mock('../lib/logger.js', () => ({
 }));
 
 function mockFindReturns<T>(docs: T[]): void {
-  mockCollection.find.mockReturnValue({ toArray: () => Promise.resolve(docs) });
+  mockCollection.find.mockReturnValue({
+    sort: vi.fn().mockReturnThis(),
+    skip: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    toArray: () => Promise.resolve(docs),
+  });
+  mockCollection.countDocuments.mockResolvedValue(docs.length);
 }
 
 const adminPayload: TokenPayload = {
@@ -50,6 +58,7 @@ const superAdminPayload: TokenPayload = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockCollection.findOne.mockResolvedValue(null);
 });
 
 describe('kitchen-stations service', () => {
@@ -69,8 +78,11 @@ describe('kitchen-stations service', () => {
 
       const result = await listByBranch(managerPayload, 'br-1');
 
-      expect(result).toHaveLength(1);
-      expect(mockCollection.find).toHaveBeenCalledWith({ businessId: 'biz-1', branchId: 'br-1' });
+      expect(result.data).toHaveLength(1);
+      expect(mockCollection.find).toHaveBeenCalledWith(
+        { businessId: 'biz-1', branchId: 'br-1' },
+        expect.anything(),
+      );
     });
 
     it('rejects when the branch is not in the user branchIds', async () => {
@@ -85,7 +97,10 @@ describe('kitchen-stations service', () => {
 
       await listByBranch(adminPayload, 'br-9');
 
-      expect(mockCollection.find).toHaveBeenCalledWith({ businessId: 'biz-1', branchId: 'br-9' });
+      expect(mockCollection.find).toHaveBeenCalledWith(
+        { businessId: 'biz-1', branchId: 'br-9' },
+        expect.anything(),
+      );
     });
 
     it('rejects super_admin with a 400 (no concrete business context)', async () => {
@@ -99,6 +114,7 @@ describe('kitchen-stations service', () => {
 
   describe('create', () => {
     it('inserts a new station scoped to the actor business', async () => {
+      mockCollection.findOne.mockResolvedValue(null);
       mockCollection.insertOne.mockResolvedValue({});
 
       const result = await create(managerPayload, { branchId: 'br-1', name: 'Parrilla' });

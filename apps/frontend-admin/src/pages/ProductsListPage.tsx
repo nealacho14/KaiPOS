@@ -35,18 +35,18 @@ import {
 } from '@kaipos/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { EmptyState, PageHeader } from '../components/index.js';
+import { EmptyState, PageHeader, PaginationFooter } from '../components/index.js';
 import { useAuth } from '../context/AuthContext.js';
 import { useWebSocketContext } from '../context/WebSocketContext.js';
 import { useActiveBranch } from '../hooks/useActiveBranch.js';
 import { useBranches } from '../hooks/useBranches.js';
-import { ApiError } from '../lib/api.js';
+import { ApiError, type Pagination } from '../lib/api.js';
 import { deleteProduct, listProducts } from '../lib/products-api.js';
 
 type FetchState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'success'; data: Product[] };
+  | { status: 'success'; data: Product[]; pagination: Pagination };
 
 function mapError(err: unknown): string {
   if (err instanceof ApiError) {
@@ -91,6 +91,8 @@ export function ProductsListPage() {
 
   const [state, setState] = useState<FetchState>({ status: 'loading' });
   const [reloadKey, setReloadKey] = useState(0);
+  const [page, setPage] = useState(0);
+  const [limit, setLimit] = useState(50);
   const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -150,6 +152,12 @@ export function ProductsListPage() {
     });
   }, [branchChannel]);
 
+  // Reset to first page whenever the filter/sucursal changes — otherwise the
+  // request asks for `page=3` of a result set that may now have one page.
+  useEffect(() => {
+    setPage(0);
+  }, [branchId, debouncedQuery, category, includeInactive]);
+
   useEffect(() => {
     if (!branchId) return;
     let cancelled = false;
@@ -159,9 +167,11 @@ export function ProductsListPage() {
       q: debouncedQuery.trim() || undefined,
       category: category || undefined,
       includeInactive: includeInactive || undefined,
+      page: page + 1,
+      limit,
     })
-      .then((data) => {
-        if (!cancelled) setState({ status: 'success', data });
+      .then(({ data, pagination }) => {
+        if (!cancelled) setState({ status: 'success', data, pagination });
       })
       .catch((err) => {
         if (!cancelled) setState({ status: 'error', message: mapError(err) });
@@ -169,7 +179,7 @@ export function ProductsListPage() {
     return () => {
       cancelled = true;
     };
-  }, [branchId, debouncedQuery, category, includeInactive, reloadKey]);
+  }, [branchId, debouncedQuery, category, includeInactive, reloadKey, page, limit]);
 
   const categoryOptions = useMemo(() => {
     if (state.status !== 'success') return [];
@@ -186,10 +196,19 @@ export function ProductsListPage() {
       setPendingDelete(null);
       // If we are currently showing active-only, drop the row locally; otherwise
       // refetch so the server's soft-delete state (isActive=false) is authoritative.
-      if (!includeInactive && state.status === 'success') {
+      // If the delete leaves the current page empty there may still be more
+      // rows on earlier pages — refetch to avoid showing a blank table. Same
+      // for the includeInactive path which always refetches anyway.
+      const remaining =
+        state.status === 'success' ? state.data.filter((p) => p._id !== pendingDelete._id) : [];
+      if (!includeInactive && state.status === 'success' && remaining.length > 0) {
         setState({
           status: 'success',
-          data: state.data.filter((p) => p._id !== pendingDelete._id),
+          data: remaining,
+          pagination: {
+            ...state.pagination,
+            total: Math.max(0, state.pagination.total - 1),
+          },
         });
       } else {
         retry();
@@ -325,16 +344,28 @@ export function ProductsListPage() {
           )}
 
           {state.status === 'success' && state.data.length > 0 && (
-            <ProductsTable
-              products={state.data}
-              canWrite={canWrite}
-              canDelete={canDelete}
-              onEdit={(id) => navigate(`/products/${id}/edit`)}
-              onDelete={(product) => {
-                setDeleteError(null);
-                setPendingDelete(product);
-              }}
-            />
+            <>
+              <ProductsTable
+                products={state.data}
+                canWrite={canWrite}
+                canDelete={canDelete}
+                onEdit={(id) => navigate(`/products/${id}/edit`)}
+                onDelete={(product) => {
+                  setDeleteError(null);
+                  setPendingDelete(product);
+                }}
+              />
+              <PaginationFooter
+                count={state.pagination.total}
+                page={page}
+                limit={limit}
+                onPageChange={setPage}
+                onLimitChange={(next) => {
+                  setLimit(next);
+                  setPage(0);
+                }}
+              />
+            </>
           )}
         </>
       )}

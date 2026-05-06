@@ -1,8 +1,11 @@
 import { z } from 'zod';
+import { paginationQuerySchema } from './pagination.js';
 
-export const listUsersQuerySchema = z.object({
-  businessId: z.string().min(1).optional(),
-});
+export const listUsersQuerySchema = z
+  .object({
+    businessId: z.string().min(1).optional(),
+  })
+  .merge(paginationQuerySchema);
 
 export const createUserSchema = z.object({
   email: z.string().email(),

@@ -23,8 +23,9 @@ import {
   Trash2,
 } from '@kaipos/ui';
 import { useCallback, useEffect, useId, useState } from 'react';
-import { EmptyState, PageHeader } from '../components/index.js';
+import { EmptyState, PageHeader, PaginationFooter } from '../components/index.js';
 import { useAuth } from '../context/AuthContext.js';
+import { type Pagination } from '../lib/api.js';
 import {
   createCategory,
   deactivateCategory,
@@ -36,7 +37,7 @@ import {
 type FetchState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'success'; data: Category[] };
+  | { status: 'success'; data: Category[]; pagination: Pagination };
 
 function mapError(err: unknown): string {
   const mapped = toCategoriesApiError(err);
@@ -52,6 +53,8 @@ export function CategoriesListPage() {
 
   const [state, setState] = useState<FetchState>({ status: 'loading' });
   const [reloadKey, setReloadKey] = useState(0);
+  const [page, setPage] = useState(0);
+  const [limit, setLimit] = useState(50);
   const [creating, setCreating] = useState(false);
   const [createName, setCreateName] = useState('');
   const [createError, setCreateError] = useState<string | null>(null);
@@ -66,9 +69,9 @@ export function CategoriesListPage() {
 
   useEffect(() => {
     let cancelled = false;
-    listCategories(true)
-      .then((data) => {
-        if (!cancelled) setState({ status: 'success', data });
+    listCategories({ includeInactive: true, page: page + 1, limit })
+      .then(({ data, pagination }) => {
+        if (!cancelled) setState({ status: 'success', data, pagination });
       })
       .catch((err) => {
         if (!cancelled) setState({ status: 'error', message: mapError(err) });
@@ -76,7 +79,7 @@ export function CategoriesListPage() {
     return () => {
       cancelled = true;
     };
-  }, [reloadKey]);
+  }, [reloadKey, page, limit]);
 
   const handleCreate = useCallback(async () => {
     if (!createName.trim()) return;
@@ -87,7 +90,13 @@ export function CategoriesListPage() {
       await createCategory(payload);
       setCreateName('');
       setCreating(false);
-      retry();
+      // If we're already on page 0, just retry — otherwise setPage(0)
+      // triggers the refetch on its own (don't double-fetch).
+      if (page !== 0) {
+        setPage(0);
+      } else {
+        retry();
+      }
     } catch (err) {
       const mapped = toCategoriesApiError(err);
       if (mapped.code === 'DUPLICATE_CATEGORY_NAME') {
@@ -98,7 +107,7 @@ export function CategoriesListPage() {
     } finally {
       setCreateSubmitting(false);
     }
-  }, [createName, retry]);
+  }, [createName, retry, page]);
 
   const handleDelete = useCallback(
     async (id: string) => {
@@ -193,48 +202,60 @@ export function CategoriesListPage() {
       )}
 
       {state.status === 'success' && state.data.length > 0 && (
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Nombre</TableCell>
-                <TableCell>Estado</TableCell>
-                {canDelete && <TableCell align="right">Acciones</TableCell>}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {state.data.map((cat) => (
-                <TableRow key={cat._id} hover>
-                  <TableCell sx={(theme) => ({ ...theme.typography.subtitle2 })}>
-                    {cat.name}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      size="small"
-                      color={cat.isActive ? 'success' : 'default'}
-                      variant={cat.isActive ? 'filled' : 'outlined'}
-                      label={cat.isActive ? 'Activa' : 'Inactiva'}
-                    />
-                  </TableCell>
-                  {canDelete && (
-                    <TableCell align="right">
-                      <Button
-                        size="small"
-                        color="error"
-                        variant="text"
-                        startIcon={<Trash2 size={14} aria-hidden />}
-                        onClick={() => handleDelete(cat._id)}
-                        disabled={!cat.isActive || deletingId === cat._id}
-                      >
-                        {deletingId === cat._id ? 'Desactivando…' : 'Desactivar'}
-                      </Button>
-                    </TableCell>
-                  )}
+        <>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Nombre</TableCell>
+                  <TableCell>Estado</TableCell>
+                  {canDelete && <TableCell align="right">Acciones</TableCell>}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {state.data.map((cat) => (
+                  <TableRow key={cat._id} hover>
+                    <TableCell sx={(theme) => ({ ...theme.typography.subtitle2 })}>
+                      {cat.name}
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        color={cat.isActive ? 'success' : 'default'}
+                        variant={cat.isActive ? 'filled' : 'outlined'}
+                        label={cat.isActive ? 'Activa' : 'Inactiva'}
+                      />
+                    </TableCell>
+                    {canDelete && (
+                      <TableCell align="right">
+                        <Button
+                          size="small"
+                          color="error"
+                          variant="text"
+                          startIcon={<Trash2 size={14} aria-hidden />}
+                          onClick={() => handleDelete(cat._id)}
+                          disabled={!cat.isActive || deletingId === cat._id}
+                        >
+                          {deletingId === cat._id ? 'Desactivando…' : 'Desactivar'}
+                        </Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <PaginationFooter
+            count={state.pagination.total}
+            page={page}
+            limit={limit}
+            onPageChange={setPage}
+            onLimitChange={(next) => {
+              setLimit(next);
+              setPage(0);
+            }}
+          />
+        </>
       )}
 
       <Dialog

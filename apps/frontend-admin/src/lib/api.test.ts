@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { api, resetAuthFailureHandlerForTests, setAuthFailureHandler } from './api.js';
+import {
+  api,
+  apiJsonPaginated,
+  resetAuthFailureHandlerForTests,
+  setAuthFailureHandler,
+} from './api.js';
 import { clearSession, setSession } from './auth-storage.js';
 
 const ORIGINAL_LOCATION = window.location;
@@ -211,5 +216,31 @@ describe('api()', () => {
     expect(window.localStorage.getItem('kaipos:accessToken')).toBe('old');
     expect(window.localStorage.getItem('kaipos:refreshToken')).toBe('rfr-1');
     expect(window.location.assign).not.toHaveBeenCalled();
+  });
+});
+
+describe('apiJsonPaginated()', () => {
+  it('extracts data and pagination from the envelope', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse(200, {
+        success: true,
+        data: [{ id: 'a' }, { id: 'b' }],
+        pagination: { page: 2, limit: 25, total: 60, totalPages: 3 },
+      }),
+    );
+
+    const result = await apiJsonPaginated<{ id: string }>('/api/things?page=2&limit=25');
+    expect(result.data).toEqual([{ id: 'a' }, { id: 'b' }]);
+    expect(result.pagination).toEqual({ page: 2, limit: 25, total: 60, totalPages: 3 });
+  });
+
+  it('falls back to a single-page envelope when the server omits pagination', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse(200, { success: true, data: [{ id: 'x' }, { id: 'y' }] }),
+    );
+
+    const result = await apiJsonPaginated<{ id: string }>('/api/things');
+    expect(result.data).toHaveLength(2);
+    expect(result.pagination).toEqual({ page: 1, limit: 2, total: 2, totalPages: 1 });
   });
 });

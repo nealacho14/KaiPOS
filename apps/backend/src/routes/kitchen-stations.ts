@@ -9,6 +9,7 @@ import {
   listKitchenStationsQuerySchema,
 } from '../schemas/kitchen-stations.js';
 import * as kitchenStationsService from '../services/kitchen-stations.js';
+import { toPaginatedResponse } from '../lib/paginate.js';
 
 const kitchenStations = new Hono<AppEnv>();
 
@@ -20,9 +21,12 @@ kitchenStations.get(
   requireBranchAccess('branchId'),
   async (c) => {
     const user = c.get('user')!;
-    const branchId = c.req.query('branchId')!;
-    const result = await kitchenStationsService.listByBranch(user, branchId);
-    return c.json({ success: true, data: result });
+    const parsed = listKitchenStationsQuerySchema.parse(c.req.query());
+    const result = await kitchenStationsService.listByBranch(user, parsed.branchId, {
+      page: parsed.page,
+      limit: parsed.limit,
+    });
+    return c.json(toPaginatedResponse(result));
   },
 );
 

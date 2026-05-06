@@ -5,6 +5,7 @@ import { SUPER_ADMIN_BUSINESS_ID } from '@kaipos/shared/permissions';
 import { PutObjectCommand, S3Client, type PutObjectCommandInput } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getProductsCollection, getKitchenStationsCollection } from '../db/collections.js';
+import { paginate, type PaginatedResult } from '../lib/paginate.js';
 import { AppError, ForbiddenError, NotFoundError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
 import { publishToChannel } from '../lib/ws-publish.js';
@@ -78,10 +79,10 @@ function buildListFilter(actor: TokenPayload, query: ListProductsQuery): Filter<
 
   if (query.q) {
     const escaped = query.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    filter.$or = [
-      { name: { $regex: escaped, $options: 'i' } },
-      { sku: { $regex: escaped, $options: 'i' } },
-    ];
+    // Anchored prefix so the `{branchId, name}` index can be used (paired
+    // with the collation in the find call). SKU is matched the same way for
+    // consistency — partial-suffix search isn't a use case we support.
+    filter.$or = [{ name: { $regex: `^${escaped}` } }, { sku: { $regex: `^${escaped}` } }];
   }
 
   return filter;
@@ -131,10 +132,22 @@ function auditBranchMismatch(
 export async function listProducts(
   actor: TokenPayload,
   query: ListProductsQuery,
-): Promise<Product[]> {
+): Promise<PaginatedResult<Product>> {
   const products = await getProductsCollection();
   const filter = buildListFilter(actor, query);
-  return products.find(filter).toArray();
+  return paginate({
+    collection: products,
+    filter,
+    page: query.page,
+    limit: query.limit,
+    projection: { modifierGroups: 0 },
+    // Newest first so a freshly created product shows up on page 1 — this
+    // also stabilises the order across pages.
+    sort: { createdAt: -1 },
+    // Match the case-insensitive collation on the {branchId, name} index
+    // when a prefix search is in play (see buildListFilter `q` branch).
+    collation: query.q ? { locale: 'es', strength: 2 } : undefined,
+  });
 }
 
 export async function getProductById(actor: TokenPayload, id: string): Promise<Product> {

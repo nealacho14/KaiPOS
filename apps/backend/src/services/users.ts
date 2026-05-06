@@ -2,9 +2,10 @@ import type { Filter } from 'mongodb';
 import type { TokenPayload, User, UserRole } from '@kaipos/shared/types';
 import { SUPER_ADMIN_BUSINESS_ID } from '@kaipos/shared/permissions';
 import { getUsersCollection } from '../db/collections.js';
-import { hashPassword } from '../lib/password.js';
 import { AppError, ForbiddenError, NotFoundError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
+import { paginate, type PaginatedResult } from '../lib/paginate.js';
+import { hashPassword } from '../lib/password.js';
 import { stripPasswordHash, type SafeUser } from '../lib/user-sanitize.js';
 import type { CreateUserInput, ListUsersQuery, UpdateUserInput } from '../schemas/users.js';
 import { logAuditEvent } from './audit.js';
@@ -18,7 +19,10 @@ const MANAGER_ASSIGNABLE_ROLES: ReadonlySet<UserRole> = new Set([
   'kitchen',
 ]);
 
-function buildScopeFilter(actor: TokenPayload, query?: ListUsersQuery): Filter<User> {
+function buildScopeFilter(
+  actor: TokenPayload,
+  query?: Pick<ListUsersQuery, 'businessId'>,
+): Filter<User> {
   if (actor.role === 'super_admin') {
     return query?.businessId ? { businessId: query.businessId } : {};
   }
@@ -69,17 +73,23 @@ function assertManagerCanAssign(
 
 export async function listUsers(
   actor: TokenPayload,
-  query: ListUsersQuery = {},
-): Promise<SafeUser[]> {
+  query: Partial<ListUsersQuery> = {},
+): Promise<PaginatedResult<SafeUser>> {
   const users = await getUsersCollection();
-  const docs = await users.find(buildScopeFilter(actor, query)).toArray();
-  return docs.map(stripPasswordHash);
+  const result = await paginate({
+    collection: users,
+    filter: buildScopeFilter(actor, query),
+    page: query.page ?? 1,
+    limit: query.limit ?? 50,
+    projection: { passwordHash: 0 },
+  });
+  return { ...result, data: result.data.map(stripPasswordHash) };
 }
 
 export async function getUserById(actor: TokenPayload, id: string): Promise<SafeUser> {
   const users = await getUsersCollection();
   const filter: Filter<User> = { _id: id, ...buildScopeFilter(actor) };
-  const user = await users.findOne(filter);
+  const user = await users.findOne(filter, { projection: { passwordHash: 0 } });
   if (!user) {
     throw new NotFoundError('User');
   }

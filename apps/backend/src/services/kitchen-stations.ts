@@ -1,6 +1,7 @@
 import type { KitchenStation, TokenPayload } from '@kaipos/shared/types';
 import { SUPER_ADMIN_BUSINESS_ID } from '@kaipos/shared/permissions';
 import { getKitchenStationsCollection } from '../db/collections.js';
+import { paginate, type PaginatedResult } from '../lib/paginate.js';
 import { AppError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
 import { assertBranchAccess } from '../middleware/branch-access.js';
@@ -26,11 +27,17 @@ function resolveBusinessId(actor: TokenPayload): string {
 export async function listByBranch(
   actor: TokenPayload,
   branchId: string,
-): Promise<KitchenStation[]> {
+  pagination: { page: number; limit: number } = { page: 1, limit: 50 },
+): Promise<PaginatedResult<KitchenStation>> {
   assertBranchAccess(actor, branchId);
   const businessId = resolveBusinessId(actor);
   const collection = await getKitchenStationsCollection();
-  return collection.find({ businessId, branchId }).toArray();
+  return paginate({
+    collection,
+    filter: { businessId, branchId },
+    page: pagination.page,
+    limit: pagination.limit,
+  });
 }
 
 export async function create(
@@ -40,6 +47,20 @@ export async function create(
   assertBranchAccess(actor, input.branchId);
   const businessId = resolveBusinessId(actor);
   const collection = await getKitchenStationsCollection();
+
+  const existing = await collection.findOne({
+    businessId,
+    branchId: input.branchId,
+    name: input.name,
+  });
+  if (existing) {
+    throw new AppError(
+      'A kitchen station with this name already exists in this branch',
+      409,
+      'DUPLICATE_STATION_NAME',
+      [{ field: 'name', message: 'Station name already exists in this branch' }],
+    );
+  }
 
   const now = new Date();
   const station: KitchenStation = {
@@ -52,7 +73,25 @@ export async function create(
     createdBy: actor.userId,
   };
 
-  await collection.insertOne(station);
+  try {
+    await collection.insertOne(station);
+  } catch (err) {
+    if (
+      typeof err === 'object' &&
+      err !== null &&
+      'code' in err &&
+      (err as { code: unknown }).code === 11000
+    ) {
+      throw new AppError(
+        'A kitchen station with this name already exists in this branch',
+        409,
+        'DUPLICATE_STATION_NAME',
+        [{ field: 'name', message: 'Station name already exists in this branch' }],
+      );
+    }
+    throw err;
+  }
+
   log.info(
     { stationId: station._id, businessId, branchId: input.branchId },
     'Kitchen station created',

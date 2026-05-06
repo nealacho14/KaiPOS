@@ -17,6 +17,7 @@ const { mockProducts, mockKitchenStations, mockLogAudit, mockGetSignedUrl, mockP
       findOne: vi.fn(),
       insertOne: vi.fn(),
       updateOne: vi.fn(),
+      countDocuments: vi.fn(),
     },
     mockKitchenStations: {
       find: vi.fn(),
@@ -131,7 +132,14 @@ const superAdminPayload: TokenPayload = {
 const ctx = { route: '/api/products/p-1', method: 'PATCH' };
 
 function mockFindReturns(docs: Product[]): void {
-  mockProducts.find.mockReturnValue({ toArray: () => Promise.resolve(docs) });
+  mockProducts.find.mockReturnValue({
+    collation: vi.fn().mockReturnThis(),
+    sort: vi.fn().mockReturnThis(),
+    skip: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    toArray: () => Promise.resolve(docs),
+  });
+  mockProducts.countDocuments.mockResolvedValue(docs.length);
 }
 
 function mockKitchenStationFindReturns(ids: string[]): void {
@@ -169,27 +177,35 @@ describe('products service', () => {
     it('scopes non-super_admin by actor.businessId and required branchId', async () => {
       mockFindReturns([makeProduct()]);
 
-      await listProducts(adminPayload, { branchId: 'br-1', includeInactive: false });
-
-      expect(mockProducts.find).toHaveBeenCalledWith({
+      await listProducts(adminPayload, {
         branchId: 'br-1',
-        businessId: 'biz-1',
-        isActive: true,
+        includeInactive: false,
+        page: 1,
+        limit: 50,
       });
+
+      expect(mockProducts.find).toHaveBeenCalledWith(
+        { branchId: 'br-1', businessId: 'biz-1', isActive: true },
+        { projection: { modifierGroups: 0 } },
+      );
     });
 
-    it('applies case-insensitive q across name and sku', async () => {
+    it('applies anchored prefix q across name and sku', async () => {
       mockFindReturns([]);
 
-      await listProducts(adminPayload, { branchId: 'br-1', q: 'arroz', includeInactive: false });
+      await listProducts(adminPayload, {
+        branchId: 'br-1',
+        q: 'arroz',
+        includeInactive: false,
+        page: 1,
+        limit: 50,
+      });
 
       expect(mockProducts.find).toHaveBeenCalledWith(
         expect.objectContaining({
-          $or: [
-            { name: { $regex: 'arroz', $options: 'i' } },
-            { sku: { $regex: 'arroz', $options: 'i' } },
-          ],
+          $or: [{ name: { $regex: '^arroz' } }, { sku: { $regex: '^arroz' } }],
         }),
+        expect.anything(),
       );
     });
 
@@ -200,17 +216,25 @@ describe('products service', () => {
         branchId: 'br-1',
         category: 'Entradas',
         includeInactive: false,
+        page: 1,
+        limit: 50,
       });
 
       expect(mockProducts.find).toHaveBeenCalledWith(
         expect.objectContaining({ category: 'Entradas' }),
+        expect.anything(),
       );
     });
 
     it('includeInactive removes the isActive filter', async () => {
       mockFindReturns([]);
 
-      await listProducts(adminPayload, { branchId: 'br-1', includeInactive: true });
+      await listProducts(adminPayload, {
+        branchId: 'br-1',
+        includeInactive: true,
+        page: 1,
+        limit: 50,
+      });
 
       const call = mockProducts.find.mock.calls[0][0];
       expect(call).not.toHaveProperty('isActive');
@@ -219,7 +243,12 @@ describe('products service', () => {
     it('super_admin with no businessId query returns unscoped by business', async () => {
       mockFindReturns([]);
 
-      await listProducts(superAdminPayload, { branchId: 'br-1', includeInactive: false });
+      await listProducts(superAdminPayload, {
+        branchId: 'br-1',
+        includeInactive: false,
+        page: 1,
+        limit: 50,
+      });
 
       const call = mockProducts.find.mock.calls[0][0];
       expect(call).not.toHaveProperty('businessId');
@@ -232,10 +261,13 @@ describe('products service', () => {
         branchId: 'br-1',
         businessId: 'biz-99',
         includeInactive: false,
+        page: 1,
+        limit: 50,
       });
 
       expect(mockProducts.find).toHaveBeenCalledWith(
         expect.objectContaining({ businessId: 'biz-99' }),
+        expect.anything(),
       );
     });
   });

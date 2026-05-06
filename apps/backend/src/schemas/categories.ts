@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { paginationQuerySchema } from '@kaipos/shared/schemas/pagination';
 
 export const createCategorySchema = z.object({
   name: z.string().min(1),
@@ -18,17 +19,19 @@ export const updateCategorySchema = z
     message: 'At least one field is required',
   });
 
-export const listCategoriesQuerySchema = z.object({
-  businessId: z.string().min(1).optional(),
-  includeInactive: z
-    .union([z.boolean(), z.string()])
-    .optional()
-    .transform((v) => {
-      if (typeof v === 'boolean') return v;
-      if (typeof v === 'string') return v === 'true' || v === '1';
-      return false;
-    }),
-});
+export const listCategoriesQuerySchema = z
+  .object({
+    businessId: z.string().min(1).optional(),
+    includeInactive: z
+      .union([z.boolean(), z.string()])
+      .optional()
+      .transform((v) => {
+        if (typeof v === 'boolean') return v;
+        if (typeof v === 'string') return v === 'true' || v === '1';
+        return false;
+      }),
+  })
+  .merge(paginationQuerySchema);
 
 export const categoryIdParamSchema = z.object({
   id: z.string().uuid(),

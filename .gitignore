@@ -35,6 +35,7 @@ Thumbs.db
 
 # Claude Code
 .claude/settings.local.json
+.playwright-mcp/
 
 # Local design-system reference (v0.dev export, not shipped)
 kaiPos-designSystem/

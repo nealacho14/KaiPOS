@@ -4,9 +4,8 @@ import { useColorScheme } from '../providers/useColorScheme.js';
 import { colors } from '../tokens/colors.js';
 
 /**
- * Brand palette — teal mark + amber accent per the kaiPOS canon
- * (`kaiPos-ds/theme.ts`). Hardcoded here so the logo stays consistent
- * regardless of the active MUI theme primary.
+ * Brand palette — teal mark + amber accent. Pinned to `tokens/colors.ts`
+ * primitives so the logo stays consistent regardless of the active MUI theme.
  */
 const BRAND = {
   mark: colors.primary[500], // #0B7A75 — teal 500

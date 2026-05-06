@@ -205,7 +205,9 @@ export function CategoriesListPage() {
             <TableBody>
               {state.data.map((cat) => (
                 <TableRow key={cat._id} hover>
-                  <TableCell sx={{ fontWeight: 550 }}>{cat.name}</TableCell>
+                  <TableCell sx={(theme) => ({ ...theme.typography.subtitle2 })}>
+                    {cat.name}
+                  </TableCell>
                   <TableCell>
                     <Chip
                       size="small"

@@ -44,9 +44,7 @@ export function DashboardPage() {
               Usuario
             </Typography>
             <Stack spacing={0.5} sx={{ mt: 1 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                {user.name}
-              </Typography>
+              <Typography variant="h6">{user.name}</Typography>
               <Typography variant="body2" color="text.secondary">
                 {user.email}
               </Typography>
@@ -63,9 +61,7 @@ export function DashboardPage() {
               Negocio
             </Typography>
             <Stack spacing={0.75} sx={{ mt: 1 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                {business?.name ?? 'Admin global'}
-              </Typography>
+              <Typography variant="h6">{business?.name ?? 'Admin global'}</Typography>
               {business && (
                 <Typography variant="mono" color="text.secondary">
                   {business.slug}
@@ -73,9 +69,9 @@ export function DashboardPage() {
               )}
               <Typography variant="body2" color="text.secondary">
                 Sucursales asignadas:{' '}
-                <Box component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                <Typography component="span" variant="subtitle2" sx={{ color: 'text.primary' }}>
                   {branchIds.length || '—'}
-                </Box>
+                </Typography>
               </Typography>
             </Stack>
           </CardContent>

@@ -356,13 +356,13 @@ function Breadcrumb({ name, mode }: { name: string; mode: Mode }) {
       <Typography
         component={RouterLink}
         to="/users"
-        variant="body2"
-        sx={{ color: 'text.secondary', textDecoration: 'none', fontWeight: 600 }}
+        variant="subtitle2"
+        sx={{ color: 'text.secondary', textDecoration: 'none' }}
       >
         ← Usuarios
       </Typography>
       <ChevronRight size={14} aria-hidden />
-      <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 650 }}>
+      <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
         {last}
       </Typography>
     </Stack>
@@ -503,7 +503,7 @@ function RoleAndBranchesCard({
           </FormControl>
 
           <Box>
-            <Typography variant="body2" sx={{ fontWeight: 650, mb: 1 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
               Sucursales asignadas
             </Typography>
             {branchesLoading ? (
@@ -587,7 +587,7 @@ function SummaryCard({
             <Chip size="small" color="primary" label={ROLE_LABEL[role]} />
           </SummaryRow>
           <SummaryRow label="Sucursales">
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            <Typography variant="subtitle2">
               {branchCount === 0 ? 'Todas las permitidas' : `${branchCount} asignadas`}
             </Typography>
           </SummaryRow>

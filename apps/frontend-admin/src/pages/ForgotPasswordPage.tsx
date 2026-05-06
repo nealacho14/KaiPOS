@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   CircularProgress,
+  fontWeight,
   KaiPOSLogo,
   Stack,
   TextField,
@@ -64,30 +65,13 @@ export function ForgotPasswordPage() {
         <KaiPOSLogo variant="horizontal" colorVariant="color" size="md" />
       </Stack>
 
-      <Typography
-        sx={{
-          fontSize: 11,
-          fontWeight: 650,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          color: 'text.secondary',
-        }}
-      >
+      <Typography variant="overline" sx={{ color: 'text.secondary' }}>
         Recuperación de cuenta
       </Typography>
-      <Typography
-        component="h1"
-        sx={{
-          fontSize: { xs: 26, md: 32 },
-          fontWeight: 700,
-          letterSpacing: '-0.02em',
-          lineHeight: 1.15,
-          margin: '8px 0 16px',
-        }}
-      >
+      <Typography component="h1" variant="h3" sx={{ mt: 1, mb: 2 }}>
         ¿Olvidaste tu contraseña?
       </Typography>
-      <Typography sx={{ fontSize: 14, color: 'text.secondary', mb: 3 }}>
+      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
         Ingresa el correo asociado a tu cuenta y te enviaremos un enlace para restablecerla.
       </Typography>
 
@@ -125,7 +109,7 @@ export function ForgotPasswordPage() {
                 color="primary"
                 fullWidth
                 disabled={submitting || !email}
-                sx={{ minHeight: 48, borderRadius: `${theme.radii.md}px` }}
+                sx={{ minHeight: theme.posSize.min, borderRadius: `${theme.radii.md}px` }}
               >
                 {submitting ? (
                   <CircularProgress size={18} color="inherit" />
@@ -138,21 +122,22 @@ export function ForgotPasswordPage() {
         </>
       )}
 
-      <Box sx={{ mt: 3, fontSize: 13, color: 'text.secondary' }}>
+      <Typography variant="body2" sx={{ mt: 3, color: 'text.secondary' }}>
         ¿Ya la recordaste?{' '}
-        <Box
+        <Typography
           component={RouterLink}
           to="/login"
+          variant="body2"
           sx={{
             color: 'primary.main',
-            fontWeight: 600,
+            fontWeight: fontWeight.semibold,
             textDecoration: 'none',
             '&:hover': { textDecoration: 'underline' },
           }}
         >
           Volver al inicio de sesión
-        </Box>
-      </Box>
+        </Typography>
+      </Typography>
     </CenteredAuthLayout>
   );
 }
@@ -168,7 +153,8 @@ export function CenteredAuthLayout({ children }: { children: React.ReactNode }) 
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: { xs: '28px 20px', md: '48px' },
+        px: { xs: 2.5, md: 12 },
+        py: { xs: 3.5, md: 12 },
       }}
     >
       <Box sx={{ maxWidth: 440, width: '100%' }}>{children}</Box>

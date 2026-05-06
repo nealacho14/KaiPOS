@@ -198,7 +198,7 @@ function UsersTable({ users, canWrite }: { users: SafeUser[]; canWrite: boolean 
               onClick={canWrite ? () => navigate(`/users/${user._id}/edit`) : undefined}
               sx={canWrite ? { cursor: 'pointer' } : undefined}
             >
-              <TableCell sx={{ fontWeight: 550 }}>{user.name}</TableCell>
+              <TableCell sx={(theme) => ({ ...theme.typography.subtitle2 })}>{user.name}</TableCell>
               <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{user.email}</TableCell>
               <TableCell>
                 <Chip size="small" color="primary" label={ROLE_LABEL[user.role]} />

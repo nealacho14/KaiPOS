@@ -444,46 +444,54 @@ interface ProductsTableProps {
 }
 
 function ProductsTable({ products, canWrite, canDelete, onEdit, onDelete }: ProductsTableProps) {
+  // On xs the row is the click target; the explicit Acciones column is hidden
+  // because it doesn't fit alongside name + price + status chip at 375 px.
   return (
-    <TableContainer>
+    <TableContainer sx={{ overflowX: 'auto' }}>
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell sx={{ width: 64 }}>Imagen</TableCell>
+            <TableCell sx={{ width: 64, display: { xs: 'none', sm: 'table-cell' } }}>
+              Imagen
+            </TableCell>
             <TableCell>Nombre</TableCell>
             <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>SKU</TableCell>
             <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Categoría</TableCell>
             <TableCell align="right">Precio</TableCell>
             <TableCell>Estado</TableCell>
-            <TableCell align="right" sx={{ width: 120 }}>
+            <TableCell align="right" sx={{ width: 120, display: { xs: 'none', sm: 'table-cell' } }}>
               Acciones
             </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {products.map((product) => (
-            <TableRow key={product._id} hover>
-              <TableCell>
+            <TableRow
+              key={product._id}
+              hover
+              onClick={canWrite ? () => onEdit(product._id) : undefined}
+              sx={canWrite ? { cursor: 'pointer' } : undefined}
+            >
+              <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                 <ProductThumb imageUrl={product.imageUrl} alt={product.name} />
               </TableCell>
-              <TableCell sx={{ fontWeight: 550 }}>{product.name}</TableCell>
+              <TableCell sx={(theme) => ({ ...theme.typography.subtitle2 })}>
+                {product.name}
+              </TableCell>
               <TableCell
-                sx={{
+                sx={(theme) => ({
                   display: { xs: 'none', sm: 'table-cell' },
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                  fontSize: 13,
+                  ...theme.typography.mono,
+                  fontSize: theme.typography.body2.fontSize,
                   color: 'text.secondary',
-                }}
+                })}
               >
                 {product.sku}
               </TableCell>
               <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                 <Chip size="small" label={product.category} />
               </TableCell>
-              <TableCell
-                align="right"
-                sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
-              >
+              <TableCell align="right" sx={(theme) => ({ ...theme.typography.mono })}>
                 {formatCurrency(product.price)}
               </TableCell>
               <TableCell>
@@ -494,7 +502,11 @@ function ProductsTable({ products, canWrite, canDelete, onEdit, onDelete }: Prod
                   label={product.isActive ? 'Activo' : 'Inactivo'}
                 />
               </TableCell>
-              <TableCell align="right">
+              <TableCell
+                align="right"
+                onClick={(e) => e.stopPropagation()}
+                sx={{ display: { xs: 'none', sm: 'table-cell' } }}
+              >
                 <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                   {canWrite && (
                     <IconButton
@@ -533,30 +545,30 @@ function ProductThumb({ imageUrl, alt }: { imageUrl?: string; alt: string }) {
         src={imageUrl}
         alt={alt}
         loading="lazy"
-        sx={{
+        sx={(theme) => ({
           width: 40,
           height: 40,
-          borderRadius: 1,
+          borderRadius: `${theme.radii.sm}px`,
           objectFit: 'cover',
           border: '1px solid',
           borderColor: 'divider',
           display: 'block',
-        }}
+        })}
       />
     );
   }
   return (
     <Box
       aria-hidden
-      sx={{
+      sx={(theme) => ({
         width: 40,
         height: 40,
-        borderRadius: 1,
+        borderRadius: `${theme.radii.sm}px`,
         display: 'grid',
         placeItems: 'center',
         bgcolor: 'action.hover',
         color: 'text.disabled',
-      }}
+      })}
     >
       <ImageIcon size={18} aria-hidden />
     </Box>

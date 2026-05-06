@@ -84,9 +84,8 @@ export function Header({ wsStatus, onMenuToggle }: HeaderProps) {
         {isDesktop && isSuperAdmin && <BusinessPicker />}
         {isDesktop && !isSuperAdmin && businessName && (
           <Typography
-            variant="body2"
+            variant="subtitle2"
             sx={{
-              fontWeight: 600,
               color: 'text.primary',
               whiteSpace: 'nowrap',
               overflow: 'hidden',

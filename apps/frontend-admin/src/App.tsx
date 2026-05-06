@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth, RequirePermission } from './components/guards/index.js';
 import { AppLayout } from './layouts/AppLayout.js';
 import { DashboardPage } from './pages/DashboardPage.js';
+import { CategoriesListPage } from './pages/CategoriesListPage.js';
 import { DebugWebSocket } from './pages/DebugWebSocket.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
 import { LoginPage } from './pages/LoginPage.js';
@@ -29,6 +30,9 @@ export function App() {
               <Route path="/products/new" element={<ProductFormPage />} />
               <Route path="/products/:id/edit" element={<ProductFormPage />} />
             </Route>
+          </Route>
+          <Route element={<RequirePermission permission="categories:read" />}>
+            <Route path="/categories" element={<CategoriesListPage />} />
           </Route>
           <Route element={<RequirePermission permission="users:read" />}>
             <Route path="/users" element={<UsersListPage />} />

@@ -279,46 +279,6 @@ const collections: CollectionSetup[] = [
     ],
   },
 
-  // ---- modifiers ----
-  {
-    name: 'modifiers',
-    validator: {
-      $jsonSchema: {
-        bsonType: 'object',
-        required: [
-          'businessId',
-          'name',
-          'options',
-          'isActive',
-          'createdAt',
-          'updatedAt',
-          'createdBy',
-        ],
-        properties: {
-          _id: { bsonType: 'string' },
-          businessId: { bsonType: 'string' },
-          name: { bsonType: 'string' },
-          options: {
-            bsonType: 'array',
-            items: {
-              bsonType: 'object',
-              required: ['name', 'price'],
-              properties: {
-                name: { bsonType: 'string' },
-                price: { bsonType: 'number' },
-              },
-            },
-          },
-          isActive: { bsonType: 'bool' },
-          createdAt: { bsonType: 'date' },
-          updatedAt: { bsonType: 'date' },
-          createdBy: { bsonType: 'string' },
-        },
-      },
-    },
-    indexes: [{ key: { businessId: 1 } }, { key: { businessId: 1, isActive: 1 } }],
-  },
-
   // ---- tables ----
   {
     name: 'tables',
@@ -554,6 +514,25 @@ async function setupCollections(db: Db): Promise<void> {
       .toArray()
       .then((cols) => cols.map((c) => c.name)),
   );
+
+  // Drop the legacy `modifiers` collection if present. Products embed
+  // modifierGroups directly, so the standalone collection was orphaned. This
+  // runs idempotently in setup so dev/prod environments converge without a
+  // separate migration.
+  if (existing.has('modifiers')) {
+    try {
+      await db.dropCollection('modifiers');
+      logger.info('  Dropped obsolete "modifiers" collection');
+      existing.delete('modifiers');
+    } catch (err) {
+      const code = (err as { code?: number }).code;
+      if (code === 26) {
+        // NamespaceNotFound — concurrent runner already handled it
+      } else {
+        logger.warn({ err }, '  Could not drop "modifiers" — continuing');
+      }
+    }
+  }
 
   for (const col of collections) {
     if (existing.has(col.name)) {

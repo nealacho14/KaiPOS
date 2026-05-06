@@ -3,7 +3,6 @@ import type {
   Business,
   Branch,
   Category,
-  Modifier,
   Table,
   KitchenStation,
   Transaction,
@@ -30,11 +29,6 @@ export async function getBranchesCollection(): Promise<Collection<Branch>> {
 export async function getCategoriesCollection(): Promise<Collection<Category>> {
   const db = await getDb();
   return db.collection<Category>('categories');
-}
-
-export async function getModifiersCollection(): Promise<Collection<Modifier>> {
-  const db = await getDb();
-  return db.collection<Modifier>('modifiers');
 }
 
 export async function getTablesCollection(): Promise<Collection<Table>> {

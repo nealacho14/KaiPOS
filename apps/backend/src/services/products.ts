@@ -79,10 +79,10 @@ function buildListFilter(actor: TokenPayload, query: ListProductsQuery): Filter<
 
   if (query.q) {
     const escaped = query.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    filter.$or = [
-      { name: { $regex: escaped, $options: 'i' } },
-      { sku: { $regex: escaped, $options: 'i' } },
-    ];
+    // Anchored prefix so the `{branchId, name}` index can be used (paired
+    // with the collation in the find call). SKU is matched the same way for
+    // consistency — partial-suffix search isn't a use case we support.
+    filter.$or = [{ name: { $regex: `^${escaped}` } }, { sku: { $regex: `^${escaped}` } }];
   }
 
   return filter;
@@ -141,6 +141,12 @@ export async function listProducts(
     page: query.page,
     limit: query.limit,
     projection: { modifierGroups: 0 },
+    // Newest first so a freshly created product shows up on page 1 — this
+    // also stabilises the order across pages.
+    sort: { createdAt: -1 },
+    // Match the case-insensitive collation on the {branchId, name} index
+    // when a prefix search is in play (see buildListFilter `q` branch).
+    collation: query.q ? { locale: 'es', strength: 2 } : undefined,
   });
 }
 

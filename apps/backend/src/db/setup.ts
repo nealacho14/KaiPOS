@@ -268,14 +268,24 @@ const collections: CollectionSetup[] = [
     },
     // Branch-scoped reshape (Paso 10): replace businessId-scoped indexes with
     // branchId-scoped ones so two branches of the same business can reuse SKUs.
+    // The {branchId, name} entry is also dropped here so it can be recreated
+    // with the case-insensitive collation needed by the prefix search.
     dropIndexes: [
       { businessId: 1, sku: 1 },
       { businessId: 1, category: 1, isActive: 1 },
+      { branchId: 1, name: 1 },
     ],
     indexes: [
       { key: { branchId: 1, sku: 1 }, options: { unique: true } },
       { key: { branchId: 1, category: 1, isActive: 1 } },
-      { key: { branchId: 1, name: 1 } },
+      // Case-insensitive collation lets the products `name` prefix search use
+      // this index (anchored regex /^foo/ with the same collation reads from
+      // an index; without the collation Mongo would do a collection scan
+      // because the query is case-insensitive).
+      {
+        key: { branchId: 1, name: 1 },
+        options: { collation: { locale: 'es', strength: 2 } },
+      },
       { key: { businessId: 1, branchId: 1 } },
     ],
   },

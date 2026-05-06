@@ -133,6 +133,7 @@ const ctx = { route: '/api/products/p-1', method: 'PATCH' };
 
 function mockFindReturns(docs: Product[]): void {
   mockProducts.find.mockReturnValue({
+    collation: vi.fn().mockReturnThis(),
     sort: vi.fn().mockReturnThis(),
     skip: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
@@ -189,7 +190,7 @@ describe('products service', () => {
       );
     });
 
-    it('applies case-insensitive q across name and sku', async () => {
+    it('applies anchored prefix q across name and sku', async () => {
       mockFindReturns([]);
 
       await listProducts(adminPayload, {
@@ -202,10 +203,7 @@ describe('products service', () => {
 
       expect(mockProducts.find).toHaveBeenCalledWith(
         expect.objectContaining({
-          $or: [
-            { name: { $regex: 'arroz', $options: 'i' } },
-            { sku: { $regex: 'arroz', $options: 'i' } },
-          ],
+          $or: [{ name: { $regex: '^arroz' } }, { sku: { $regex: '^arroz' } }],
         }),
         expect.anything(),
       );

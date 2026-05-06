@@ -275,11 +275,19 @@ export async function apiJsonPaginated<T>(
   }
 
   const ok = body as { success: true; data: T[]; pagination?: Pagination };
-  const fallback: Pagination = {
-    page: 1,
-    limit: ok.data.length,
-    total: ok.data.length,
-    totalPages: 1,
+  if (ok.pagination) {
+    return { data: ok.data, pagination: ok.pagination };
+  }
+  // Should never happen — every list endpoint goes through `toPaginatedResponse`
+  // on the server. Surface it loudly so a regression doesn't silently truncate
+  // results, and synthesise a single-page envelope so the UI keeps working.
+  // eslint-disable-next-line no-console
+  console.warn('[api] paginated endpoint returned no pagination envelope', {
+    input,
+    dataLength: ok.data.length,
+  });
+  return {
+    data: ok.data,
+    pagination: { page: 1, limit: ok.data.length, total: ok.data.length, totalPages: 1 },
   };
-  return { data: ok.data, pagination: ok.pagination ?? fallback };
 }

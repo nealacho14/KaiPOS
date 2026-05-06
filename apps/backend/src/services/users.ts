@@ -7,7 +7,7 @@ import { createLogger } from '../lib/logger.js';
 import { paginate, type PaginatedResult } from '../lib/paginate.js';
 import { hashPassword } from '../lib/password.js';
 import { stripPasswordHash, type SafeUser } from '../lib/user-sanitize.js';
-import type { CreateUserInput, UpdateUserInput } from '../schemas/users.js';
+import type { CreateUserInput, ListUsersQuery, UpdateUserInput } from '../schemas/users.js';
 import { logAuditEvent } from './audit.js';
 
 const log = createLogger({ module: 'users-service' });
@@ -19,7 +19,10 @@ const MANAGER_ASSIGNABLE_ROLES: ReadonlySet<UserRole> = new Set([
   'kitchen',
 ]);
 
-function buildScopeFilter(actor: TokenPayload, query?: { businessId?: string }): Filter<User> {
+function buildScopeFilter(
+  actor: TokenPayload,
+  query?: Pick<ListUsersQuery, 'businessId'>,
+): Filter<User> {
   if (actor.role === 'super_admin') {
     return query?.businessId ? { businessId: query.businessId } : {};
   }
@@ -70,7 +73,7 @@ function assertManagerCanAssign(
 
 export async function listUsers(
   actor: TokenPayload,
-  query: { businessId?: string; page?: number; limit?: number } = {},
+  query: Partial<ListUsersQuery> = {},
 ): Promise<PaginatedResult<SafeUser>> {
   const users = await getUsersCollection();
   const result = await paginate({

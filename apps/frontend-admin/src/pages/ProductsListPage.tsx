@@ -29,14 +29,13 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TablePagination,
   TableRow,
   TextField,
   Trash2,
 } from '@kaipos/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { EmptyState, PageHeader } from '../components/index.js';
+import { EmptyState, PageHeader, PaginationFooter } from '../components/index.js';
 import { useAuth } from '../context/AuthContext.js';
 import { useWebSocketContext } from '../context/WebSocketContext.js';
 import { useActiveBranch } from '../hooks/useActiveBranch.js';
@@ -197,10 +196,15 @@ export function ProductsListPage() {
       setPendingDelete(null);
       // If we are currently showing active-only, drop the row locally; otherwise
       // refetch so the server's soft-delete state (isActive=false) is authoritative.
-      if (!includeInactive && state.status === 'success') {
+      // If the delete leaves the current page empty there may still be more
+      // rows on earlier pages — refetch to avoid showing a blank table. Same
+      // for the includeInactive path which always refetches anyway.
+      const remaining =
+        state.status === 'success' ? state.data.filter((p) => p._id !== pendingDelete._id) : [];
+      if (!includeInactive && state.status === 'success' && remaining.length > 0) {
         setState({
           status: 'success',
-          data: state.data.filter((p) => p._id !== pendingDelete._id),
+          data: remaining,
           pagination: {
             ...state.pagination,
             total: Math.max(0, state.pagination.total - 1),
@@ -351,19 +355,15 @@ export function ProductsListPage() {
                   setPendingDelete(product);
                 }}
               />
-              <TablePagination
-                component="div"
+              <PaginationFooter
                 count={state.pagination.total}
                 page={page}
-                onPageChange={(_, next) => setPage(next)}
-                rowsPerPage={limit}
-                onRowsPerPageChange={(e) => {
-                  setLimit(parseInt(e.target.value, 10));
+                limit={limit}
+                onPageChange={setPage}
+                onLimitChange={(next) => {
+                  setLimit(next);
                   setPage(0);
                 }}
-                rowsPerPageOptions={[25, 50, 100]}
-                labelRowsPerPage="Filas por página"
-                labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`}
               />
             </>
           )}

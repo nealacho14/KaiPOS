@@ -14,12 +14,11 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TablePagination,
   TableRow,
 } from '@kaipos/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { EmptyState, PageHeader } from '../components/index.js';
+import { EmptyState, PageHeader, PaginationFooter } from '../components/index.js';
 import { useAuth } from '../context/AuthContext.js';
 import { ApiError, type Pagination } from '../lib/api.js';
 import { listUsers } from '../lib/users-api.js';
@@ -136,19 +135,15 @@ export function UsersListPage() {
       {state.status === 'success' && state.data.length > 0 && (
         <>
           <UsersTable users={state.data} canWrite={canWrite} />
-          <TablePagination
-            component="div"
+          <PaginationFooter
             count={state.pagination.total}
             page={page}
-            onPageChange={(_, next) => setPage(next)}
-            rowsPerPage={limit}
-            onRowsPerPageChange={(e) => {
-              setLimit(parseInt(e.target.value, 10));
+            limit={limit}
+            onPageChange={setPage}
+            onLimitChange={(next) => {
+              setLimit(next);
               setPage(0);
             }}
-            rowsPerPageOptions={[25, 50, 100]}
-            labelRowsPerPage="Filas por página"
-            labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`}
           />
         </>
       )}

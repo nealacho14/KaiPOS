@@ -18,13 +18,12 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TablePagination,
   TableRow,
   TextField,
   Trash2,
 } from '@kaipos/ui';
 import { useCallback, useEffect, useId, useState } from 'react';
-import { EmptyState, PageHeader } from '../components/index.js';
+import { EmptyState, PageHeader, PaginationFooter } from '../components/index.js';
 import { useAuth } from '../context/AuthContext.js';
 import { type Pagination } from '../lib/api.js';
 import {
@@ -91,8 +90,13 @@ export function CategoriesListPage() {
       await createCategory(payload);
       setCreateName('');
       setCreating(false);
-      setPage(0);
-      retry();
+      // If we're already on page 0, just retry — otherwise setPage(0)
+      // triggers the refetch on its own (don't double-fetch).
+      if (page !== 0) {
+        setPage(0);
+      } else {
+        retry();
+      }
     } catch (err) {
       const mapped = toCategoriesApiError(err);
       if (mapped.code === 'DUPLICATE_CATEGORY_NAME') {
@@ -103,7 +107,7 @@ export function CategoriesListPage() {
     } finally {
       setCreateSubmitting(false);
     }
-  }, [createName, retry]);
+  }, [createName, retry, page]);
 
   const handleDelete = useCallback(
     async (id: string) => {
@@ -241,19 +245,15 @@ export function CategoriesListPage() {
               </TableBody>
             </Table>
           </TableContainer>
-          <TablePagination
-            component="div"
+          <PaginationFooter
             count={state.pagination.total}
             page={page}
-            onPageChange={(_, next) => setPage(next)}
-            rowsPerPage={limit}
-            onRowsPerPageChange={(e) => {
-              setLimit(parseInt(e.target.value, 10));
+            limit={limit}
+            onPageChange={setPage}
+            onLimitChange={(next) => {
+              setLimit(next);
               setPage(0);
             }}
-            rowsPerPageOptions={[25, 50, 100]}
-            labelRowsPerPage="Filas por página"
-            labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`}
           />
         </>
       )}

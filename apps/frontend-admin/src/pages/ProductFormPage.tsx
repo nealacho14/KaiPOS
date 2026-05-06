@@ -63,7 +63,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { EmptyState, PageHeader } from '../components/index.js';
 import { useAuth } from '../context/AuthContext.js';
 import { useActiveBranch } from '../hooks/useActiveBranch.js';
-import { ApiError, apiJson } from '../lib/api.js';
+import { ApiError } from '../lib/api.js';
+import { listKitchenStations } from '../lib/kitchen-stations-api.js';
 import {
   createProduct,
   generateUploadUrl,
@@ -435,10 +436,8 @@ export function ProductFormPage() {
     let cancelled = false;
     setStations(null);
     setStationsError(null);
-    apiJson<KitchenStation[]>(
-      `/api/kitchen-stations?branchId=${encodeURIComponent(branchId)}&limit=100`,
-    )
-      .then((data) => {
+    listKitchenStations({ branchId, limit: 100 })
+      .then(({ data }) => {
         if (!cancelled) setStations(data);
       })
       .catch((err: unknown) => {

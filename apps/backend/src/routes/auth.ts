@@ -14,8 +14,8 @@ import * as authService from '../services/auth.js';
 const auth = new Hono<AppEnv>();
 
 auth.post('/api/auth/login', validate({ body: loginSchema }), async (c) => {
-  const { email, password } = await c.req.json();
-  const result = await authService.login(email, password);
+  const { email, password, rememberMe } = await c.req.json();
+  const result = await authService.login(email, password, rememberMe);
   return c.json({ success: true, data: result });
 });
 

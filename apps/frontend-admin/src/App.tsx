@@ -3,16 +3,20 @@ import { RequireAuth, RequirePermission } from './components/guards/index.js';
 import { AppLayout } from './layouts/AppLayout.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { DebugWebSocket } from './pages/DebugWebSocket.js';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { NotFoundPage } from './pages/NotFoundPage.js';
 import { ProductFormPage } from './pages/ProductFormPage.js';
 import { ProductsListPage } from './pages/ProductsListPage.js';
+import { ResetPasswordPage } from './pages/ResetPasswordPage.js';
 import { UsersListPage } from './pages/UsersListPage.js';
 
 export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>

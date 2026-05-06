@@ -160,4 +160,57 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: /ocultar contraseña/i }));
     expect(password.type).toBe('password');
   });
+
+  it('sends rememberMe in the login request body matching the checkbox state', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : (input as URL).toString();
+      if (url === '/api/auth/login') {
+        return jsonResponse(200, {
+          success: true,
+          data: {
+            accessToken: 'a',
+            refreshToken: 'r',
+            user: {
+              _id: 'u1',
+              businessId: 'b1',
+              email: 'admin@x.com',
+              name: 'Admin',
+              role: 'admin',
+              isActive: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              createdBy: 'system',
+            },
+          },
+        });
+      }
+      if (url === '/api/auth/me') {
+        return jsonResponse(200, {
+          success: true,
+          data: { user: {}, business: null },
+        });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    renderLogin();
+
+    // Default state: checkbox is checked → rememberMe should be true
+    await user.type(screen.getByLabelText(/email/i), 'admin@x.com');
+    await user.type(screen.getByLabelText('Contraseña'), 'secret');
+    await user.click(screen.getByRole('button', { name: /iniciar sesión/i }));
+
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalled();
+    });
+
+    const loginCall = fetchMock.mock.calls.find(
+      ([input]) =>
+        (typeof input === 'string' ? input : (input as URL).toString()) === '/api/auth/login',
+    );
+    expect(loginCall).toBeDefined();
+    const body = JSON.parse((loginCall![1]?.body as string) ?? '{}');
+    expect(body.rememberMe).toBe(true);
+  });
 });

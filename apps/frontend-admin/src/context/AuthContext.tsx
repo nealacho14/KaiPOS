@@ -21,7 +21,7 @@ export interface AuthContextValue {
   status: AuthStatus;
   user: SessionUser | null;
   business: AuthBusiness;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -88,11 +88,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, rememberMe?: boolean) => {
     const data = await apiJson<LoginResponse>('/api/auth/login', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, rememberMe: rememberMe ?? false }),
       skipAuth: true,
     });
 

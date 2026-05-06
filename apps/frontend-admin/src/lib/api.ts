@@ -1,4 +1,4 @@
-import type { ApiErrorDetail, RefreshResponse } from '@kaipos/shared';
+import type { ApiErrorDetail, PaginatedResponse, RefreshResponse } from '@kaipos/shared';
 import { clearSession, getSelectedBusinessId, getSession, setSession } from './auth-storage.js';
 
 type AuthFailureHandler = () => void;
@@ -230,4 +230,56 @@ export async function apiJson<T>(input: RequestInfo | URL, init?: ApiInit): Prom
   }
 
   return (body as { success: true; data: T }).data;
+}
+
+export type Pagination = PaginatedResponse<unknown>['pagination'];
+
+export interface PaginatedResult<T> {
+  data: T[];
+  pagination: Pagination;
+}
+
+// Identical to apiJson but also surfaces the `pagination` envelope sibling.
+// Use for list endpoints that returned `{ success, data, pagination }`.
+export async function apiJsonPaginated<T>(
+  input: RequestInfo | URL,
+  init?: ApiInit,
+): Promise<PaginatedResult<T>> {
+  const res = await api(input, init);
+
+  let body: unknown = null;
+  try {
+    body = await res.json();
+  } catch {
+    body = null;
+  }
+
+  if (
+    !res.ok ||
+    !body ||
+    typeof body !== 'object' ||
+    (body as { success?: boolean }).success !== true
+  ) {
+    const errorBody = body as {
+      success: false;
+      error?: string;
+      code?: string;
+      details?: ApiErrorDetail[];
+    } | null;
+    throw new ApiError(
+      errorBody?.error ?? `Request failed with status ${res.status}`,
+      res.status,
+      errorBody?.code ?? 'UNKNOWN_ERROR',
+      errorBody?.details,
+    );
+  }
+
+  const ok = body as { success: true; data: T[]; pagination?: Pagination };
+  const fallback: Pagination = {
+    page: 1,
+    limit: ok.data.length,
+    total: ok.data.length,
+    totalPages: 1,
+  };
+  return { data: ok.data, pagination: ok.pagination ?? fallback };
 }

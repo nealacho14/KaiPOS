@@ -416,10 +416,10 @@ export function ProductFormPage() {
   // reachable or the user lacks `categories:read`.
   useEffect(() => {
     let cancelled = false;
-    listCategories()
-      .then((categories) => {
+    listCategories({ limit: 100 })
+      .then(({ data }) => {
         if (cancelled) return;
-        setCategoryOptions(categories.map((c) => c.name).sort((a, b) => a.localeCompare(b, 'es')));
+        setCategoryOptions(data.map((c) => c.name).sort((a, b) => a.localeCompare(b, 'es')));
       })
       .catch(() => {
         if (!cancelled) setCategoryOptions([]);
@@ -435,7 +435,9 @@ export function ProductFormPage() {
     let cancelled = false;
     setStations(null);
     setStationsError(null);
-    apiJson<KitchenStation[]>(`/api/kitchen-stations?branchId=${encodeURIComponent(branchId)}`)
+    apiJson<KitchenStation[]>(
+      `/api/kitchen-stations?branchId=${encodeURIComponent(branchId)}&limit=100`,
+    )
       .then((data) => {
         if (!cancelled) setStations(data);
       })

@@ -14,20 +14,22 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
 } from '@kaipos/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { EmptyState, PageHeader } from '../components/index.js';
 import { useAuth } from '../context/AuthContext.js';
-import { ApiError, apiJson } from '../lib/api.js';
+import { ApiError, type Pagination } from '../lib/api.js';
+import { listUsers } from '../lib/users-api.js';
 
 type SafeUser = Omit<User, 'passwordHash'>;
 
 type FetchState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'success'; data: SafeUser[] };
+  | { status: 'success'; data: SafeUser[]; pagination: Pagination };
 
 const ROLE_LABEL: Record<UserRole, string> = {
   super_admin: 'Super Admin',
@@ -55,6 +57,8 @@ export function UsersListPage() {
   const { user: actor } = useAuth();
   const [state, setState] = useState<FetchState>({ status: 'loading' });
   const [reloadKey, setReloadKey] = useState(0);
+  const [page, setPage] = useState(0);
+  const [limit, setLimit] = useState(50);
 
   const canWrite = actor ? hasPermission(actor.role, 'users:write') : false;
 
@@ -65,9 +69,9 @@ export function UsersListPage() {
 
   useEffect(() => {
     let cancelled = false;
-    apiJson<SafeUser[]>('/api/users')
-      .then((data) => {
-        if (!cancelled) setState({ status: 'success', data });
+    listUsers({ page: page + 1, limit })
+      .then(({ data, pagination }) => {
+        if (!cancelled) setState({ status: 'success', data, pagination });
       })
       .catch((err) => {
         if (!cancelled) setState({ status: 'error', message: mapError(err) });
@@ -75,7 +79,7 @@ export function UsersListPage() {
     return () => {
       cancelled = true;
     };
-  }, [reloadKey]);
+  }, [reloadKey, page, limit]);
 
   return (
     <>
@@ -130,7 +134,23 @@ export function UsersListPage() {
       )}
 
       {state.status === 'success' && state.data.length > 0 && (
-        <UsersTable users={state.data} canWrite={canWrite} />
+        <>
+          <UsersTable users={state.data} canWrite={canWrite} />
+          <TablePagination
+            component="div"
+            count={state.pagination.total}
+            page={page}
+            onPageChange={(_, next) => setPage(next)}
+            rowsPerPage={limit}
+            onRowsPerPageChange={(e) => {
+              setLimit(parseInt(e.target.value, 10));
+              setPage(0);
+            }}
+            rowsPerPageOptions={[25, 50, 100]}
+            labelRowsPerPage="Filas por página"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`}
+          />
+        </>
       )}
     </>
   );

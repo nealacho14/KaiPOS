@@ -1,5 +1,5 @@
 import type { Category } from '@kaipos/shared';
-import { ApiError, apiJson } from './api.js';
+import { ApiError, apiJson, apiJsonPaginated, type PaginatedResult } from './api.js';
 
 export interface CreateCategoryPayload {
   name: string;
@@ -51,9 +51,21 @@ export function toCategoriesApiError(err: unknown): CategoriesApiError {
   };
 }
 
-export function listCategories(includeInactive = false): Promise<Category[]> {
-  const qs = includeInactive ? '?includeInactive=true' : '';
-  return apiJson<Category[]>(`/api/categories${qs}`);
+export interface ListCategoriesParams {
+  includeInactive?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export function listCategories(
+  params: ListCategoriesParams = {},
+): Promise<PaginatedResult<Category>> {
+  const qs = new URLSearchParams();
+  if (params.includeInactive) qs.set('includeInactive', 'true');
+  if (params.page !== undefined) qs.set('page', String(params.page));
+  if (params.limit !== undefined) qs.set('limit', String(params.limit));
+  const s = qs.toString();
+  return apiJsonPaginated<Category>(`/api/categories${s ? `?${s}` : ''}`);
 }
 
 export function createCategory(payload: CreateCategoryPayload): Promise<Category> {

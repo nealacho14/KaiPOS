@@ -29,6 +29,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   TextField,
   Trash2,
@@ -40,13 +41,13 @@ import { useAuth } from '../context/AuthContext.js';
 import { useWebSocketContext } from '../context/WebSocketContext.js';
 import { useActiveBranch } from '../hooks/useActiveBranch.js';
 import { useBranches } from '../hooks/useBranches.js';
-import { ApiError } from '../lib/api.js';
+import { ApiError, type Pagination } from '../lib/api.js';
 import { deleteProduct, listProducts } from '../lib/products-api.js';
 
 type FetchState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'success'; data: Product[] };
+  | { status: 'success'; data: Product[]; pagination: Pagination };
 
 function mapError(err: unknown): string {
   if (err instanceof ApiError) {
@@ -91,6 +92,8 @@ export function ProductsListPage() {
 
   const [state, setState] = useState<FetchState>({ status: 'loading' });
   const [reloadKey, setReloadKey] = useState(0);
+  const [page, setPage] = useState(0);
+  const [limit, setLimit] = useState(50);
   const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -150,6 +153,12 @@ export function ProductsListPage() {
     });
   }, [branchChannel]);
 
+  // Reset to first page whenever the filter/sucursal changes — otherwise the
+  // request asks for `page=3` of a result set that may now have one page.
+  useEffect(() => {
+    setPage(0);
+  }, [branchId, debouncedQuery, category, includeInactive]);
+
   useEffect(() => {
     if (!branchId) return;
     let cancelled = false;
@@ -159,9 +168,11 @@ export function ProductsListPage() {
       q: debouncedQuery.trim() || undefined,
       category: category || undefined,
       includeInactive: includeInactive || undefined,
+      page: page + 1,
+      limit,
     })
-      .then((data) => {
-        if (!cancelled) setState({ status: 'success', data });
+      .then(({ data, pagination }) => {
+        if (!cancelled) setState({ status: 'success', data, pagination });
       })
       .catch((err) => {
         if (!cancelled) setState({ status: 'error', message: mapError(err) });
@@ -169,7 +180,7 @@ export function ProductsListPage() {
     return () => {
       cancelled = true;
     };
-  }, [branchId, debouncedQuery, category, includeInactive, reloadKey]);
+  }, [branchId, debouncedQuery, category, includeInactive, reloadKey, page, limit]);
 
   const categoryOptions = useMemo(() => {
     if (state.status !== 'success') return [];
@@ -190,6 +201,10 @@ export function ProductsListPage() {
         setState({
           status: 'success',
           data: state.data.filter((p) => p._id !== pendingDelete._id),
+          pagination: {
+            ...state.pagination,
+            total: Math.max(0, state.pagination.total - 1),
+          },
         });
       } else {
         retry();
@@ -325,16 +340,32 @@ export function ProductsListPage() {
           )}
 
           {state.status === 'success' && state.data.length > 0 && (
-            <ProductsTable
-              products={state.data}
-              canWrite={canWrite}
-              canDelete={canDelete}
-              onEdit={(id) => navigate(`/products/${id}/edit`)}
-              onDelete={(product) => {
-                setDeleteError(null);
-                setPendingDelete(product);
-              }}
-            />
+            <>
+              <ProductsTable
+                products={state.data}
+                canWrite={canWrite}
+                canDelete={canDelete}
+                onEdit={(id) => navigate(`/products/${id}/edit`)}
+                onDelete={(product) => {
+                  setDeleteError(null);
+                  setPendingDelete(product);
+                }}
+              />
+              <TablePagination
+                component="div"
+                count={state.pagination.total}
+                page={page}
+                onPageChange={(_, next) => setPage(next)}
+                rowsPerPage={limit}
+                onRowsPerPageChange={(e) => {
+                  setLimit(parseInt(e.target.value, 10));
+                  setPage(0);
+                }}
+                rowsPerPageOptions={[25, 50, 100]}
+                labelRowsPerPage="Filas por página"
+                labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`}
+              />
+            </>
           )}
         </>
       )}

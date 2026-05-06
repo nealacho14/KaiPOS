@@ -1,5 +1,5 @@
 import type { User, UserRole } from '@kaipos/shared';
-import { ApiError, apiJson } from './api.js';
+import { ApiError, apiJson, apiJsonPaginated, type PaginatedResult } from './api.js';
 
 export type SafeUser = Omit<User, 'passwordHash'>;
 
@@ -58,6 +58,25 @@ export function toUsersApiError(err: unknown): UsersApiError {
     message: err instanceof Error ? err.message : 'Unknown error',
     status: 0,
   };
+}
+
+export interface ListUsersQuery {
+  page?: number;
+  limit?: number;
+  businessId?: string;
+}
+
+function buildUsersListQuery(query: ListUsersQuery = {}): string {
+  const qs = new URLSearchParams();
+  if (query.page !== undefined) qs.set('page', String(query.page));
+  if (query.limit !== undefined) qs.set('limit', String(query.limit));
+  if (query.businessId) qs.set('businessId', query.businessId);
+  const s = qs.toString();
+  return s ? `?${s}` : '';
+}
+
+export function listUsers(query: ListUsersQuery = {}): Promise<PaginatedResult<SafeUser>> {
+  return apiJsonPaginated<SafeUser>(`/api/users${buildUsersListQuery(query)}`);
 }
 
 export function getUser(id: string): Promise<SafeUser> {

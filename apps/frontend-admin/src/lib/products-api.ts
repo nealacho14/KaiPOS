@@ -1,5 +1,5 @@
 import type { Product } from '@kaipos/shared';
-import { api, ApiError, apiJson } from './api.js';
+import { api, ApiError, apiJson, apiJsonPaginated, type PaginatedResult } from './api.js';
 
 // ---------------------------------------------------------------------------
 // Request / response shapes
@@ -11,6 +11,8 @@ export interface ListProductsParams {
   category?: string;
   includeInactive?: boolean;
   businessId?: string;
+  page?: number;
+  limit?: number;
 }
 
 // `createdBy` is stamped on the server from the authenticated actor, never
@@ -92,11 +94,13 @@ function buildListQuery(params: ListProductsParams): string {
   if (params.category) qs.set('category', params.category);
   if (params.includeInactive) qs.set('includeInactive', 'true');
   if (params.businessId) qs.set('businessId', params.businessId);
+  if (params.page !== undefined) qs.set('page', String(params.page));
+  if (params.limit !== undefined) qs.set('limit', String(params.limit));
   return qs.toString();
 }
 
-export function listProducts(params: ListProductsParams): Promise<Product[]> {
-  return apiJson<Product[]>(`/api/products?${buildListQuery(params)}`);
+export function listProducts(params: ListProductsParams): Promise<PaginatedResult<Product>> {
+  return apiJsonPaginated<Product>(`/api/products?${buildListQuery(params)}`);
 }
 
 export function getProduct(id: string): Promise<Product> {

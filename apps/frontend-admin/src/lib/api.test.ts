@@ -141,4 +141,75 @@ describe('api()', () => {
     );
     expect(refreshCalls).toHaveLength(0);
   });
+
+  it('retries transparently on API Gateway throttle 503', async () => {
+    let calls = 0;
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      calls++;
+      // First two return the API GW throttle body; third succeeds.
+      if (calls < 3) {
+        return new Response('{"message":"Service Unavailable"}', {
+          status: 503,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return jsonResponse(200, { success: true, data: { ok: true } });
+    });
+
+    const res = await api('/api/anything', { skipAuth: true });
+    expect(res.status).toBe(200);
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('gives up after MAX_THROTTLE_RETRIES (3 total attempts) and returns the 503', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () =>
+        new Response('{"message":"Service Unavailable"}', {
+          status: 503,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+
+    const res = await api('/api/anything', { skipAuth: true });
+    expect(res.status).toBe(503);
+    // 1 original + 2 retries = 3
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('does NOT retry on a 503 that is not the API Gateway throttle body', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse(503, {
+        success: false,
+        error: 'Assets bucket is not configured',
+        code: 'ASSETS_NOT_CONFIGURED',
+      }),
+    );
+
+    const res = await api('/api/anything', { skipAuth: true });
+    expect(res.status).toBe(503);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the session when refresh fails with a transient 503 (no re-login loop)', async () => {
+    setSession({ accessToken: 'old', refreshToken: 'rfr-1' });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : (input as URL).toString();
+      if (url === '/api/auth/refresh') {
+        // 503 from API Gateway throttle while the refresh endpoint is being throttled
+        return new Response('{"message":"Service Unavailable"}', {
+          status: 503,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return jsonResponse(401, { success: false, error: 'expired', code: 'TOKEN_EXPIRED' });
+    });
+
+    await api('/api/users');
+    // Session must NOT be cleared on transient failures — that creates the
+    // re-login loop we observed during the AWS quota incident.
+    expect(window.localStorage.getItem('kaipos:accessToken')).toBe('old');
+    expect(window.localStorage.getItem('kaipos:refreshToken')).toBe('rfr-1');
+    expect(window.location.assign).not.toHaveBeenCalled();
+  });
 });

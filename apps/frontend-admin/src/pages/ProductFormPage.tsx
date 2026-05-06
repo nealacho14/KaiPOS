@@ -9,6 +9,7 @@ import type {
   StockUnit,
 } from '@kaipos/shared';
 import { formatCurrency, hasPermission } from '@kaipos/shared';
+import { createProductSchema } from '@kaipos/shared/schemas/products';
 import {
   Alert,
   AlertTitle,
@@ -281,18 +282,42 @@ function formToUpdatePayload(form: FormState): UpdateProductPayload {
   };
 }
 
+// Field-level error messages keyed by the schema's field name. Localized so we
+// don't ship Zod's English defaults to the user. Anything not in this map
+// falls back to a generic "campo inválido" message — better than English.
+const FIELD_ERROR_COPY: Record<string, string> = {
+  name: 'El nombre es obligatorio.',
+  category: 'La categoría es obligatoria.',
+  sku: 'El SKU es obligatorio.',
+  price: 'Ingresa un precio válido.',
+  stock: 'Ingresa una cantidad válida.',
+  cost: 'Ingresa un costo válido.',
+  taxRate: 'Ingresa un IVA entre 0 y 100.',
+  lowStockThreshold: 'Ingresa un umbral válido.',
+  imageUrl: 'La URL de la imagen no es válida.',
+};
+
 function validateClientSide(
   form: FormState,
   branchId: string | null,
 ): Record<string, string> | null {
   const errors: Record<string, string> = {};
-  if (!form.name.trim()) errors.name = 'El nombre es obligatorio.';
-  if (!form.category.trim()) errors.category = 'La categoría es obligatoria.';
-  if (!form.sku.trim()) errors.sku = 'El SKU es obligatorio.';
-  if (form.price.trim() === '' || Number.isNaN(Number(form.price)) || Number(form.price) < 0) {
-    errors.price = 'Ingresa un precio válido.';
+  if (!branchId) {
+    errors.branchId = 'Selecciona una sucursal.';
+    return errors;
   }
-  if (!branchId) errors.branchId = 'Selecciona una sucursal.';
+  // Defer to the shared Zod schema so client-side checks match the backend
+  // exactly. We feed it the same payload that would be sent on submit.
+  const payload = formToCreatePayload(form, branchId);
+  const result = createProductSchema.safeParse(payload);
+  if (!result.success) {
+    for (const issue of result.error.issues) {
+      const top = issue.path[0];
+      if (typeof top === 'string' && !errors[top]) {
+        errors[top] = FIELD_ERROR_COPY[top] ?? 'Revisa este campo.';
+      }
+    }
+  }
   return Object.keys(errors).length > 0 ? errors : null;
 }
 

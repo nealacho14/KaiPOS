@@ -70,29 +70,5 @@ export {
   type LogoVariant,
 } from './KaiPOSLogo.js';
 
-// Icon surface — `lucide-react` is the canonical icon set for the shell.
-// Re-exported here so consumer code never imports `lucide-react` directly,
-// keeping the icon origin swappable without a workspace-wide rewrite.
-export {
-  AlertCircle,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Edit,
-  Eye,
-  EyeOff,
-  Image as ImageIcon,
-  Inbox,
-  LayoutDashboard,
-  LogOut,
-  Menu as MenuIcon,
-  Package,
-  Plus,
-  Radio,
-  Trash2,
-  Upload,
-  Users as UsersIcon,
-  X,
-  type LucideIcon,
-  type LucideProps,
-} from 'lucide-react';
+// Icons live in `@kaipos/ui/icons`; the root export re-exports them in
+// `src/index.ts` so existing `import { Plus } from '@kaipos/ui'` keeps working.

@@ -24,6 +24,7 @@ import {
   FormControl,
   FormControlLabel,
   FormHelperText,
+  GripVertical,
   IconButton,
   ImageIcon,
   InputLabel,
@@ -38,6 +39,23 @@ import {
   Upload,
   X,
 } from '@kaipos/ui';
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { EmptyState, PageHeader } from '../components/index.js';
@@ -562,17 +580,8 @@ export function ProductFormPage() {
       >
         <Breadcrumb category={form.category} name={form.name} mode={mode} />
         <Stack direction="row" spacing={1} alignItems="center">
-          <Chip
-            size="small"
-            label="Borrador · guardado hace 4s"
-            variant="outlined"
-            sx={{ color: 'text.secondary' }}
-          />
           <Button size="small" disabled>
             Vista previa
-          </Button>
-          <Button size="small" variant="outlined" disabled>
-            Guardar borrador
           </Button>
           <Button
             size="small"
@@ -1058,6 +1067,32 @@ function ModifiersCard({ groups, onChange }: ModifiersCardProps) {
     );
   };
 
+  const reorderOptions = (groupId: string, fromId: string, toId: string) => {
+    onChange(
+      groups.map((g) => {
+        if (g.id !== groupId) return g;
+        const fromIdx = g.options.findIndex((o) => o.id === fromId);
+        const toIdx = g.options.findIndex((o) => o.id === toId);
+        if (fromIdx < 0 || toIdx < 0) return g;
+        return { ...g, options: arrayMove(g.options, fromIdx, toIdx) };
+      }),
+    );
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleGroupDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const fromIdx = groups.findIndex((g) => g.id === active.id);
+    const toIdx = groups.findIndex((g) => g.id === over.id);
+    if (fromIdx < 0 || toIdx < 0) return;
+    onChange(arrayMove(groups, fromIdx, toIdx));
+  };
+
   return (
     <SectionCard
       title="Modificadores"
@@ -1078,101 +1113,202 @@ function ModifiersCard({ groups, onChange }: ModifiersCardProps) {
           Aún no hay grupos. Agrega uno para ofrecer variantes como tamaño o picante.
         </Typography>
       )}
-      <Stack spacing={2}>
-        {groups.map((group) => (
-          <Box
-            key={group.id}
-            sx={{
-              p: 2,
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'action.hover',
-            }}
-          >
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
-              <Typography
-                component="span"
-                aria-hidden
-                sx={{ color: 'text.disabled', cursor: 'not-allowed', px: 0.5 }}
-                title="Reordenar (próximamente)"
-              >
-                ⋮⋮
-              </Typography>
-              <TextField
-                size="small"
-                value={group.name}
-                onChange={(e) => updateGroup(group.id, { name: e.target.value })}
-                sx={{ flex: 1 }}
-                inputProps={{ style: { fontWeight: 600 } }}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleGroupDragEnd}
+      >
+        <SortableContext items={groups.map((g) => g.id)} strategy={verticalListSortingStrategy}>
+          <Stack spacing={2}>
+            {groups.map((group) => (
+              <SortableGroup
+                key={group.id}
+                group={group}
+                onUpdate={(patch) => updateGroup(group.id, patch)}
+                onRemove={() => removeGroup(group.id)}
+                onAddOption={() => addOption(group.id)}
+                onUpdateOption={(optionId, patch) => updateOption(group.id, optionId, patch)}
+                onRemoveOption={(optionId) => removeOption(group.id, optionId)}
+                onReorderOptions={(fromId, toId) => reorderOptions(group.id, fromId, toId)}
+                sensors={sensors}
               />
-              <FormControlLabel
-                control={
-                  <Switch
-                    size="small"
-                    checked={group.required}
-                    onChange={(e) => updateGroup(group.id, { required: e.target.checked })}
-                  />
-                }
-                label={group.required ? 'Requerido' : 'Opcional'}
-                sx={{ m: 0 }}
-              />
-              <IconButton
-                size="small"
-                color="error"
-                aria-label={`Eliminar grupo ${group.name}`}
-                onClick={() => removeGroup(group.id)}
-              >
-                <X size={16} aria-hidden />
-              </IconButton>
-            </Stack>
-
-            <Stack spacing={1}>
-              {group.options.map((option) => (
-                <Stack key={option.id} direction="row" spacing={1} alignItems="center">
-                  <TextField
-                    size="small"
-                    label="Opción"
-                    value={option.label}
-                    onChange={(e) => updateOption(group.id, option.id, { label: e.target.value })}
-                    sx={{ flex: 2 }}
-                  />
-                  <TextField
-                    size="small"
-                    label="Δ Precio"
-                    type="number"
-                    value={option.priceDelta}
-                    onChange={(e) =>
-                      updateOption(group.id, option.id, {
-                        priceDelta: parseRequiredNumber(e.target.value),
-                      })
-                    }
-                    inputProps={{ step: '0.01' }}
-                    sx={{ width: 120 }}
-                  />
-                  <IconButton
-                    size="small"
-                    aria-label={`Eliminar opción ${option.label}`}
-                    onClick={() => removeOption(group.id, option.id)}
-                  >
-                    <X size={16} aria-hidden />
-                  </IconButton>
-                </Stack>
-              ))}
-              <Button
-                size="small"
-                variant="text"
-                startIcon={<Plus size={16} aria-hidden />}
-                onClick={() => addOption(group.id)}
-                sx={{ alignSelf: 'flex-start' }}
-              >
-                Opción
-              </Button>
-            </Stack>
-          </Box>
-        ))}
-      </Stack>
+            ))}
+          </Stack>
+        </SortableContext>
+      </DndContext>
     </SectionCard>
+  );
+}
+
+interface SortableGroupProps {
+  group: ModifierGroup;
+  onUpdate: (patch: Partial<ModifierGroup>) => void;
+  onRemove: () => void;
+  onAddOption: () => void;
+  onUpdateOption: (optionId: string, patch: Partial<ModifierOption>) => void;
+  onRemoveOption: (optionId: string) => void;
+  onReorderOptions: (fromId: string, toId: string) => void;
+  sensors: ReturnType<typeof useSensors>;
+}
+
+function SortableGroup({
+  group,
+  onUpdate,
+  onRemove,
+  onAddOption,
+  onUpdateOption,
+  onRemoveOption,
+  onReorderOptions,
+  sensors,
+}: SortableGroupProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: group.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+
+  const handleOptionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    onReorderOptions(String(active.id), String(over.id));
+  };
+
+  return (
+    <Box
+      ref={setNodeRef}
+      style={style}
+      sx={{
+        p: 2,
+        borderRadius: 2,
+        border: '1px solid',
+        borderColor: 'divider',
+        bgcolor: 'action.hover',
+      }}
+    >
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+        <IconButton
+          size="small"
+          aria-label={`Reordenar grupo ${group.name}`}
+          {...attributes}
+          {...listeners}
+          sx={{ cursor: 'grab', touchAction: 'none', color: 'text.disabled' }}
+        >
+          <GripVertical size={16} aria-hidden />
+        </IconButton>
+        <TextField
+          size="small"
+          value={group.name}
+          onChange={(e) => onUpdate({ name: e.target.value })}
+          sx={{ flex: 1 }}
+          inputProps={{ style: { fontWeight: 600 } }}
+        />
+        <FormControlLabel
+          control={
+            <Switch
+              size="small"
+              checked={group.required}
+              onChange={(e) => onUpdate({ required: e.target.checked })}
+            />
+          }
+          label={group.required ? 'Requerido' : 'Opcional'}
+          sx={{ m: 0 }}
+        />
+        <IconButton
+          size="small"
+          color="error"
+          aria-label={`Eliminar grupo ${group.name}`}
+          onClick={onRemove}
+        >
+          <X size={16} aria-hidden />
+        </IconButton>
+      </Stack>
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleOptionDragEnd}
+      >
+        <SortableContext
+          items={group.options.map((o) => o.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <Stack spacing={1}>
+            {group.options.map((option) => (
+              <SortableOption
+                key={option.id}
+                option={option}
+                onUpdate={(patch) => onUpdateOption(option.id, patch)}
+                onRemove={() => onRemoveOption(option.id)}
+              />
+            ))}
+            <Button
+              size="small"
+              variant="text"
+              startIcon={<Plus size={16} aria-hidden />}
+              onClick={onAddOption}
+              sx={{ alignSelf: 'flex-start' }}
+            >
+              Opción
+            </Button>
+          </Stack>
+        </SortableContext>
+      </DndContext>
+    </Box>
+  );
+}
+
+interface SortableOptionProps {
+  option: ModifierOption;
+  onUpdate: (patch: Partial<ModifierOption>) => void;
+  onRemove: () => void;
+}
+
+function SortableOption({ option, onUpdate, onRemove }: SortableOptionProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: option.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+
+  return (
+    <Stack ref={setNodeRef} style={style} direction="row" spacing={1} alignItems="center">
+      <IconButton
+        size="small"
+        aria-label={`Reordenar opción ${option.label}`}
+        {...attributes}
+        {...listeners}
+        sx={{ cursor: 'grab', touchAction: 'none', color: 'text.disabled' }}
+      >
+        <GripVertical size={14} aria-hidden />
+      </IconButton>
+      <TextField
+        size="small"
+        label="Opción"
+        value={option.label}
+        onChange={(e) => onUpdate({ label: e.target.value })}
+        sx={{ flex: 2 }}
+      />
+      <TextField
+        size="small"
+        label="Δ Precio"
+        type="number"
+        value={option.priceDelta}
+        onChange={(e) => onUpdate({ priceDelta: parseRequiredNumber(e.target.value) })}
+        inputProps={{ step: '0.01' }}
+        sx={{ width: 120 }}
+      />
+      <IconButton size="small" aria-label={`Eliminar opción ${option.label}`} onClick={onRemove}>
+        <X size={14} aria-hidden />
+      </IconButton>
+    </Stack>
   );
 }
 

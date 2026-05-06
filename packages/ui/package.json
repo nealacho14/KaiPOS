@@ -9,7 +9,8 @@
     "./theme": "./src/theme/index.ts",
     "./tokens": "./src/tokens/index.ts",
     "./providers": "./src/providers/index.ts",
-    "./components": "./src/components/index.ts"
+    "./components": "./src/components/index.ts",
+    "./icons": "./src/icons/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

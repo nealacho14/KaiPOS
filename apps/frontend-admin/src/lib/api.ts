@@ -44,9 +44,38 @@ interface ApiInit extends RequestInit {
 }
 
 const RETRIED = Symbol('api:retried');
-type RetryFlagged = ApiInit & { [RETRIED]?: true };
+const THROTTLE_RETRIES = Symbol('api:throttleRetries');
+type RetryFlagged = ApiInit & { [RETRIED]?: true; [THROTTLE_RETRIES]?: number };
 
 let inflightRefresh: Promise<RefreshResponse> | null = null;
+
+// API Gateway returns this exact body when it can't reach the integration —
+// either Lambda concurrency throttling or the integration target is briefly
+// unhealthy. Both are transient on our side; retry once with a small backoff
+// before surfacing the failure to the caller.
+const APIGW_503_BODY = '{"message":"Service Unavailable"}';
+const MAX_THROTTLE_RETRIES = 2;
+
+async function isApiGatewayThrottle(res: Response): Promise<boolean> {
+  if (res.status !== 503) return false;
+  try {
+    const text = await res.clone().text();
+    return text.trim() === APIGW_503_BODY;
+  } catch {
+    return false;
+  }
+}
+
+function backoffMs(attempt: number): number {
+  // 350ms, 800ms with ±20% jitter. Keeps total max wait ~1.4s across attempts.
+  const base = attempt === 0 ? 350 : 800;
+  const jitter = (Math.random() - 0.5) * 0.4 * base;
+  return Math.round(base + jitter);
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function performRefresh(refreshToken: string): Promise<RefreshResponse> {
   const res = await fetch('/api/auth/refresh', {
@@ -105,6 +134,18 @@ export async function api(input: RequestInfo | URL, init?: ApiInit): Promise<Res
   const headers = buildHeaders(init, session?.accessToken);
   const res = await fetch(input, { ...init, headers });
 
+  // Transparent retry on API Gateway throttle 503s. Capped at MAX_THROTTLE_RETRIES
+  // so a genuinely down service surfaces quickly instead of hanging the UI.
+  if (await isApiGatewayThrottle(res)) {
+    const attempts = flagged?.[THROTTLE_RETRIES] ?? 0;
+    if (attempts < MAX_THROTTLE_RETRIES) {
+      await delay(backoffMs(attempts));
+      const nextInit: RetryFlagged = { ...init };
+      nextInit[THROTTLE_RETRIES] = attempts + 1;
+      return api(input, nextInit);
+    }
+  }
+
   if (res.status !== 401 || init?.skipAuth || flagged?.[RETRIED]) {
     return res;
   }
@@ -133,9 +174,16 @@ export async function api(input: RequestInfo | URL, init?: ApiInit): Promise<Res
   let refreshed: RefreshResponse;
   try {
     refreshed = await refreshOnce(currentSession.refreshToken);
-  } catch {
-    clearSession();
-    redirectToLogin();
+  } catch (err) {
+    // Only purge the session when the server *explicitly* rejected the refresh
+    // token (401 / 403). Transient failures (5xx throttle, network error) must
+    // NOT clear the session — that just creates a re-login loop that further
+    // saturates the API. Surface the original 401 instead so the caller
+    // handles it; on the next request the user can retry.
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+      clearSession();
+      redirectToLogin();
+    }
     return res;
   }
 

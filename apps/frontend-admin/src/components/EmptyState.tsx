@@ -37,7 +37,7 @@ export function EmptyState({ icon, title, subtitle, action }: EmptyStateProps) {
         </Box>
       )}
       <Box>
-        <Typography variant="h6" component="p" sx={{ color: 'text.primary', fontWeight: 600 }}>
+        <Typography variant="h6" component="p" sx={{ color: 'text.primary' }}>
           {title}
         </Typography>
         {subtitle && (

@@ -70,9 +70,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               component={NavLink}
               to={item.to}
               onClick={onNavigate}
-              sx={{
+              sx={(theme) => ({
                 position: 'relative',
-                borderRadius: 1,
+                borderRadius: `${theme.radii.sm}px`,
                 mb: 0.5,
                 '&.active': {
                   bgcolor: 'action.selected',
@@ -85,18 +85,18 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                     top: 8,
                     bottom: 8,
                     width: 3,
-                    borderRadius: 1,
+                    borderRadius: `${theme.radii.xs}px`,
                     bgcolor: 'primary.main',
                   },
                 },
-              }}
+              })}
             >
               <ListItemIcon sx={{ minWidth: 36, color: 'text.secondary' }}>
                 <Icon size={18} aria-hidden />
               </ListItemIcon>
               <ListItemText
                 primary={item.label}
-                slotProps={{ primary: { sx: { fontSize: 14, fontWeight: 550 } } }}
+                slotProps={{ primary: { variant: 'subtitle2' } }}
               />
             </ListItemButton>
           );

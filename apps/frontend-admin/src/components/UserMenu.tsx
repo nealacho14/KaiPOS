@@ -55,17 +55,16 @@ export function UserMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Abrir menú de usuario"
-        sx={{ borderRadius: 999, p: 0.5, gap: 0.5 }}
+        sx={(theme) => ({ borderRadius: `${theme.radii.pill}px`, p: 0.5, gap: 0.5 })}
       >
         <Avatar
-          sx={{
+          sx={(theme) => ({
             width: 32,
             height: 32,
             bgcolor: avatarBg(user.role),
             color: 'primary.contrastText',
-            fontSize: 13,
-            fontWeight: 650,
-          }}
+            ...theme.typography.subtitle2,
+          })}
         >
           {initialsOf(user.name)}
         </Avatar>
@@ -81,9 +80,7 @@ export function UserMenu() {
       >
         <Box sx={{ px: 2, py: 1.25 }}>
           <Stack spacing={0.25}>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {user.name}
-            </Typography>
+            <Typography variant="subtitle2">{user.name}</Typography>
             <Typography variant="caption" color="text.secondary">
               {user.email}
             </Typography>

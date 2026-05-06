@@ -1,11 +1,13 @@
 import {
   Alert,
+  alpha,
   Box,
   Button,
   Checkbox,
   CircularProgress,
   Eye,
   EyeOff,
+  fontWeight,
   FormControlLabel,
   IconButton,
   KaiPOSLogo,
@@ -98,6 +100,7 @@ export function LoginPage() {
   }
 
   const submitting = status === 'submitting';
+  const onPrimary = theme.palette.common.white;
 
   return (
     <Box
@@ -116,9 +119,10 @@ export function LoginPage() {
           position: 'relative',
           overflow: 'hidden',
           bgcolor: 'primary.dark',
-          color: '#fff',
+          color: onPrimary,
           flexDirection: 'column',
-          padding: { md: '48px 56px' },
+          px: { md: 14 },
+          py: { md: 12 },
         }}
       >
         <Box
@@ -126,9 +130,7 @@ export function LoginPage() {
           sx={{
             position: 'absolute',
             inset: 0,
-            backgroundImage:
-              'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),' +
-              'linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
+            backgroundImage: `linear-gradient(${alpha(onPrimary, 0.04)} 1px, transparent 1px), linear-gradient(90deg, ${alpha(onPrimary, 0.04)} 1px, transparent 1px)`,
             backgroundSize: '32px 32px',
             pointerEvents: 'none',
           }}
@@ -141,58 +143,34 @@ export function LoginPage() {
           sx={{ position: 'relative', zIndex: 1 }}
         >
           <KaiPOSLogo variant="horizontal" colorVariant="white" size="md" />
-          <Box
+          <Typography
             component="span"
+            variant="overline"
             sx={{
               ml: 1,
-              fontSize: 11,
-              fontWeight: 650,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              padding: '3px 8px',
+              px: 1,
+              py: 0.375,
               borderRadius: `${theme.radii.xs}px`,
-              bgcolor: 'rgba(255,255,255,0.12)',
-              color: 'rgba(255,255,255,0.85)',
+              bgcolor: alpha(onPrimary, 0.12),
+              color: alpha(onPrimary, 0.85),
             }}
           >
             Merchant
-          </Box>
+          </Typography>
         </Stack>
 
         <Box sx={{ marginTop: 'auto', position: 'relative', zIndex: 1 }}>
-          <Typography
-            sx={{
-              fontSize: 11,
-              fontWeight: 650,
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              color: 'rgba(255,255,255,0.65)',
-            }}
-          >
+          <Typography variant="overline" sx={{ color: alpha(onPrimary, 0.65) }}>
             Panel de administración
           </Typography>
-          <Typography
-            component="h1"
-            sx={{
-              fontSize: { xs: 32, md: 44 },
-              fontWeight: 700,
-              letterSpacing: '-0.02em',
-              lineHeight: 1.12,
-              margin: '14px 0 16px',
-            }}
-          >
+          <Typography component="h1" variant="h2" sx={{ mt: 1.5, mb: 2 }}>
             Un solo lugar
             <br />
             para tu servicio.
           </Typography>
           <Typography
-            sx={{
-              fontSize: 16,
-              lineHeight: 1.5,
-              color: 'rgba(255,255,255,0.75)',
-              maxWidth: 420,
-              margin: 0,
-            }}
+            variant="subtitle1"
+            sx={{ color: alpha(onPrimary, 0.75), maxWidth: 420, m: 0 }}
           >
             Menú, inventario, turnos, reportes y tienda online — conectados en tiempo real a cada
             terminal, cocina y mesero.
@@ -204,32 +182,17 @@ export function LoginPage() {
         sx={{
           display: 'flex',
           flexDirection: 'column',
-          padding: { xs: '28px 20px', md: '48px 56px' },
+          alignItems: 'center',
+          px: { xs: 2.5, md: 6 },
+          py: { xs: 3.5, md: 12 },
           overflow: 'auto',
         }}
       >
-        <Box sx={{ margin: 'auto 0', maxWidth: 420, width: '100%' }}>
-          <Typography
-            sx={{
-              fontSize: 11,
-              fontWeight: 650,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: 'text.secondary',
-            }}
-          >
+        <Box sx={{ m: 'auto', width: '100%', maxWidth: 420 }}>
+          <Typography variant="overline" sx={{ color: 'text.secondary' }}>
             Bienvenido de vuelta
           </Typography>
-          <Typography
-            component="h2"
-            sx={{
-              fontSize: { xs: 26, md: 32 },
-              fontWeight: 700,
-              letterSpacing: '-0.02em',
-              lineHeight: 1.15,
-              margin: '8px 0 28px',
-            }}
-          >
+          <Typography component="h2" variant="h3" sx={{ mt: 1, mb: 3.5 }}>
             Inicia sesión en tu panel
           </Typography>
 
@@ -270,26 +233,27 @@ export function LoginPage() {
                   alignItems="baseline"
                   sx={{ mb: 0.75 }}
                 >
-                  <Box
+                  <Typography
                     component="label"
                     htmlFor={passwordId}
-                    sx={{ fontSize: 13, fontWeight: 550, color: 'text.primary' }}
+                    variant="body2"
+                    sx={{ fontWeight: theme.typography.fontWeightMedium, color: 'text.primary' }}
                   >
                     Contraseña
-                  </Box>
-                  <Box
+                  </Typography>
+                  <Typography
                     component={RouterLink}
                     to="/forgot-password"
+                    variant="caption"
                     sx={{
-                      fontSize: 12,
                       color: 'primary.main',
-                      fontWeight: 600,
+                      fontWeight: fontWeight.semibold,
                       textDecoration: 'none',
                       '&:hover': { textDecoration: 'underline' },
                     }}
                   >
                     ¿Olvidaste?
-                  </Box>
+                  </Typography>
                 </Stack>
 
                 <Box sx={{ position: 'relative' }}>
@@ -310,11 +274,7 @@ export function LoginPage() {
                     type="button"
                     aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                     onClick={() => setShowPassword((v) => !v)}
-                    sx={{
-                      position: 'absolute',
-                      right: 6,
-                      top: 8,
-                    }}
+                    sx={{ position: 'absolute', right: 6, top: 8 }}
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </IconButton>
@@ -331,7 +291,8 @@ export function LoginPage() {
                   />
                 }
                 label="Mantener sesión en este dispositivo (30 días)"
-                sx={{ color: 'text.secondary', fontSize: 13 }}
+                slotProps={{ typography: { variant: 'body2' } }}
+                sx={{ color: 'text.secondary' }}
               />
 
               <Button
@@ -340,7 +301,7 @@ export function LoginPage() {
                 color="primary"
                 fullWidth
                 disabled={submitting}
-                sx={{ minHeight: 48, borderRadius: `${theme.radii.md}px` }}
+                sx={{ minHeight: theme.posSize.min, borderRadius: `${theme.radii.md}px` }}
               >
                 {submitting ? <CircularProgress size={18} color="inherit" /> : 'Iniciar sesión'}
               </Button>
@@ -353,13 +314,12 @@ export function LoginPage() {
             alignItems="center"
             sx={{
               mt: 2.5,
-              padding: 1.75,
+              p: 1.75,
               borderRadius: `${theme.radii.md}px`,
               bgcolor: 'background.paper',
               border: '1px solid',
               borderColor: 'divider',
               color: 'text.secondary',
-              fontSize: 13,
             }}
           >
             <Box
@@ -367,20 +327,24 @@ export function LoginPage() {
                 width: 32,
                 height: 32,
                 borderRadius: `${theme.radii.sm}px`,
-                bgcolor: 'rgba(11, 122, 117, 0.12)',
+                bgcolor: alpha(theme.palette.primary.main, 0.12),
                 color: 'primary.main',
                 display: 'grid',
                 placeItems: 'center',
-                fontSize: 15,
+                ...theme.typography.body1,
                 flexShrink: 0,
               }}
             >
               ⌘
             </Box>
-            <Box>
-              <Box sx={{ color: 'text.primary', fontWeight: 600 }}>¿Eres miembro del staff?</Box>
-              <Box>Ingresa directamente en la terminal con tu PIN de 4 dígitos.</Box>
-            </Box>
+            <Stack spacing={0.25}>
+              <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
+                ¿Eres miembro del staff?
+              </Typography>
+              <Typography variant="body2">
+                Ingresa directamente en la terminal con tu PIN de 4 dígitos.
+              </Typography>
+            </Stack>
           </Stack>
         </Box>
 
@@ -390,14 +354,18 @@ export function LoginPage() {
           sx={{
             mt: 5,
             pt: 2.5,
+            width: '100%',
+            maxWidth: 420,
             borderTop: '1px solid',
             borderColor: 'divider',
-            fontSize: 12,
             color: 'text.disabled',
             flexWrap: 'wrap',
           }}
         >
-          <Typography variant="mono" sx={{ marginLeft: 'auto' }}>
+          <Typography
+            variant="caption"
+            sx={{ ml: 'auto', fontFamily: theme.typography.mono.fontFamily }}
+          >
             v {version}
           </Typography>
         </Stack>

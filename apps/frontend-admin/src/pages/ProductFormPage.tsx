@@ -39,6 +39,7 @@ import {
   Typography,
   Upload,
   X,
+  fontWeight,
 } from '@kaipos/ui';
 import {
   closestCenter,
@@ -733,8 +734,8 @@ function Breadcrumb({ category, name, mode }: { category: string; name: string; 
       <Typography
         component="a"
         href="/products"
-        variant="body2"
-        sx={{ color: 'text.secondary', textDecoration: 'none', fontWeight: 600 }}
+        variant="subtitle2"
+        sx={{ color: 'text.secondary', textDecoration: 'none' }}
       >
         ← Productos
       </Typography>
@@ -742,11 +743,8 @@ function Breadcrumb({ category, name, mode }: { category: string; name: string; 
         <Stack key={`${p}-${i}`} direction="row" spacing={1} alignItems="center">
           <ChevronRight size={14} aria-hidden />
           <Typography
-            variant="body2"
-            sx={{
-              color: i === parts.length - 1 ? 'text.primary' : 'text.secondary',
-              fontWeight: i === parts.length - 1 ? 650 : 500,
-            }}
+            variant={i === parts.length - 1 ? 'subtitle2' : 'body2'}
+            sx={{ color: i === parts.length - 1 ? 'text.primary' : 'text.secondary' }}
           >
             {p}
           </Typography>
@@ -833,7 +831,7 @@ function BasicInfoCard({
                 {form.category && !categoryOptions.includes(form.category) && (
                   <MenuItem value={form.category}>{form.category}</MenuItem>
                 )}
-                <MenuItem value="__new__" sx={{ fontWeight: 600 }}>
+                <MenuItem value="__new__" sx={{ fontWeight: fontWeight.semibold }}>
                   + Crear nueva
                 </MenuItem>
               </Select>
@@ -929,9 +927,8 @@ function PricingCard({ form, updateForm, fieldErrors }: PricingCardProps) {
           <Box
             sx={(theme) => ({
               mt: 1,
-              px: '14px',
-              py: '14px',
-              borderRadius: '10px',
+              p: 1.75,
+              borderRadius: `${theme.radii.md}px`,
               bgcolor: alpha(
                 theme.palette.success.main,
                 theme.palette.mode === 'light' ? 0.1 : 0.14,
@@ -945,38 +942,16 @@ function PricingCard({ form, updateForm, fieldErrors }: PricingCardProps) {
             })}
           >
             <Box>
-              <Typography
-                sx={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: '.08em',
-                  textTransform: 'uppercase',
-                  lineHeight: 1,
-                }}
-              >
+              <Typography variant="overline" sx={{ lineHeight: 1 }}>
                 Margen
               </Typography>
-              <Typography
-                sx={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                  fontSize: 22,
-                  fontWeight: 700,
-                  letterSpacing: '-0.01em',
-                  mt: '2px',
-                }}
-              >
+              <Typography variant="moneyLg" component="div" sx={{ mt: 0.25 }}>
                 {margin.pct.toFixed(1)}%
               </Typography>
             </Box>
             <Box sx={{ textAlign: 'right' }}>
-              <Typography sx={{ fontSize: 13 }}>Ganancia por unidad</Typography>
-              <Typography
-                sx={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                  fontSize: 16,
-                  fontWeight: 700,
-                }}
-              >
+              <Typography variant="body2">Ganancia por unidad</Typography>
+              <Typography variant="money" component="div">
                 {formatCurrency(margin.profit)}
               </Typography>
             </Box>
@@ -1004,7 +979,7 @@ function InventoryCard({ form, updateForm }: InventoryCardProps) {
         }
         label={
           <Box>
-            <Typography sx={{ fontWeight: 600 }}>Rastrear stock</Typography>
+            <Typography variant="subtitle1">Rastrear stock</Typography>
             <Typography variant="body2" color="text.secondary">
               Recibe alertas cuando el stock esté bajo.
             </Typography>
@@ -1217,13 +1192,13 @@ function SortableGroup({
     <Box
       ref={setNodeRef}
       style={style}
-      sx={{
+      sx={(theme) => ({
         p: 2,
-        borderRadius: 2,
+        borderRadius: `${theme.radii.md}px`,
         border: '1px solid',
         borderColor: 'divider',
         bgcolor: 'action.hover',
-      }}
+      })}
     >
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
         <IconButton
@@ -1240,7 +1215,7 @@ function SortableGroup({
           value={group.name}
           onChange={(e) => onUpdate({ name: e.target.value })}
           sx={{ flex: 1 }}
-          inputProps={{ style: { fontWeight: 600 } }}
+          inputProps={{ style: { fontWeight: fontWeight.semibold } }}
         />
         <FormControlLabel
           control={
@@ -1373,7 +1348,7 @@ function TagsCard({ form, updateForm }: TagsCardProps) {
       title="Etiquetas y alérgenos"
       subtitle="Aparecen en el menú online y alertas de KDS."
     >
-      <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+      <Typography variant="subtitle2" sx={{ mb: 1 }}>
         Alérgenos
       </Typography>
       <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mb: 3 }}>
@@ -1392,7 +1367,7 @@ function TagsCard({ form, updateForm }: TagsCardProps) {
           );
         })}
       </Stack>
-      <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+      <Typography variant="subtitle2" sx={{ mb: 1 }}>
         Dieta
       </Typography>
       <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
@@ -1420,9 +1395,9 @@ function PosPreviewCard({ form }: { form: FormState }) {
   return (
     <SectionCard title="Vista en POS" subtitle="Así se verá el tile en la terminal.">
       <Box
-        sx={{
+        sx={(theme) => ({
           p: 2,
-          borderRadius: 2,
+          borderRadius: `${theme.radii.md}px`,
           border: '1px solid',
           borderColor: 'divider',
           bgcolor: 'background.paper',
@@ -1431,7 +1406,7 @@ function PosPreviewCard({ form }: { form: FormState }) {
           flexDirection: 'column',
           justifyContent: 'space-between',
           gap: 1.5,
-        }}
+        })}
       >
         <Stack direction="row" spacing={1.5} alignItems="flex-start">
           {form.imageUrl ? (
@@ -1439,33 +1414,33 @@ function PosPreviewCard({ form }: { form: FormState }) {
               component="img"
               src={form.imageUrl}
               alt=""
-              sx={{
+              sx={(theme) => ({
                 width: 48,
                 height: 48,
-                borderRadius: 1,
+                borderRadius: `${theme.radii.sm}px`,
                 objectFit: 'cover',
                 border: '1px solid',
                 borderColor: 'divider',
-              }}
+              })}
             />
           ) : (
             <Box
               aria-hidden
-              sx={{
+              sx={(theme) => ({
                 width: 48,
                 height: 48,
-                borderRadius: 1,
+                borderRadius: `${theme.radii.sm}px`,
                 display: 'grid',
                 placeItems: 'center',
                 bgcolor: 'action.hover',
                 color: 'text.disabled',
-              }}
+              })}
             >
               <ImageIcon size={20} aria-hidden />
             </Box>
           )}
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ fontWeight: 600, lineHeight: 1.3 }}>
+            <Typography variant="subtitle1" sx={{ lineHeight: 1.3 }}>
               {form.name || 'Sin nombre'}
             </Typography>
             {form.allergens.length > 0 && (
@@ -1483,13 +1458,7 @@ function PosPreviewCard({ form }: { form: FormState }) {
             )}
           </Box>
         </Stack>
-        <Typography
-          sx={{
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-            fontWeight: 700,
-            fontSize: 18,
-          }}
-        >
+        <Typography variant="money" component="div">
           {formatCurrency(priceNum)}
         </Typography>
       </Box>
@@ -1537,7 +1506,7 @@ function AvailabilityCard({ form, updateForm }: AvailabilityCardProps) {
         />
       </Stack>
       <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
-        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+        <Typography variant="subtitle2" sx={{ mb: 1 }}>
           Horario
         </Typography>
         <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
@@ -1575,7 +1544,7 @@ function AvailRow({
   return (
     <Stack direction="row" spacing={2} alignItems="center" sx={{ py: 1 }}>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 600 }}>{label}</Typography>
+        <Typography variant="subtitle1">{label}</Typography>
         <Typography variant="body2" color="text.secondary">
           {sub}
         </Typography>
@@ -1618,14 +1587,14 @@ function ImageCard({
             component="img"
             src={imageUrl}
             alt="Imagen del producto"
-            sx={{
+            sx={(theme) => ({
               width: '100%',
               aspectRatio: '4/3',
               objectFit: 'cover',
-              borderRadius: 2,
+              borderRadius: `${theme.radii.md}px`,
               border: '1px solid',
               borderColor: 'divider',
-            }}
+            })}
           />
           <Stack direction="row" spacing={1}>
             <Button
@@ -1647,14 +1616,14 @@ function ImageCard({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          sx={{
+          sx={(theme) => ({
             all: 'unset',
             cursor: uploading ? 'default' : 'pointer',
             display: 'grid',
             placeItems: 'center',
             width: '100%',
             aspectRatio: '4/3',
-            borderRadius: 2,
+            borderRadius: `${theme.radii.md}px`,
             border: '1.5px dashed',
             borderColor: 'divider',
             bgcolor: 'action.hover',
@@ -1666,11 +1635,11 @@ function ImageCard({
               outlineColor: 'primary.main',
               outlineOffset: 2,
             },
-          }}
+          })}
         >
           <Stack spacing={1} alignItems="center">
             <Upload size={22} aria-hidden />
-            <Typography variant="body2" sx={{ fontWeight: 550 }}>
+            <Typography variant="subtitle2">
               {uploading ? 'Subiendo…' : 'Arrastra o haz clic para subir'}
             </Typography>
             <Typography
@@ -1794,7 +1763,7 @@ function SectionCard({
         title={title}
         subheader={subtitle}
         action={action}
-        titleTypographyProps={{ variant: 'subtitle1', sx: { fontWeight: 650 } }}
+        titleTypographyProps={{ variant: 'h5' }}
         subheaderTypographyProps={{ variant: 'body2' }}
       />
       <Divider />
@@ -1805,14 +1774,7 @@ function SectionCard({
 
 function AdornmentText({ children }: { children: ReactNode }) {
   return (
-    <Typography
-      component="span"
-      sx={{
-        color: 'text.secondary',
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-        fontSize: 14,
-      }}
-    >
+    <Typography component="span" variant="mono" sx={{ color: 'text.secondary' }}>
       {children}
     </Typography>
   );

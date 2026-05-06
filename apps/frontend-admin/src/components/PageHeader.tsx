@@ -17,7 +17,7 @@ export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
       sx={{ mb: 4 }}
     >
       <Box>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 700, letterSpacing: '-0.01em' }}>
+        <Typography variant="h4" component="h1">
           {title}
         </Typography>
         {subtitle && (

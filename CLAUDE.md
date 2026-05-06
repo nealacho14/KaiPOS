@@ -1,153 +1,52 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) when working in this repo.
 
-## Project Overview
+## Project
 
-KaiPOS is a cloud-native Point of Sale platform. Monorepo managed with pnpm workspaces + Turborepo.
+KaiPOS is a cloud-native Point of Sale platform. Monorepo: pnpm workspaces + Turborepo. Apps under `apps/` (`backend`, `frontend-admin`), libs under `packages/` (`shared`, `ui`, `tsconfig`, `eslint-config`), AWS CDK in `infra/`.
 
 ## Commands
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Development with Atlas/external MongoDB (backend :4000, frontend :3000)
-pnpm dev
-
-# Development with Docker + local MongoDB (backend :4001, frontend :3001)
-pnpm docker:up
-pnpm docker:down
-
-# Build all packages
+pnpm dev                # backend :4000, frontend :3000 (Atlas via .env)
+pnpm docker:up          # backend :4001, frontend :3001 (local Mongo + MinIO)
 pnpm build
-
-# Lint & typecheck
-pnpm lint
-pnpm typecheck
-
-# Format
+pnpm lint && pnpm typecheck && pnpm test
 pnpm format
-pnpm format:check
 
-# Run a single app
-pnpm --filter @kaipos/backend dev
-pnpm --filter @kaipos/frontend-admin dev
+pnpm --filter @kaipos/backend db:setup      # collections + validators + indexes (Atlas-safe)
+pnpm --filter @kaipos/backend db:seed       # demo data; refuses Atlas / mongodb+srv://
 
-# Lint a single package
-pnpm --filter @kaipos/backend lint
-
-# Database setup (schema) and seed (demo data)
-pnpm --filter @kaipos/backend db:setup   # create collections, validators, indexes (safe for Atlas)
-pnpm --filter @kaipos/backend db:seed    # insert demo data (refuses to run against Atlas / MONGO_SECRET_ARN)
-
-# Infrastructure deployment (from repo root)
-pnpm deploy:prod               # full deploy: two-phase (backend-side stacks first, then read WS endpoint, then frontend)
-pnpm deploy:prod:api           # targeted: backend build + api stack (+ deps)
-pnpm deploy:prod:websocket     # targeted: backend build + websocket stack (+ deps)
-pnpm deploy:prod:frontend      # targeted: read WS endpoint + frontend build + frontend stack
+pnpm deploy:prod                            # full two-phase deploy
+pnpm deploy:prod:api | :websocket | :frontend  # targeted
 ```
 
-Vitest is configured in backend, frontend, and shared packages (`pnpm test` runs all).
+Login (after seed): `admin@lacocinadekai.com` / `admin123`.
 
-## Architecture
+## Invariants (do not violate)
 
-### Monorepo Structure
+- **Node 20** from `.nvmrc`. Never run with the shell default.
+- **No `console.log`.** Backend logs through Pino (`src/lib/logger.ts`).
+- **RBAC.** Authorization decisions go through `hasPermission(role, permission)` / `requirePermission(permission)`. **Never** inline `role === '...'` for authorization — the only legitimate `role === 'super_admin'` checks are for tenant-isolation scoping (`businessId === '*'`). See `docs/database.md`.
+- **Design system boundary.** In `apps/**/src` never import from `@mui/material`, `@mui/material/*`, or `lucide-react` directly. Everything routes through `@kaipos/ui` (re-exports both). Enforced by `no-restricted-imports` in `packages/eslint-config/react.js`.
+- **Design tokens.** In `apps/**/src` never use `fontSize: <n>`, `fontWeight: <n>` or `borderRadius: <n>` numeric literals in `sx`/`style`. Use `<Typography variant="...">` (or `theme.typography.X`), `theme.radii.X`, `theme.shape.borderRadius`. Spacing always via the MUI scale (`p={2}`, `m={3}`, `theme.spacing(n)`) — never `'<n>px'` strings. Colors via `palette.*` or `colors.*` — never hex/rgb literals. See `packages/ui/README.md` for variant mapping.
+- **Shared RBAC types.** `Permission`, `ROLE_PERMISSIONS`, `hasPermission`, `SUPER_ADMIN_BUSINESS_ID` live only in `@kaipos/shared` / `@kaipos/shared/permissions`. No local shim in apps.
+- **Lambda config.** `apps/backend/tsup.config.ts` bundles workspace packages and `mongodb`, leaves `@aws-sdk/*` external (provided by Node 20 runtime), emits `dist/package.json` with `type: "module"`, and injects a `createRequire` banner.
+- **Seeds + secrets.** `db:seed` refuses to run if `MONGO_SECRET_ARN` is set or `MONGO_URI` contains `mongodb+srv://`. Atlas credentials live only in Secrets Manager (`kaipos/prod/mongo-uri`).
 
-- **apps/backend** — Hono HTTP server (local dev) + AWS Lambda handlers (production). Entry: `src/index.ts`. Lambda functions built from `src/functions/**/*.ts` via tsup (ESM, config at `apps/backend/tsup.config.ts`). The config bundles workspace packages and `mongodb` into the Lambda zip, leaves `@aws-sdk/*` external (provided by the Node 20 Lambda runtime), emits `dist/package.json` with `type: "module"`, and injects a `createRequire` banner for `mongodb`'s dynamic requires.
-- **apps/frontend-admin** — React 19 SPA built with Vite. In dev the Vite server proxies `/api` to the local backend; in prod CloudFront proxies `/api/*` to API Gateway, so the SPA always uses **relative** `fetch("/api/...")` — no `VITE_API_URL` needed in the browser.
-- **packages/shared** — Domain types (`Product`, `Order`, `User`) and utilities (`formatCurrency`, `generateOrderNumber`, `calculateOrderTotal`). Importable as `@kaipos/shared`, `@kaipos/shared/types`, `@kaipos/shared/utils`.
-- **packages/tsconfig** — Shared TS configs: `base.json`, `node.json`, `react.json`. All use ES2022, strict mode, bundler module resolution.
-- **packages/eslint-config** — Shared ESLint flat configs: base, `./node` (console allowed), `./react` (console warned).
-- **infra** — AWS CDK v2. Four stacks under prefix `kaipos-prod-`: `SecretsStack` (Secrets Manager secret for Mongo URI), `AssetsStack` (private S3 bucket), `ApiStack` (API Gateway HTTP API + Lambda, no VPC), `FrontendStack` (S3 + CloudFront with `/api/*` behavior that proxies to API Gateway). Stage config in `infra/lib/config.ts` — only `prod` is supported in IaC; local dev is `pnpm dev` / `pnpm docker:up`.
+## Style
 
-### Backend Pattern
+TypeScript strict, ES2022. MongoDB native driver (no Mongoose). Prettier: double quotes, semicolons, trailing commas, 100 char width. Unused vars prefixed with `_`.
 
-The backend has two execution modes:
+## Deeper docs
 
-1. **Local**: Hono server (`src/index.ts`) with `@hono/node-server` + `tsx watch` for hot reload
-2. **Production**: A single unified Lambda handler (`src/functions/api.ts`) using `@hono/aws-lambda` — the same Hono app serves both modes. API Gateway uses a catch-all route (`ANY /api/{proxy+}`), so new endpoints don't require CDK changes.
-
-The Hono app is defined in `src/app.ts` (shared between local and Lambda). Middleware stack: CORS → origin verification → request logger → error handler. Validation middleware (`src/middleware/validation.ts`) is applied per-route via Zod schemas.
-
-Structured logging uses **Pino** (`src/lib/logger.ts`). In dev, `pino-pretty` provides human-readable colorized output via a Pino transport (no piping needed). In production, logs are JSON. Use `createLogger(context)` for child loggers with request-scoped bindings (e.g., `requestId`). No `console.log` — all logging goes through the Pino logger.
-
-Database access goes through `src/db/client.ts` (MongoDB singleton) and `src/db/collections.ts` (typed collection getters for `products`, `orders`, `users`). The client resolves the connection URI in this order at cold start:
-
-1. If `MONGO_SECRET_ARN` is set (AWS prod), it fetches the URI from AWS Secrets Manager using `@aws-sdk/client-secrets-manager` and caches it in module scope.
-2. Otherwise it falls back to `MONGO_URI` env var (local dev / Docker).
-
-### RBAC
-
-Authorization is enforced per-route after `requireAuth()` via the `requirePermission(permission)` middleware in `src/middleware/authorize.ts`.
-
-- Roles (in code, English only): `super_admin`, `admin`, `manager`, `supervisor`, `cashier`, `waiter`, `kitchen`.
-- The `role → Permission[]` map lives in `@kaipos/shared/permissions`. Permissions are `resource:action` strings (e.g., `users:read`, `products:write`). Permissions are derived from the role at request time — they are not embedded in the JWT. Backend and frontend both import from the same subpath.
-- `super_admin` bypasses both the permission check and `businessId` tenant isolation. Their stored `businessId` is the sentinel `SUPER_ADMIN_BUSINESS_ID = '*'` (also exported from `@kaipos/shared/permissions`).
-- Denials are audited: middleware fires a `logAuditEvent({ action: 'authorization_failed', metadata: { permission, route, method } })` and returns 403 with the generic message `Insufficient permissions`.
-- User CRUD lives in `src/routes/users.ts` and `src/services/users.ts`. Cross-tenant reads return 404 (not 403) so existence isn't leaked. Managers can only assign roles in `{supervisor, cashier, waiter, kitchen}`; violations also emit `authorization_failed`.
-- Branch access is enforced by `requireBranchAccess(paramName)` in `src/middleware/branch-access.ts`. It bypasses when the role has `branches:manage` (admin + super_admin) and otherwise checks the `branchIds` carried on the JWT — no per-request DB lookup. `branchIds` is populated by `login`/`refresh` from the user record and refreshed on every refresh-token rotation.
-- **Permission checks vs. tenant-isolation role checks.** Authorization decisions (who can do what) MUST go through `hasPermission(role, permission)` / `requirePermission(permission)` — never inline `role === '...'` in route/service code. The one legitimate exception is tenant-isolation scoping for `super_admin` (who has `businessId === '*'` and therefore needs special handling to scope queries to a specific `businessId`, e.g. in `src/services/users.ts`). If you add a new `role === '...'` check, it must be for tenant scoping, not authorization — otherwise use `hasPermission`.
-
-### Database scripts
-
-- `src/db/setup.ts` — creates all collections with `$jsonSchema` validators and indexes (idempotent via `collMod` + `createIndex`). Runs anywhere: local, Docker, and Atlas prod. Exposed as `pnpm --filter @kaipos/backend db:setup`.
-- `src/db/seed.ts` — inserts demo data (1 business "La Cocina de Kai", 1 branch, 2 users, 5 categories, 10 products, 3 modifiers, 6 tables). **Guard: refuses to run if `MONGO_SECRET_ARN` is set or `MONGO_URI` contains `mongodb+srv://`** — Docker/local only. Passwords hashed at runtime via `src/lib/password.ts` (`hashPassword`). Seeded users: `admin@lacocinadekai.com` / `admin123` and `cajero@lacocinadekai.com` / `cajero123`. Idempotent: skips if business `la-cocina-de-kai` already exists. Exposed as `pnpm --filter @kaipos/backend db:seed`.
-
-### Local object storage (MinIO)
-
-`pnpm docker:up` starts a MinIO service (S3-compatible) so product image uploads work locally. The backend only ever **presigns** PUT URLs — it never uploads itself — so the endpoint is set to `http://localhost:9000` from inside the container; the browser on the host opens the signed URL directly.
-
-- **S3 API:** `http://localhost:9000` (path-style; bucket in the URL path).
-- **Console UI:** `http://localhost:9001` — login with `kaipos` / `kaiposdev123`.
-- **Bucket:** `kaipos-assets-dev`, created automatically by the `minio-init` one-shot service with `anonymous download` policy so `<img src>` works against the raw object URL.
-- **Credentials:** the root user is passed in via `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD`; the backend reuses them through `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
-- **Persistence:** stored in the `minio_data` docker volume. Wipe with `docker compose down -v` if you want a clean bucket.
-
-### Environment Variables
-
-- `MONGO_URI` — MongoDB connection string. For `pnpm dev`, loaded from root `.env` via dotenv. For Docker, set in `docker-compose.yml` (the `environment:` block overrides `.env` so the container always uses `mongodb://mongo:27017/kaipos`). **Not used in AWS prod.**
-- `MONGO_SECRET_ARN` — ARN of the Secrets Manager secret holding the Atlas URI. Injected by CDK into the Lambda only in AWS prod. Never set locally. Also used as a signal by `db:seed` to refuse execution.
-- `JWT_SECRET` — HMAC secret for signing access tokens. Loaded from root `.env` in local dev and in Docker (via `env_file: .env` in `docker-compose.yml`). In AWS prod replaced by `JWT_SECRET_ARN` (Secrets Manager).
-- `CLOUDFRONT_SECRET` — Shared secret for CloudFront origin verification. Injected by CDK into the Lambda in AWS prod. Not set locally (middleware skips the check).
-- `ASSETS_BUCKET_NAME` — S3 bucket receiving pre-signed PUTs from `POST /api/products/upload-url` (keys scoped to `products/<branchId>/<uuid>.<ext>`). Injected by CDK from `AssetsStack` in AWS prod; set to `kaipos-assets-dev` in `docker-compose.yml`. If unset (e.g. `pnpm dev` without extra config), the upload endpoint returns 503 `ASSETS_NOT_CONFIGURED` instead of calling AWS.
-- `ASSETS_CDN_DOMAIN` — CloudFront domain fronting the assets bucket. Used to compute the `publicUrl` returned alongside the pre-signed URL. Injected by CDK in AWS prod; unset locally (the service falls back to the signed URL's host — `localhost:9000` in Docker, the S3 hostname otherwise).
-- `S3_ENDPOINT` — Custom S3 API endpoint. When set, the backend's S3 client uses it with `forcePathStyle: true` (needed for MinIO). Set to `http://localhost:9000` in `docker-compose.yml` so the pre-signed URL the browser opens points at the host-exposed MinIO port. Unset in AWS prod (SDK uses the default AWS endpoint with virtual-hosted addressing).
-- `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` — Standard AWS SDK credentials. In Docker these point at MinIO (`kaipos` / `kaiposdev123` / `us-east-1`). In AWS prod they come from the Lambda execution role (IAM), not env vars.
-- Root `.env` is loaded by the backend dev script using `DOTENV_CONFIG_PATH=../../.env`. In Docker, the same `.env` is loaded via Compose's `env_file:` directive on the backend service.
-
-### Infrastructure & secrets
-
-- **One AWS stage: `prod`** in `us-east-1`. `dev` is local only. CDK validates `-c stage=prod`; any other value throws.
-- **No VPC.** Lambda runs outside any VPC and reaches MongoDB Atlas directly over the internet. Atlas IP allowlist is set to `0.0.0.0/0` (security is enforced by DB credentials stored in Secrets Manager). Keeps cost near zero (~$1/month) by avoiding a NAT Gateway.
-- **Secrets.** `MONGO_URI` lives only in Secrets Manager (`kaipos/prod/mongo-uri`). CDK creates the secret empty; populate it out-of-band with `aws secretsmanager put-secret-value`. The connection string never touches git or CloudFormation templates.
-- **CloudFront proxies `/api/*` to API Gateway.** The SPA uses same-origin relative fetches, so there's no CORS and the API Gateway URL is not exposed in the browser bundle. CloudFront attaches a shared-secret `x-origin-verify` custom header; the Lambda middleware (`src/middleware/origin-verify.ts`) validates it and returns 403 for requests that bypass CloudFront. The secret is configured in `infra/lib/config.ts` (`cloudfrontSecret`) and passed to both CloudFront (custom origin header) and Lambda (`CLOUDFRONT_SECRET` env var). In local dev the env var is unset, so the check is skipped.
-- **Lambda logs** have `RetentionDays.ONE_MONTH`.
-- **S3 buckets** (`kaipos-assets-prod`, `kaipos-frontend-prod`) are `BLOCK_ALL` public access, SSE-S3 encrypted, with `enforceSSL` and `RemovalPolicy.RETAIN` in prod.
-- Full deployment runbook in `infra/DEPLOYMENT.md`.
-
-### WebSocket (real-time)
-
-- **Endpoint.** API Gateway WebSocket API on its own subdomain. Not proxied through CloudFront (WS bypass) — clients connect directly to `wss://<ws-api-id>.execute-api.us-east-1.amazonaws.com/prod`. Exposed as `WebSocketEndpoint` CfnOutput from `WebSocketStack`.
-- **Auth.** JWT passed as `?token=<access_token>` query param on the `$connect` handshake; verified by `src/lib/ws-auth.ts`. WS does **not** enforce the `x-origin-verify` shared secret that the HTTP API uses: the WSS endpoint bypasses CloudFront (direct client → API Gateway) and browsers cannot set custom headers on WebSocket handshakes, so there is no delivery path for the header. Handshake security relies on the signed JWT + mandatory TLS. Unauthenticated connects are rejected at handshake — no DDB row is written.
-- **Channels.** `user:<userId>` is always attached at connect; regular users also get `business:<businessId>` and one `branch:<id>` per `branchIds` on the token. Super_admin gets only `user:<userId>` and must opt in to `business:<id>` via `subscribe`. Dynamic `subscribe`/`unsubscribe` go through `$default` and are validated with `canSubscribeTo` from `@kaipos/shared`.
-- **Connection store.** DynamoDB table `ws-connections` (PK `connectionId`, SK `channel`, GSI1 `channel-index`, TTL 2h). Populated by `$connect`, mutated by `$default`, cleaned up by `$disconnect` and inline by `publishToChannel` on `GoneException` (410).
-- **Publish helper.** `apps/backend/src/lib/ws-publish.ts` exposes `publishToChannel(channel, message)` and `publishToUser(userId, message)`. The `api` Lambda is granted `execute-api:ManageConnections` on the WS API and read/delete on the connections table; use these helpers from services (e.g. `orders.updateOrderStatus` fans out `order.status-changed` to `channelFor.branch(branchId)`).
-- **Frontend.** `apps/frontend-admin/src/lib/ws-client.ts` (`WSClient`) handles connect, exponential backoff reconnect (1s→30s cap), and re-subscribes tracked channels on reconnect. `src/hooks/useWebSocket.ts` wraps it for React; the shell owns a single `WebSocketProvider` (`src/context/WebSocketContext.tsx`) so all consumers share one socket. Debug page at `/debug/ws`.
-
-### Frontend Admin Shell
-
-- React Router v7 with `BrowserRouter` wrapping the app (see `src/main.tsx`). Routes are declared in `src/App.tsx`; guards in `src/components/guards/` (`RequireAuth`, `RequirePermission`).
-- `src/layouts/AppLayout.tsx` renders the `Header` + `Sidebar` shell and initializes the shared `WebSocketProvider`. The WS connects only when `status === 'authenticated'` and `VITE_WS_ENDPOINT` is set; otherwise the status chip shows `Inactivo`.
-- Sidebar items are gated by `hasPermission(user.role, permission)` — routes that need further gating also wrap in `RequirePermission`.
-- See `apps/frontend-admin/README.md` for route map and dev notes.
-
-### Key Conventions
-
-- TypeScript strict mode everywhere, target ES2022
-- MongoDB native driver (not Mongoose)
-- Prettier: double quotes, semicolons, trailing commas, 100 char width
-- Unused vars prefixed with `_` (ESLint configured to allow this)
-- Node.js 20 minimum (see `.nvmrc`)
-- **Frontend design system boundary.** `apps/frontend-admin/src` must not import from `@mui/material/*` or `lucide-react` directly — all surface components and icons come from `@kaipos/ui`. Add re-exports there as needed. Verify with `rg "from '@mui/material" apps/frontend-admin/src` → zero matches.
-- **Shared RBAC.** `Permission`, `ROLE_PERMISSIONS`, `hasPermission`, and `SUPER_ADMIN_BUSINESS_ID` live in `@kaipos/shared` (also importable from the subpath `@kaipos/shared/permissions`). Both backend and frontend import from there — there is no local shim.
+- [docs/architecture.md](docs/architecture.md) — monorepo, backend pattern, frontend shell.
+- [docs/database.md](docs/database.md) — DB scripts and full RBAC.
+- [docs/realtime.md](docs/realtime.md) — WebSocket (channels, auth, publish helper).
+- [docs/local-dev.md](docs/local-dev.md) — Docker, MinIO, environment variables.
+- [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) — AWS stacks, CloudFront, secrets.
+- [infra/DEPLOYMENT.md](infra/DEPLOYMENT.md) — deployment runbook.
+- [packages/ui/README.md](packages/ui/README.md) — design tokens and variants.
+- [apps/frontend-admin/README.md](apps/frontend-admin/README.md) — admin routes and dev notes.

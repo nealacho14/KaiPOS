@@ -10,6 +10,7 @@ import {
   userIdParamSchema,
 } from '../schemas/users.js';
 import * as usersService from '../services/users.js';
+import { toPaginatedResponse } from '../lib/paginate.js';
 
 const users = new Hono<AppEnv>();
 
@@ -20,11 +21,9 @@ users.get(
   validate({ query: listUsersQuerySchema }),
   async (c) => {
     const user = c.get('user')!;
-    const query = c.req.query();
-    const result = await usersService.listUsers(user, {
-      businessId: query.businessId,
-    });
-    return c.json({ success: true, data: result });
+    const parsed = listUsersQuerySchema.parse(c.req.query());
+    const result = await usersService.listUsers(user, parsed);
+    return c.json(toPaginatedResponse(result));
   },
 );
 

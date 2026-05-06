@@ -5,6 +5,7 @@ import { SUPER_ADMIN_BUSINESS_ID } from '@kaipos/shared/permissions';
 import { PutObjectCommand, S3Client, type PutObjectCommandInput } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getProductsCollection, getKitchenStationsCollection } from '../db/collections.js';
+import { paginate, type PaginatedResult } from '../lib/paginate.js';
 import { AppError, ForbiddenError, NotFoundError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
 import { publishToChannel } from '../lib/ws-publish.js';
@@ -131,10 +132,16 @@ function auditBranchMismatch(
 export async function listProducts(
   actor: TokenPayload,
   query: ListProductsQuery,
-): Promise<Product[]> {
+): Promise<PaginatedResult<Product>> {
   const products = await getProductsCollection();
   const filter = buildListFilter(actor, query);
-  return products.find(filter).toArray();
+  return paginate({
+    collection: products,
+    filter,
+    page: query.page,
+    limit: query.limit,
+    projection: { modifierGroups: 0 },
+  });
 }
 
 export async function getProductById(actor: TokenPayload, id: string): Promise<Product> {

@@ -143,7 +143,13 @@ describe('products routes', () => {
     });
 
     it('admin lists products in a branch → 200', async () => {
-      mockProductsService.listProducts.mockResolvedValue([sampleProduct]);
+      mockProductsService.listProducts.mockResolvedValue({
+        data: [sampleProduct],
+        total: 1,
+        page: 1,
+        limit: 50,
+        totalPages: 1,
+      });
 
       const app = createApp();
       const res = await app.request('/api/products?branchId=br-1', withToken(adminPayload));

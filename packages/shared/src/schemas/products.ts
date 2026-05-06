@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { paginationQuerySchema } from './pagination.js';
 
 const allergenEnum = z.enum([
   'gluten',
@@ -89,20 +90,22 @@ export const updateProductSchema = z
     message: 'At least one field is required',
   });
 
-export const listProductsQuerySchema = z.object({
-  branchId: z.string().min(1),
-  q: z.string().min(1).optional(),
-  category: z.string().min(1).optional(),
-  includeInactive: z
-    .union([z.boolean(), z.string()])
-    .optional()
-    .transform((v) => {
-      if (typeof v === 'boolean') return v;
-      if (typeof v === 'string') return v === 'true' || v === '1';
-      return false;
-    }),
-  businessId: z.string().min(1).optional(),
-});
+export const listProductsQuerySchema = z
+  .object({
+    branchId: z.string().min(1),
+    q: z.string().min(1).optional(),
+    category: z.string().min(1).optional(),
+    includeInactive: z
+      .union([z.boolean(), z.string()])
+      .optional()
+      .transform((v) => {
+        if (typeof v === 'boolean') return v;
+        if (typeof v === 'string') return v === 'true' || v === '1';
+        return false;
+      }),
+    businessId: z.string().min(1).optional(),
+  })
+  .merge(paginationQuerySchema);
 
 export const uploadUrlSchema = z.object({
   branchId: z.string().min(1),

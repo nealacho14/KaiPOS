@@ -275,6 +275,7 @@ const collections: CollectionSetup[] = [
     indexes: [
       { key: { branchId: 1, sku: 1 }, options: { unique: true } },
       { key: { branchId: 1, category: 1, isActive: 1 } },
+      { key: { branchId: 1, name: 1 } },
       { key: { businessId: 1, branchId: 1 } },
     ],
   },
@@ -297,7 +298,8 @@ const collections: CollectionSetup[] = [
         },
       },
     },
-    indexes: [{ key: { businessId: 1, branchId: 1 } }],
+    dropIndexes: [{ businessId: 1, branchId: 1 }],
+    indexes: [{ key: { businessId: 1, branchId: 1, name: 1 }, options: { unique: true } }],
   },
 
   // ---- orders ----
@@ -341,6 +343,7 @@ const collections: CollectionSetup[] = [
     },
     indexes: [
       { key: { businessId: 1, branchId: 1, createdAt: -1 } },
+      { key: { businessId: 1, branchId: 1, status: 1, createdAt: -1 } },
       { key: { businessId: 1, orderNumber: 1 }, options: { unique: true } },
     ],
   },
@@ -383,7 +386,10 @@ const collections: CollectionSetup[] = [
         },
       },
     },
-    indexes: [{ key: { email: 1 }, options: { unique: true } }],
+    indexes: [
+      { key: { email: 1 }, options: { unique: true } },
+      { key: { lastAttemptAt: 1 }, options: { expireAfterSeconds: 86400 } },
+    ],
   },
 
   // ---- auditLogs ----

@@ -8,6 +8,7 @@ const { mockUsersCollection, mockLogAuditEvent } = vi.hoisted(() => ({
     findOne: vi.fn(),
     insertOne: vi.fn(),
     updateOne: vi.fn(),
+    countDocuments: vi.fn(),
   },
   mockLogAuditEvent: vi.fn(),
 }));
@@ -79,8 +80,12 @@ const ctx = { route: '/api/users', method: 'POST' };
 
 function mockFindReturns(docs: User[]): void {
   mockUsersCollection.find.mockReturnValue({
+    sort: vi.fn().mockReturnThis(),
+    skip: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
     toArray: () => Promise.resolve(docs),
   });
+  mockUsersCollection.countDocuments.mockResolvedValue(docs.length);
 }
 
 beforeEach(() => {
@@ -94,17 +99,22 @@ describe('users service', () => {
 
       await listUsers(adminPayload);
 
-      expect(mockUsersCollection.find).toHaveBeenCalledWith({ businessId: 'biz-1' });
+      expect(mockUsersCollection.find).toHaveBeenCalledWith(
+        { businessId: 'biz-1' },
+        { projection: { passwordHash: 0 } },
+      );
     });
 
-    it('returns users without passwordHash', async () => {
+    it('returns paginated users without passwordHash', async () => {
       mockFindReturns([makeUser()]);
 
       const result = await listUsers(adminPayload);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).not.toHaveProperty('passwordHash');
-      expect(result[0].email).toBe('user@test.com');
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0]).not.toHaveProperty('passwordHash');
+      expect(result.data[0].email).toBe('user@test.com');
+      expect(result.page).toBe(1);
+      expect(result.totalPages).toBe(1);
     });
 
     it('super_admin without businessId returns no filter', async () => {
@@ -112,7 +122,10 @@ describe('users service', () => {
 
       await listUsers(superAdminPayload);
 
-      expect(mockUsersCollection.find).toHaveBeenCalledWith({});
+      expect(mockUsersCollection.find).toHaveBeenCalledWith(
+        {},
+        { projection: { passwordHash: 0 } },
+      );
     });
 
     it('super_admin with businessId filters by that business', async () => {
@@ -120,7 +133,10 @@ describe('users service', () => {
 
       await listUsers(superAdminPayload, { businessId: 'biz-other' });
 
-      expect(mockUsersCollection.find).toHaveBeenCalledWith({ businessId: 'biz-other' });
+      expect(mockUsersCollection.find).toHaveBeenCalledWith(
+        { businessId: 'biz-other' },
+        { projection: { passwordHash: 0 } },
+      );
     });
   });
 
@@ -132,10 +148,10 @@ describe('users service', () => {
 
       expect(result.email).toBe('user@test.com');
       expect(result).not.toHaveProperty('passwordHash');
-      expect(mockUsersCollection.findOne).toHaveBeenCalledWith({
-        _id: 'u-1',
-        businessId: 'biz-1',
-      });
+      expect(mockUsersCollection.findOne).toHaveBeenCalledWith(
+        { _id: 'u-1', businessId: 'biz-1' },
+        { projection: { passwordHash: 0 } },
+      );
     });
 
     it('throws NotFoundError when cross-tenant (admin in another business)', async () => {
@@ -150,7 +166,10 @@ describe('users service', () => {
       const result = await getUserById(superAdminPayload, 'u-1');
 
       expect(result.businessId).toBe('biz-99');
-      expect(mockUsersCollection.findOne).toHaveBeenCalledWith({ _id: 'u-1' });
+      expect(mockUsersCollection.findOne).toHaveBeenCalledWith(
+        { _id: 'u-1' },
+        { projection: { passwordHash: 0 } },
+      );
     });
   });
 
@@ -443,7 +462,10 @@ describe('users service', () => {
 
       await listUsers(cashierPayload);
 
-      expect(mockUsersCollection.find).toHaveBeenCalledWith({ businessId: 'biz-1' });
+      expect(mockUsersCollection.find).toHaveBeenCalledWith(
+        { businessId: 'biz-1' },
+        { projection: { passwordHash: 0 } },
+      );
     });
   });
 });

@@ -108,7 +108,13 @@ describe('kitchen-stations routes', () => {
     });
 
     it('manager lists stations in their branch', async () => {
-      mockService.listByBranch.mockResolvedValue([sampleStation]);
+      mockService.listByBranch.mockResolvedValue({
+        data: [sampleStation],
+        total: 1,
+        page: 1,
+        limit: 50,
+        totalPages: 1,
+      });
 
       const res = await createApp().request(
         '/api/kitchen-stations?branchId=br-1',
@@ -119,11 +125,20 @@ describe('kitchen-stations routes', () => {
       const body = (await res.json()) as { success: boolean; data: unknown[] };
       expect(body.success).toBe(true);
       expect(body.data).toHaveLength(1);
-      expect(mockService.listByBranch).toHaveBeenCalledWith(managerPayload, 'br-1');
+      expect(mockService.listByBranch).toHaveBeenCalledWith(managerPayload, 'br-1', {
+        page: 1,
+        limit: 50,
+      });
     });
 
     it('kitchen role can read kitchen stations', async () => {
-      mockService.listByBranch.mockResolvedValue([]);
+      mockService.listByBranch.mockResolvedValue({
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 50,
+        totalPages: 1,
+      });
 
       const res = await createApp().request(
         '/api/kitchen-stations?branchId=br-1',

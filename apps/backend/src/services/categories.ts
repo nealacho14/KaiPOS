@@ -1,7 +1,8 @@
 import type { Filter } from 'mongodb';
 import type { Category, TokenPayload } from '@kaipos/shared';
 import { SUPER_ADMIN_BUSINESS_ID } from '@kaipos/shared';
-import { getCategoriesCollection } from '../db/collections.js';
+import { getCategoriesCollection, getProductsCollection } from '../db/collections.js';
+import { paginate, type PaginatedResult } from '../lib/paginate.js';
 import { AppError, NotFoundError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
 import type {
@@ -51,9 +52,15 @@ function buildScopeFilter(
 export async function listCategories(
   actor: TokenPayload,
   query: Partial<ListCategoriesQuery> = {},
-): Promise<Category[]> {
+): Promise<PaginatedResult<Category>> {
   const categories = await getCategoriesCollection();
-  return categories.find(buildScopeFilter(actor, query)).sort({ sortOrder: 1, name: 1 }).toArray();
+  return paginate({
+    collection: categories,
+    filter: buildScopeFilter(actor, query),
+    page: query.page ?? 1,
+    limit: query.limit ?? 50,
+    sort: { sortOrder: 1, name: 1 },
+  });
 }
 
 export async function createCategory(
@@ -128,6 +135,25 @@ export async function updateCategory(
   if (patch.isActive !== undefined) update.isActive = patch.isActive;
 
   await categories.updateOne({ _id: existing._id }, { $set: update });
+
+  if (patch.name !== undefined && patch.name !== existing.name) {
+    const products = await getProductsCollection();
+    const cascade = await products.updateMany(
+      { businessId: existing.businessId, category: existing.name },
+      { $set: { category: patch.name, updatedAt: new Date() } },
+    );
+    if (cascade.modifiedCount > 0) {
+      log.info(
+        {
+          categoryId: existing._id,
+          oldName: existing.name,
+          newName: patch.name,
+          updated: cascade.modifiedCount,
+        },
+        'Cascaded category rename to products',
+      );
+    }
+  }
 
   const updated = await categories.findOne({ _id: existing._id });
   if (!updated) throw new NotFoundError('Category');

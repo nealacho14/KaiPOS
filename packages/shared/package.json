@@ -9,6 +9,7 @@
     "./types": "./src/types/index.ts",
     "./utils": "./src/utils/index.ts",
     "./permissions": "./src/permissions.ts",
+    "./schemas/pagination": "./src/schemas/pagination.ts",
     "./schemas/products": "./src/schemas/products.ts",
     "./schemas/users": "./src/schemas/users.ts"
   },

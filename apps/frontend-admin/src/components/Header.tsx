@@ -14,6 +14,7 @@ import {
 } from '@kaipos/ui';
 import { useAuth } from '../context/AuthContext.js';
 import { ActiveBranchSwitcher } from './ActiveBranchSwitcher.js';
+import { BusinessPicker } from './BusinessPicker.js';
 import { UserMenu } from './UserMenu.js';
 import { WsStatusChip, type WsStatusChipStatus } from './WsStatusChip.js';
 
@@ -46,7 +47,8 @@ export function Header({ wsStatus, onMenuToggle }: HeaderProps) {
   const isXs = useMediaQuery(theme.breakpoints.down('sm'));
   const { user, business } = useAuth();
 
-  const businessName = business?.name ?? 'Admin global';
+  const isSuperAdmin = user?.role === 'super_admin';
+  const businessName = business?.name ?? (isSuperAdmin ? null : 'Admin global');
   const role = user?.role;
   const roleChip = role ? ROLE_CHIPS[role] : null;
 
@@ -79,7 +81,8 @@ export function Header({ wsStatus, onMenuToggle }: HeaderProps) {
       <Stack direction="row" spacing={2} alignItems="center" sx={{ minWidth: 0, flexShrink: 0 }}>
         <KaiPOSLogo variant={isDesktop ? 'horizontal' : 'icon'} size="sm" />
         {isDesktop && <Divider orientation="vertical" flexItem sx={{ my: 1.5 }} />}
-        {isDesktop && (
+        {isDesktop && isSuperAdmin && <BusinessPicker />}
+        {isDesktop && !isSuperAdmin && businessName && (
           <Typography
             variant="body2"
             sx={{

@@ -1,11 +1,13 @@
 import type { Filter } from 'mongodb';
 import type { Product, TokenPayload } from '@kaipos/shared/types';
+import { channelFor } from '@kaipos/shared/types';
 import { SUPER_ADMIN_BUSINESS_ID } from '@kaipos/shared/permissions';
 import { PutObjectCommand, S3Client, type PutObjectCommandInput } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getProductsCollection, getKitchenStationsCollection } from '../db/collections.js';
 import { AppError, ForbiddenError, NotFoundError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
+import { publishToChannel } from '../lib/ws-publish.js';
 import { canAccessBranch, assertBranchAccess } from '../middleware/branch-access.js';
 import type {
   CreateProductInput,
@@ -233,6 +235,8 @@ export async function createProduct(
     'Product created',
   );
 
+  await fanOutProductEvent(product, 'product.created', { name: product.name });
+
   return product;
 }
 
@@ -326,6 +330,20 @@ export async function updateProduct(
     metadata: { branchId: updated.branchId, sku: updated.sku },
   });
 
+  await fanOutProductEvent(updated, 'product.updated', { name: updated.name });
+
+  // Low-stock alert: emit only on the transition into "below threshold". This
+  // avoids spamming clients on every save once a product is already low.
+  const wasLow = isLowStock(existing);
+  const isLow = isLowStock(updated);
+  if (!wasLow && isLow) {
+    await fanOutProductEvent(updated, 'product.low-stock', {
+      name: updated.name,
+      stock: updated.stock,
+      lowStockThreshold: updated.lowStockThreshold,
+    });
+  }
+
   return updated;
 }
 
@@ -364,6 +382,41 @@ export async function deleteProduct(
     businessId: existing.businessId,
     metadata: { branchId: existing.branchId, sku: existing.sku },
   });
+
+  await fanOutProductEvent(existing, 'product.deleted', { name: existing.name });
+}
+
+function isLowStock(product: Product): boolean {
+  return (
+    product.trackStock &&
+    typeof product.lowStockThreshold === 'number' &&
+    product.stock <= product.lowStockThreshold
+  );
+}
+
+// Mirrors the orders fan-out: publish to the branch channel after the DB write
+// has succeeded. Errors are logged but never thrown — the persisted state is
+// authoritative; the WS layer is best-effort cache invalidation.
+async function fanOutProductEvent(
+  product: Product,
+  type: 'product.created' | 'product.updated' | 'product.deleted' | 'product.low-stock',
+  extra: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await publishToChannel(channelFor.branch(product.businessId, product.branchId), {
+      type,
+      payload: {
+        productId: product._id,
+        branchId: product.branchId,
+        ...extra,
+      },
+    });
+  } catch (err) {
+    log.warn(
+      { err, productId: product._id, branchId: product.branchId, type },
+      'Product event persisted but WS publish failed',
+    );
+  }
 }
 
 export interface UploadUrlResult {

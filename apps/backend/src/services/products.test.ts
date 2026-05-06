@@ -10,19 +10,21 @@ import {
   updateProduct,
 } from './products.js';
 
-const { mockProducts, mockKitchenStations, mockLogAudit, mockGetSignedUrl } = vi.hoisted(() => ({
-  mockProducts: {
-    find: vi.fn(),
-    findOne: vi.fn(),
-    insertOne: vi.fn(),
-    updateOne: vi.fn(),
-  },
-  mockKitchenStations: {
-    find: vi.fn(),
-  },
-  mockLogAudit: vi.fn(),
-  mockGetSignedUrl: vi.fn(),
-}));
+const { mockProducts, mockKitchenStations, mockLogAudit, mockGetSignedUrl, mockPublishToChannel } =
+  vi.hoisted(() => ({
+    mockProducts: {
+      find: vi.fn(),
+      findOne: vi.fn(),
+      insertOne: vi.fn(),
+      updateOne: vi.fn(),
+    },
+    mockKitchenStations: {
+      find: vi.fn(),
+    },
+    mockLogAudit: vi.fn(),
+    mockGetSignedUrl: vi.fn(),
+    mockPublishToChannel: vi.fn(),
+  }));
 
 vi.mock('../db/collections.js', () => ({
   getProductsCollection: () => Promise.resolve(mockProducts),
@@ -31,6 +33,10 @@ vi.mock('../db/collections.js', () => ({
 
 vi.mock('./audit.js', () => ({
   logAuditEvent: mockLogAudit,
+}));
+
+vi.mock('../lib/ws-publish.js', () => ({
+  publishToChannel: mockPublishToChannel,
 }));
 
 vi.mock('../lib/logger.js', () => ({
@@ -492,6 +498,98 @@ describe('products service', () => {
       expect(mockLogAudit).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'authorization_failed' }),
       );
+    });
+  });
+
+  describe('WebSocket fan-out', () => {
+    const baseInput: CreateProductInput = {
+      branchId: 'br-1',
+      name: 'Arroz con Pollo',
+      description: 'Plato tradicional',
+      price: 12.5,
+      category: 'Entradas',
+      sku: 'ARR-001',
+      stock: 10,
+      trackStock: true,
+      stockUnit: 'unit',
+      availability: { pos: true, online: false, kiosk: false },
+      serviceSchedules: [],
+      allergens: [],
+      dietaryTags: [],
+      modifierGroups: [],
+      kitchenStationIds: [],
+    };
+
+    it('createProduct publishes product.created on the branch channel', async () => {
+      mockProducts.findOne.mockResolvedValue(null);
+      mockProducts.insertOne.mockResolvedValue({});
+
+      await createProduct(adminPayload, baseInput);
+
+      expect(mockPublishToChannel).toHaveBeenCalledWith(
+        'branch:biz-1:br-1',
+        expect.objectContaining({
+          type: 'product.created',
+          payload: expect.objectContaining({ branchId: 'br-1', name: 'Arroz con Pollo' }),
+        }),
+      );
+    });
+
+    it('updateProduct publishes product.updated', async () => {
+      mockProducts.findOne
+        .mockResolvedValueOnce(makeProduct())
+        .mockResolvedValueOnce(makeProduct({ name: 'Renamed' }));
+      mockProducts.updateOne.mockResolvedValue({});
+
+      await updateProduct(adminPayload, 'p-1', { name: 'Renamed' }, ctx);
+
+      expect(mockPublishToChannel).toHaveBeenCalledWith(
+        'branch:biz-1:br-1',
+        expect.objectContaining({ type: 'product.updated' }),
+      );
+    });
+
+    it('deleteProduct publishes product.deleted', async () => {
+      mockProducts.findOne.mockResolvedValue(makeProduct({ isActive: true }));
+
+      await deleteProduct(adminPayload, 'p-1', ctx);
+
+      expect(mockPublishToChannel).toHaveBeenCalledWith(
+        'branch:biz-1:br-1',
+        expect.objectContaining({ type: 'product.deleted' }),
+      );
+    });
+
+    it('updateProduct publishes product.low-stock on the transition into low stock', async () => {
+      mockProducts.findOne
+        // existing: stock 10, threshold 5 — not low
+        .mockResolvedValueOnce(makeProduct({ stock: 10, lowStockThreshold: 5 }))
+        // updated: stock 4, threshold 5 — low
+        .mockResolvedValueOnce(makeProduct({ stock: 4, lowStockThreshold: 5 }));
+      mockProducts.updateOne.mockResolvedValue({});
+
+      await updateProduct(adminPayload, 'p-1', { stock: 4 }, ctx);
+
+      const calls = mockPublishToChannel.mock.calls.map(
+        ([_, msg]) => (msg as { type: string }).type,
+      );
+      expect(calls).toContain('product.updated');
+      expect(calls).toContain('product.low-stock');
+    });
+
+    it('updateProduct does NOT re-emit product.low-stock when already below threshold', async () => {
+      mockProducts.findOne
+        .mockResolvedValueOnce(makeProduct({ stock: 3, lowStockThreshold: 5 }))
+        .mockResolvedValueOnce(makeProduct({ stock: 2, lowStockThreshold: 5 }));
+      mockProducts.updateOne.mockResolvedValue({});
+
+      await updateProduct(adminPayload, 'p-1', { stock: 2 }, ctx);
+
+      const calls = mockPublishToChannel.mock.calls.map(
+        ([_, msg]) => (msg as { type: string }).type,
+      );
+      expect(calls).toContain('product.updated');
+      expect(calls).not.toContain('product.low-stock');
     });
   });
 

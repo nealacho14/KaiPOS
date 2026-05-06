@@ -1,5 +1,5 @@
-import type { Product } from '@kaipos/shared';
-import { formatCurrency, hasPermission } from '@kaipos/shared';
+import type { Product, WSChannel } from '@kaipos/shared';
+import { channelFor, formatCurrency, hasPermission } from '@kaipos/shared';
 import {
   Alert,
   Box,
@@ -22,6 +22,7 @@ import {
   Plus,
   Select,
   Skeleton,
+  Snackbar,
   Stack,
   Table,
   TableBody,
@@ -36,6 +37,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EmptyState, PageHeader } from '../components/index.js';
 import { useAuth } from '../context/AuthContext.js';
+import { useWebSocketContext } from '../context/WebSocketContext.js';
 import { useActiveBranch } from '../hooks/useActiveBranch.js';
 import { useBranches } from '../hooks/useBranches.js';
 import { ApiError } from '../lib/api.js';
@@ -92,11 +94,49 @@ export function ProductsListPage() {
   const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [lowStockToast, setLowStockToast] = useState<string | null>(null);
 
   const retry = useCallback(() => {
     setState({ status: 'loading' });
     setReloadKey((n) => n + 1);
   }, []);
+
+  // Live updates: subscribe to the active branch channel and refetch on any
+  // product event from peers (or this same client). We refetch rather than
+  // patch local state because the WS payload only carries identifiers — the
+  // canonical product shape stays one source of truth (the API).
+  const ws = useWebSocketContext();
+  const branchChannel: WSChannel | null = useMemo(() => {
+    if (!user || !branchId) return null;
+    if (user.businessId === '*') return null;
+    return channelFor.branch(user.businessId, branchId);
+  }, [user, branchId]);
+
+  useEffect(() => {
+    if (!branchChannel) return;
+    if (ws.status !== 'open') return;
+    ws.subscribe(branchChannel);
+    return () => {
+      ws.unsubscribe(branchChannel);
+    };
+  }, [branchChannel, ws]);
+
+  useEffect(() => {
+    return ws.onMessage((message) => {
+      if (!message.channel || message.channel !== branchChannel) return;
+      if (
+        message.type === 'product.created' ||
+        message.type === 'product.updated' ||
+        message.type === 'product.deleted'
+      ) {
+        setReloadKey((n) => n + 1);
+      } else if (message.type === 'product.low-stock') {
+        const payload = message.payload as { name?: string } | undefined;
+        const name = payload?.name ?? 'Un producto';
+        setLowStockToast(`${name} está bajo de stock`);
+      }
+    });
+  }, [ws, branchChannel]);
 
   useEffect(() => {
     if (!branchId) return;
@@ -319,6 +359,17 @@ export function ProductsListPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={lowStockToast !== null}
+        autoHideDuration={6000}
+        onClose={() => setLowStockToast(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert severity="warning" variant="filled" onClose={() => setLowStockToast(null)}>
+          {lowStockToast}
+        </Alert>
+      </Snackbar>
     </>
   );
 }

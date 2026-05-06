@@ -16,7 +16,7 @@ import {
 } from '@kaipos/ui';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.js';
 import { ApiError } from '../lib/api.js';
 
@@ -80,7 +80,7 @@ export function LoginPage() {
     setFieldErrors({});
 
     try {
-      await login(email, password);
+      await login(email, password, remember);
       const dest = (location.state as LocationState | null)?.from?.pathname ?? '/dashboard';
       navigate(dest, { replace: true });
     } catch (err) {
@@ -309,8 +309,8 @@ export function LoginPage() {
                     Contraseña
                   </Box>
                   <Box
-                    component="a"
-                    href="#"
+                    component={RouterLink}
+                    to="/forgot-password"
                     sx={{
                       fontSize: 12,
                       color: 'primary.main',

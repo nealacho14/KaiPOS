@@ -181,6 +181,38 @@ describe('auth service', () => {
         email: 'admin@test.com',
       });
     });
+
+    it('uses 7-day refresh-token TTL by default', async () => {
+      mockLoginAttemptsCollection.findOne.mockResolvedValue(null);
+      mockUsersCollection.findOne.mockResolvedValue(adminUser);
+      mockRefreshTokensCollection.insertOne.mockResolvedValue({});
+      mockLoginAttemptsCollection.deleteOne.mockResolvedValue({});
+
+      const before = Date.now();
+      await login('admin@test.com', 'admin123');
+      const after = Date.now();
+
+      const inserted = mockRefreshTokensCollection.insertOne.mock.calls[0][0];
+      const ms = (inserted.expiresAt as Date).getTime();
+      expect(ms).toBeGreaterThanOrEqual(before + 7 * 24 * 60 * 60 * 1000);
+      expect(ms).toBeLessThanOrEqual(after + 7 * 24 * 60 * 60 * 1000);
+    });
+
+    it('extends refresh-token TTL to 30 days when rememberMe is true', async () => {
+      mockLoginAttemptsCollection.findOne.mockResolvedValue(null);
+      mockUsersCollection.findOne.mockResolvedValue(adminUser);
+      mockRefreshTokensCollection.insertOne.mockResolvedValue({});
+      mockLoginAttemptsCollection.deleteOne.mockResolvedValue({});
+
+      const before = Date.now();
+      await login('admin@test.com', 'admin123', true);
+      const after = Date.now();
+
+      const inserted = mockRefreshTokensCollection.insertOne.mock.calls[0][0];
+      const ms = (inserted.expiresAt as Date).getTime();
+      expect(ms).toBeGreaterThanOrEqual(before + 30 * 24 * 60 * 60 * 1000);
+      expect(ms).toBeLessThanOrEqual(after + 30 * 24 * 60 * 60 * 1000);
+    });
   });
 
   describe('refresh', () => {

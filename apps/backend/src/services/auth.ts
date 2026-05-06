@@ -12,6 +12,7 @@ import { idToString } from '../lib/id.js';
 import { signAccessToken, generateRefreshToken } from '../lib/jwt.js';
 import {
   REFRESH_TOKEN_TTL_DAYS,
+  REFRESH_TOKEN_TTL_DAYS_REMEMBER,
   MAX_LOGIN_ATTEMPTS,
   LOCKOUT_DURATION_MINUTES,
   PASSWORD_RESET_TTL_HOURS,
@@ -27,6 +28,7 @@ const log = createLogger({ module: 'auth-service' });
 export async function login(
   email: string,
   password: string,
+  rememberMe: boolean = false,
 ): Promise<{ accessToken: string; refreshToken: string; user: SafeUser }> {
   const loginAttempts = await getLoginAttemptsCollection();
 
@@ -89,13 +91,14 @@ export async function login(
   const accessToken = await signAccessToken(payload);
   const refreshToken = generateRefreshToken();
 
-  // Store refresh token
+  // Store refresh token. `rememberMe` extends the TTL from the default 7d to 30d.
+  const ttlDays = rememberMe ? REFRESH_TOKEN_TTL_DAYS_REMEMBER : REFRESH_TOKEN_TTL_DAYS;
   const refreshTokens = await getRefreshTokensCollection();
   await refreshTokens.insertOne({
     _id: crypto.randomUUID(),
     userId,
     token: refreshToken,
-    expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000),
+    expiresAt: new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000),
     createdAt: new Date(),
   });
 
@@ -104,6 +107,7 @@ export async function login(
     target: email,
     userId,
     businessId: user.businessId,
+    metadata: rememberMe ? { rememberMe: true } : undefined,
   });
 
   return { accessToken, refreshToken, user: stripPasswordHash(user) };

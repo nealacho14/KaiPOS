@@ -279,39 +279,6 @@ const collections: CollectionSetup[] = [
     ],
   },
 
-  // ---- tables ----
-  {
-    name: 'tables',
-    validator: {
-      $jsonSchema: {
-        bsonType: 'object',
-        required: [
-          'branchId',
-          'number',
-          'capacity',
-          'status',
-          'createdAt',
-          'updatedAt',
-          'createdBy',
-        ],
-        properties: {
-          _id: { bsonType: 'string' },
-          branchId: { bsonType: 'string' },
-          number: { bsonType: 'int' },
-          capacity: { bsonType: 'int' },
-          status: { enum: ['available', 'occupied', 'reserved', 'out-of-service'] },
-          createdAt: { bsonType: 'date' },
-          updatedAt: { bsonType: 'date' },
-          createdBy: { bsonType: 'string' },
-        },
-      },
-    },
-    indexes: [
-      { key: { branchId: 1, number: 1 }, options: { unique: true } },
-      { key: { branchId: 1, status: 1 } },
-    ],
-  },
-
   // ---- kitchenStations ----
   {
     name: 'kitchenStations',
@@ -376,39 +343,6 @@ const collections: CollectionSetup[] = [
       { key: { businessId: 1, branchId: 1, createdAt: -1 } },
       { key: { businessId: 1, orderNumber: 1 }, options: { unique: true } },
     ],
-  },
-
-  // ---- transactions ----
-  {
-    name: 'transactions',
-    validator: {
-      $jsonSchema: {
-        bsonType: 'object',
-        required: [
-          'businessId',
-          'orderId',
-          'amount',
-          'method',
-          'status',
-          'createdAt',
-          'updatedAt',
-          'createdBy',
-        ],
-        properties: {
-          _id: { bsonType: 'string' },
-          businessId: { bsonType: 'string' },
-          orderId: { bsonType: 'string' },
-          amount: { bsonType: 'number' },
-          method: { enum: ['cash', 'card', 'transfer', 'other'] },
-          status: { enum: ['pending', 'completed', 'failed', 'refunded'] },
-          reference: { bsonType: 'string' },
-          createdAt: { bsonType: 'date' },
-          updatedAt: { bsonType: 'date' },
-          createdBy: { bsonType: 'string' },
-        },
-      },
-    },
-    indexes: [{ key: { businessId: 1, orderId: 1 } }, { key: { businessId: 1, createdAt: -1 } }],
   },
 
   // ---- refreshTokens ----
@@ -515,21 +449,23 @@ async function setupCollections(db: Db): Promise<void> {
       .then((cols) => cols.map((c) => c.name)),
   );
 
-  // Drop the legacy `modifiers` collection if present. Products embed
-  // modifierGroups directly, so the standalone collection was orphaned. This
-  // runs idempotently in setup so dev/prod environments converge without a
-  // separate migration.
-  if (existing.has('modifiers')) {
+  // Drop legacy collections we no longer model. Each was either replaced by
+  // an embedded shape (modifierGroups in products) or was a forward-looking
+  // schema with no consumers (tables, transactions). Idempotent in setup so
+  // dev/prod environments converge without a separate migration.
+  const OBSOLETE_COLLECTIONS = ['modifiers', 'tables', 'transactions'] as const;
+  for (const name of OBSOLETE_COLLECTIONS) {
+    if (!existing.has(name)) continue;
     try {
-      await db.dropCollection('modifiers');
-      logger.info('  Dropped obsolete "modifiers" collection');
-      existing.delete('modifiers');
+      await db.dropCollection(name);
+      logger.info(`  Dropped obsolete "${name}" collection`);
+      existing.delete(name);
     } catch (err) {
       const code = (err as { code?: number }).code;
       if (code === 26) {
         // NamespaceNotFound — concurrent runner already handled it
       } else {
-        logger.warn({ err }, '  Could not drop "modifiers" — continuing');
+        logger.warn({ err }, `  Could not drop "${name}" — continuing`);
       }
     }
   }

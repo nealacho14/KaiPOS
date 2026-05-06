@@ -34,50 +34,11 @@ export interface Category {
   createdBy: string;
 }
 
-export interface Modifier {
-  _id: string;
-  businessId: string;
-  name: string;
-  options: Array<{ name: string; price: number }>;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  createdBy: string;
-}
-
-export type TableStatus = 'available' | 'occupied' | 'reserved' | 'out-of-service';
-
-export interface Table {
-  _id: string;
-  branchId: string;
-  number: number;
-  capacity: number;
-  status: TableStatus;
-  createdAt: Date;
-  updatedAt: Date;
-  createdBy: string;
-}
-
 export interface KitchenStation {
   _id: string;
   businessId: string;
   branchId: string;
   name: string;
-  createdAt: Date;
-  updatedAt: Date;
-  createdBy: string;
-}
-
-export type TransactionStatus = 'pending' | 'completed' | 'failed' | 'refunded';
-
-export interface Transaction {
-  _id: string;
-  businessId: string;
-  orderId: string;
-  amount: number;
-  method: PaymentMethod;
-  status: TransactionStatus;
-  reference?: string;
   createdAt: Date;
   updatedAt: Date;
   createdBy: string;

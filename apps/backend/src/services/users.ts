@@ -98,7 +98,9 @@ export async function createUser(
 
   const existing = await users.findOne({ email: data.email, businessId: targetBusinessId });
   if (existing) {
-    throw new AppError('A user with this email already exists', 409, 'DUPLICATE_EMAIL');
+    throw new AppError('A user with this email already exists', 409, 'DUPLICATE_EMAIL', [
+      { field: 'email', message: 'A user with this email already exists' },
+    ]);
   }
 
   const now = new Date();

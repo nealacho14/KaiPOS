@@ -9,6 +9,7 @@ import { NotFoundPage } from './pages/NotFoundPage.js';
 import { ProductFormPage } from './pages/ProductFormPage.js';
 import { ProductsListPage } from './pages/ProductsListPage.js';
 import { ResetPasswordPage } from './pages/ResetPasswordPage.js';
+import { UserFormPage } from './pages/UserFormPage.js';
 import { UsersListPage } from './pages/UsersListPage.js';
 
 export function App() {
@@ -31,6 +32,10 @@ export function App() {
           </Route>
           <Route element={<RequirePermission permission="users:read" />}>
             <Route path="/users" element={<UsersListPage />} />
+            <Route element={<RequirePermission permission="users:write" />}>
+              <Route path="/users/new" element={<UserFormPage />} />
+              <Route path="/users/:id/edit" element={<UserFormPage />} />
+            </Route>
           </Route>
           <Route path="/debug/ws" element={<DebugWebSocket />} />
           <Route path="*" element={<NotFoundPage />} />

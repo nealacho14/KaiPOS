@@ -1,10 +1,12 @@
-import type { User, UserRole } from '@kaipos/shared';
+import { hasPermission, type User, type UserRole } from '@kaipos/shared';
 import {
   Alert,
   Box,
   Button,
   Chip,
+  Edit,
   Inbox,
+  Plus,
   Skeleton,
   Stack,
   Table,
@@ -15,7 +17,9 @@ import {
   TableRow,
 } from '@kaipos/ui';
 import { useCallback, useEffect, useState } from 'react';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { EmptyState, PageHeader } from '../components/index.js';
+import { useAuth } from '../context/AuthContext.js';
 import { ApiError, apiJson } from '../lib/api.js';
 
 type SafeUser = Omit<User, 'passwordHash'>;
@@ -48,8 +52,11 @@ function mapError(err: unknown): string {
 }
 
 export function UsersListPage() {
+  const { user: actor } = useAuth();
   const [state, setState] = useState<FetchState>({ status: 'loading' });
   const [reloadKey, setReloadKey] = useState(0);
+
+  const canWrite = actor ? hasPermission(actor.role, 'users:write') : false;
 
   const retry = useCallback(() => {
     setState({ status: 'loading' });
@@ -72,7 +79,22 @@ export function UsersListPage() {
 
   return (
     <>
-      <PageHeader title="Usuarios" subtitle="Equipo de tu negocio" />
+      <PageHeader
+        title="Usuarios"
+        subtitle="Equipo de tu negocio"
+        actions={
+          canWrite ? (
+            <Button
+              variant="contained"
+              startIcon={<Plus size={16} aria-hidden />}
+              component={RouterLink}
+              to="/users/new"
+            >
+              Nuevo usuario
+            </Button>
+          ) : undefined
+        }
+      />
 
       {state.status === 'loading' && <LoadingTable />}
 
@@ -92,10 +114,24 @@ export function UsersListPage() {
           icon={<Inbox size={28} aria-hidden />}
           title="Aún no hay miembros"
           subtitle="Invita a tu equipo cuando esté listo."
+          action={
+            canWrite ? (
+              <Button
+                variant="contained"
+                startIcon={<Plus size={16} aria-hidden />}
+                component={RouterLink}
+                to="/users/new"
+              >
+                Nuevo usuario
+              </Button>
+            ) : undefined
+          }
         />
       )}
 
-      {state.status === 'success' && state.data.length > 0 && <UsersTable users={state.data} />}
+      {state.status === 'success' && state.data.length > 0 && (
+        <UsersTable users={state.data} canWrite={canWrite} />
+      )}
     </>
   );
 }
@@ -139,7 +175,8 @@ function LoadingTable() {
   );
 }
 
-function UsersTable({ users }: { users: SafeUser[] }) {
+function UsersTable({ users, canWrite }: { users: SafeUser[]; canWrite: boolean }) {
+  const navigate = useNavigate();
   return (
     <TableContainer>
       <Table>
@@ -150,11 +187,17 @@ function UsersTable({ users }: { users: SafeUser[] }) {
             <TableCell>Rol</TableCell>
             <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Sucursales</TableCell>
             <TableCell>Estado</TableCell>
+            {canWrite && <TableCell align="right">Acciones</TableCell>}
           </TableRow>
         </TableHead>
         <TableBody>
           {users.map((user) => (
-            <TableRow key={user._id} hover>
+            <TableRow
+              key={user._id}
+              hover
+              onClick={canWrite ? () => navigate(`/users/${user._id}/edit`) : undefined}
+              sx={canWrite ? { cursor: 'pointer' } : undefined}
+            >
               <TableCell sx={{ fontWeight: 550 }}>{user.name}</TableCell>
               <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{user.email}</TableCell>
               <TableCell>
@@ -171,6 +214,19 @@ function UsersTable({ users }: { users: SafeUser[] }) {
                   label={user.isActive ? 'Activo' : 'Inactivo'}
                 />
               </TableCell>
+              {canWrite && (
+                <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    size="small"
+                    variant="text"
+                    startIcon={<Edit size={14} aria-hidden />}
+                    component={RouterLink}
+                    to={`/users/${user._id}/edit`}
+                  >
+                    Editar
+                  </Button>
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>

@@ -191,6 +191,22 @@ describe('users service', () => {
       ).rejects.toThrow('A user with this email already exists');
     });
 
+    it('attaches { field: "email" } detail on DUPLICATE_EMAIL so the form can map it', async () => {
+      mockUsersCollection.findOne.mockResolvedValue(makeUser({ email: 'dup@test.com' }));
+
+      await expect(
+        createUser(
+          adminPayload,
+          { email: 'dup@test.com', password: 'password123', name: 'Dup', role: 'cashier' },
+          ctx,
+        ),
+      ).rejects.toMatchObject({
+        code: 'DUPLICATE_EMAIL',
+        statusCode: 409,
+        details: [{ field: 'email', message: 'A user with this email already exists' }],
+      });
+    });
+
     it('manager can create a cashier', async () => {
       mockUsersCollection.findOne.mockResolvedValue(null);
       mockUsersCollection.insertOne.mockResolvedValue({});

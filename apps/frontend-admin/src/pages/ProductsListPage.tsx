@@ -33,7 +33,7 @@ import {
   TextField,
   Trash2,
 } from '@kaipos/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EmptyState, PageHeader } from '../components/index.js';
 import { useAuth } from '../context/AuthContext.js';
@@ -105,7 +105,15 @@ export function ProductsListPage() {
   // product event from peers (or this same client). We refetch rather than
   // patch local state because the WS payload only carries identifiers — the
   // canonical product shape stays one source of truth (the API).
+  //
+  // The subscribe/unsubscribe + onMessage handlers are wired through a ref so
+  // that re-renders of the WS context (which happen on every subscribe via
+  // setSubscribedChannels) don't re-fire the effect. Otherwise the effect's
+  // cleanup unsubscribes and the body re-subscribes on every render — a tight
+  // infinite loop that we observed saturating Lambda concurrency in prod.
   const ws = useWebSocketContext();
+  const wsRef = useRef(ws);
+  wsRef.current = ws;
   const branchChannel: WSChannel | null = useMemo(() => {
     if (!user || !branchId) return null;
     if (user.businessId === '*') return null;
@@ -114,15 +122,19 @@ export function ProductsListPage() {
 
   useEffect(() => {
     if (!branchChannel) return;
-    if (ws.status !== 'open') return;
-    ws.subscribe(branchChannel);
+    if (wsRef.current.status !== 'open') return;
+    wsRef.current.subscribe(branchChannel);
     return () => {
-      ws.unsubscribe(branchChannel);
+      wsRef.current.unsubscribe(branchChannel);
     };
-  }, [branchChannel, ws]);
+    // We intentionally only depend on branchChannel + the ws connection
+    // status. `ws` itself changes identity on every subscribe — adding it
+    // to the dep array creates a re-subscribe loop. The wsRef above keeps
+    // us pointed at the latest reference without triggering re-runs.
+  }, [branchChannel, ws.status]);
 
   useEffect(() => {
-    return ws.onMessage((message) => {
+    return wsRef.current.onMessage((message) => {
       if (!message.channel || message.channel !== branchChannel) return;
       if (
         message.type === 'product.created' ||
@@ -136,7 +148,7 @@ export function ProductsListPage() {
         setLowStockToast(`${name} está bajo de stock`);
       }
     });
-  }, [ws, branchChannel]);
+  }, [branchChannel]);
 
   useEffect(() => {
     if (!branchId) return;

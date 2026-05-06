@@ -197,21 +197,6 @@ export function LoginPage() {
             Menú, inventario, turnos, reportes y tienda online — conectados en tiempo real a cada
             terminal, cocina y mesero.
           </Typography>
-
-          <Box
-            sx={{
-              marginTop: 4,
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: 3,
-              paddingTop: 3,
-              borderTop: '1px solid rgba(255,255,255,0.15)',
-            }}
-          >
-            <Stat value="12,400+" label="restaurantes" />
-            <Stat value="$2.4B" label="procesado / año" />
-            <Stat value="99.99%" label="uptime" />
-          </Box>
         </Box>
       </Box>
 
@@ -223,22 +208,6 @@ export function LoginPage() {
           overflow: 'auto',
         }}
       >
-        <Box sx={{ marginLeft: 'auto', fontSize: 13, color: 'text.secondary' }}>
-          ¿Nuevo en kaiPOS?{' '}
-          <Box
-            component="a"
-            href="#"
-            sx={{
-              color: 'primary.main',
-              fontWeight: 600,
-              textDecoration: 'none',
-              '&:hover': { textDecoration: 'underline' },
-            }}
-          >
-            Crea una cuenta →
-          </Box>
-        </Box>
-
         <Box sx={{ margin: 'auto 0', maxWidth: 420, width: '100%' }}>
           <Typography
             sx={{
@@ -428,45 +397,11 @@ export function LoginPage() {
             flexWrap: 'wrap',
           }}
         >
-          <Box component="a" href="#" sx={{ color: 'inherit', textDecoration: 'none' }}>
-            Términos
-          </Box>
-          <Box component="a" href="#" sx={{ color: 'inherit', textDecoration: 'none' }}>
-            Privacidad
-          </Box>
-          <Box component="a" href="#" sx={{ color: 'inherit', textDecoration: 'none' }}>
-            Estado del sistema
-          </Box>
           <Typography variant="mono" sx={{ marginLeft: 'auto' }}>
             v {version}
           </Typography>
         </Stack>
       </Box>
-    </Box>
-  );
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <Box>
-      <Typography
-        variant="money"
-        sx={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.01em', display: 'block' }}
-      >
-        {value}
-      </Typography>
-      <Typography
-        sx={{
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-          color: 'rgba(255,255,255,0.6)',
-          marginTop: '2px',
-        }}
-      >
-        {label}
-      </Typography>
     </Box>
   );
 }

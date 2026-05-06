@@ -49,7 +49,7 @@ Single AWS environment: **`prod`**. Local development (`dev`) runs via `pnpm dev
    pnpm --filter @kaipos/infra deploy:prod
    ```
 
-   Note the outputs: `ApiUrl`, `DistributionUrl`, `MongoSecretArn`, `VpcId`, `AssetsBucketName`.
+   Note the outputs: `ApiUrl`, `DistributionUrl`, `MongoSecretArn`, `JwtSecretArn`, `AssetsBucketName`, `AssetsCdnDomain`, `WebSocketEndpoint`, `WebSocketManagementEndpoint`, `ConnectionsTableName`, `DeployRoleArn`. (No VPC — Lambdas reach Atlas directly over the internet, see CLAUDE.md.)
 
 5. **Populate the Mongo secret**
    The secret is created empty so the Atlas URI never touches source or CloudFormation.

@@ -67,12 +67,12 @@ import {
   createProduct,
   generateUploadUrl,
   getProduct,
-  listProducts,
   toProductsApiError,
   updateProduct,
   type CreateProductPayload,
   type UpdateProductPayload,
 } from '../lib/products-api.js';
+import { createCategory, listCategories } from '../lib/categories-api.js';
 
 // ---------------------------------------------------------------------------
 // Constants & labels
@@ -410,25 +410,23 @@ export function ProductFormPage() {
     };
   }, [id, mode]);
 
-  // Seed category options from existing products in this branch
+  // Source category options from the canonical categories API. Falls back to
+  // an empty list (with inline-create still available) if the endpoint isn't
+  // reachable or the user lacks `categories:read`.
   useEffect(() => {
-    if (!branchId) return;
     let cancelled = false;
-    listProducts({ branchId, includeInactive: true })
-      .then((products) => {
+    listCategories()
+      .then((categories) => {
         if (cancelled) return;
-        const set = new Set<string>();
-        for (const p of products) set.add(p.category);
-        setCategoryOptions(Array.from(set).sort((a, b) => a.localeCompare(b, 'es')));
+        setCategoryOptions(categories.map((c) => c.name).sort((a, b) => a.localeCompare(b, 'es')));
       })
       .catch(() => {
-        // Non-fatal: users can still type a new category.
         if (!cancelled) setCategoryOptions([]);
       });
     return () => {
       cancelled = true;
     };
-  }, [branchId]);
+  }, []);
 
   // Load kitchen stations
   useEffect(() => {
@@ -519,6 +517,19 @@ export function ProductFormPage() {
     setSubmitError(null);
     setSubmitting(true);
     try {
+      // If the user typed a brand-new category (not in the canonical list),
+      // create it in the categories collection on submit. Best-effort —
+      // duplicate-name 409s are swallowed (the category may have been created
+      // concurrently), and any other failure is logged but doesn't block the
+      // product save (product.category is still stored as a string).
+      const typedCategory = form.category.trim();
+      if (typedCategory && !categoryOptions.includes(typedCategory)) {
+        try {
+          await createCategory({ name: typedCategory });
+        } catch {
+          // ignore — product save is the primary action
+        }
+      }
       if (mode === 'new') {
         await createProduct(formToCreatePayload(form, branchId!));
       } else if (id) {
@@ -545,7 +556,7 @@ export function ProductFormPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [branchId, form, id, mode, navigate]);
+  }, [branchId, categoryOptions, form, id, mode, navigate]);
 
   // ---------------------------------------------------------------------------
   // Gating: if the user lost the branch context somehow, or the edit failed to

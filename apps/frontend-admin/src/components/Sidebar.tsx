@@ -3,6 +3,7 @@ import { hasPermission } from '@kaipos/shared';
 import {
   Box,
   Drawer,
+  Inbox,
   LayoutDashboard,
   List,
   ListItemButton,
@@ -29,6 +30,7 @@ interface SidebarItem {
 const ITEMS: SidebarItem[] = [
   { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
   { label: 'Productos', to: '/products', icon: Package, permission: 'products:read' },
+  { label: 'Categorías', to: '/categories', icon: Inbox, permission: 'categories:read' },
   { label: 'Usuarios', to: '/users', icon: UsersIcon, permission: 'users:read' },
   { label: 'Debug · WebSocket', to: '/debug/ws', icon: Radio },
 ];

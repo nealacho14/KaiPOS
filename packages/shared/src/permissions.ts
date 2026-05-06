@@ -4,6 +4,9 @@ export type Permission =
   | 'products:read'
   | 'products:write'
   | 'products:delete'
+  | 'categories:read'
+  | 'categories:write'
+  | 'categories:delete'
   | 'orders:create'
   | 'orders:read'
   | 'orders:update'
@@ -24,6 +27,9 @@ const ADMIN_PERMISSIONS: Permission[] = [
   'products:read',
   'products:write',
   'products:delete',
+  'categories:read',
+  'categories:write',
+  'categories:delete',
   'orders:create',
   'orders:read',
   'orders:update',
@@ -44,6 +50,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   manager: [
     'products:read',
     'products:write',
+    'categories:read',
+    'categories:write',
     'orders:read',
     'orders:update',
     'orders:cancel',
@@ -53,15 +61,29 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'kitchen_stations:read',
     'kitchen_stations:write',
   ],
-  supervisor: ['products:read', 'orders:read', 'orders:update', 'orders:cancel', 'reports:view'],
+  supervisor: [
+    'products:read',
+    'categories:read',
+    'orders:read',
+    'orders:update',
+    'orders:cancel',
+    'reports:view',
+  ],
   cashier: [
     'products:read',
+    'categories:read',
     'orders:create',
     'orders:read',
     'orders:update',
     'kitchen_stations:read',
   ],
-  waiter: ['products:read', 'orders:create', 'orders:read', 'kitchen_stations:read'],
+  waiter: [
+    'products:read',
+    'categories:read',
+    'orders:create',
+    'orders:read',
+    'kitchen_stations:read',
+  ],
   kitchen: ['orders:read', 'orders:update', 'kitchen_stations:read'],
 };
 

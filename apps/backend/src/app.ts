@@ -7,6 +7,7 @@ import { checkHealth } from './services/health.js';
 import authRoutes from './routes/auth.js';
 import usersRoutes from './routes/users.js';
 import branchesRoutes from './routes/branches.js';
+import businessesRoutes from './routes/businesses.js';
 import categoriesRoutes from './routes/categories.js';
 import kitchenStationsRoutes from './routes/kitchen-stations.js';
 import ordersRoutes from './routes/orders.js';
@@ -28,6 +29,7 @@ app.get('/api/health', async (c) => {
 app.route('/', authRoutes);
 app.route('/', usersRoutes);
 app.route('/', branchesRoutes);
+app.route('/', businessesRoutes);
 app.route('/', categoriesRoutes);
 app.route('/', kitchenStationsRoutes);
 app.route('/', ordersRoutes);

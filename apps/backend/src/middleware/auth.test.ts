@@ -92,4 +92,71 @@ describe('requireAuth middleware', () => {
     expect(body.code).toBe('TOKEN_EXPIRED');
     expect(body.error).toContain('expired');
   });
+
+  describe('super_admin x-business-id narrowing', () => {
+    it('narrows businessId for super_admin when x-business-id header is set', async () => {
+      mockVerifyAccessToken.mockResolvedValue({
+        userId: 'sa-1',
+        businessId: '*',
+        role: 'super_admin',
+      });
+
+      const app = createApp();
+      const res = await app.request('/protected/resource', {
+        headers: { Authorization: 'Bearer t', 'x-business-id': 'biz-77' },
+      });
+
+      const body = (await res.json()) as { user: { businessId: string; role: string } };
+      expect(body.user.businessId).toBe('biz-77');
+      expect(body.user.role).toBe('super_admin');
+    });
+
+    it('leaves businessId untouched when super_admin omits the header', async () => {
+      mockVerifyAccessToken.mockResolvedValue({
+        userId: 'sa-1',
+        businessId: '*',
+        role: 'super_admin',
+      });
+
+      const app = createApp();
+      const res = await app.request('/protected/resource', {
+        headers: { Authorization: 'Bearer t' },
+      });
+
+      const body = (await res.json()) as { user: { businessId: string } };
+      expect(body.user.businessId).toBe('*');
+    });
+
+    it('ignores x-business-id from non-super_admin actors', async () => {
+      mockVerifyAccessToken.mockResolvedValue({
+        userId: 'a-1',
+        businessId: 'biz-1',
+        role: 'admin',
+      });
+
+      const app = createApp();
+      const res = await app.request('/protected/resource', {
+        headers: { Authorization: 'Bearer t', 'x-business-id': 'biz-other' },
+      });
+
+      const body = (await res.json()) as { user: { businessId: string } };
+      expect(body.user.businessId).toBe('biz-1');
+    });
+
+    it('ignores x-business-id when it points back at the super_admin sentinel', async () => {
+      mockVerifyAccessToken.mockResolvedValue({
+        userId: 'sa-1',
+        businessId: '*',
+        role: 'super_admin',
+      });
+
+      const app = createApp();
+      const res = await app.request('/protected/resource', {
+        headers: { Authorization: 'Bearer t', 'x-business-id': '*' },
+      });
+
+      const body = (await res.json()) as { user: { businessId: string } };
+      expect(body.user.businessId).toBe('*');
+    });
+  });
 });

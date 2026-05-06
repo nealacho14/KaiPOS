@@ -12,6 +12,7 @@ export interface StoredSession {
 const ACCESS_KEY = 'kaipos:accessToken';
 const REFRESH_KEY = 'kaipos:refreshToken';
 const USER_KEY = 'kaipos:user';
+const SELECTED_BUSINESS_KEY = 'kaipos:selectedBusinessId';
 
 type Listener = (session: StoredSession | null) => void;
 const listeners = new Set<Listener>();
@@ -66,12 +67,31 @@ export function setSession(next: StoredSession): void {
   notify(next);
 }
 
+// Selected business (super_admin only). Persisted across reloads so the
+// picker remembers the last chosen business. Cleared on logout alongside
+// the rest of the session.
+export function getSelectedBusinessId(): string | null {
+  const storage = safeStorage();
+  return storage ? storage.getItem(SELECTED_BUSINESS_KEY) : null;
+}
+
+export function setSelectedBusinessId(id: string | null): void {
+  const storage = safeStorage();
+  if (!storage) return;
+  if (id) {
+    storage.setItem(SELECTED_BUSINESS_KEY, id);
+  } else {
+    storage.removeItem(SELECTED_BUSINESS_KEY);
+  }
+}
+
 export function clearSession(): void {
   const storage = safeStorage();
   if (!storage) return;
   storage.removeItem(ACCESS_KEY);
   storage.removeItem(REFRESH_KEY);
   storage.removeItem(USER_KEY);
+  storage.removeItem(SELECTED_BUSINESS_KEY);
   try {
     if (typeof window !== 'undefined') {
       window.sessionStorage.removeItem(ACTIVE_BRANCH_STORAGE_KEY);

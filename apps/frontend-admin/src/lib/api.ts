@@ -1,5 +1,5 @@
 import type { ApiErrorDetail, RefreshResponse } from '@kaipos/shared';
-import { clearSession, getSession, setSession } from './auth-storage.js';
+import { clearSession, getSelectedBusinessId, getSession, setSession } from './auth-storage.js';
 
 type AuthFailureHandler = () => void;
 
@@ -82,6 +82,14 @@ function buildHeaders(init: ApiInit | undefined, accessToken?: string): Headers 
   const headers = new Headers(init?.headers);
   if (accessToken && !init?.skipAuth) {
     headers.set('authorization', `Bearer ${accessToken}`);
+    // Super_admin in-app business picker. The backend's `requireAuth` reads
+    // `x-business-id` and narrows the in-request user.businessId to the
+    // selected one. Regular users have no selectedBusinessId and the header
+    // is absent, so this is a no-op for them.
+    const selectedBusinessId = getSelectedBusinessId();
+    if (selectedBusinessId) {
+      headers.set('x-business-id', selectedBusinessId);
+    }
   }
   return headers;
 }

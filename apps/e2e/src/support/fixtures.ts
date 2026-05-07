@@ -30,8 +30,11 @@ export const CYPRESS_FIXTURES = {
 // type ends up uppercase in the DB; downstream `.startsWith()` filters and
 // `cy.contains()` matches are case-sensitive.
 export function cypressSkuPrefix(): string {
-  const runId = Cypress.env('GITHUB_RUN_ID') as string | undefined;
-  return runId ? `CYP-${runId.toUpperCase()}-` : 'CYP-LOCAL-';
+  // Cypress.env() coerces numeric-looking strings (`CYPRESS_GITHUB_RUN_ID=25502907764`)
+  // into JS numbers, so the TS-only `as string` cast lies at runtime — coerce
+  // explicitly with String() before calling .toUpperCase().
+  const runId = Cypress.env('GITHUB_RUN_ID');
+  return runId !== undefined && runId !== '' ? `CYP-${String(runId).toUpperCase()}-` : 'CYP-LOCAL-';
 }
 
 // Generate a unique SKU within the current run. The product cleanup loop in

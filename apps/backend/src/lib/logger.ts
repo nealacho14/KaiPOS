@@ -1,7 +1,6 @@
 import pino from 'pino';
 import type { TransportSingleOptions } from 'pino';
-
-const isProduction = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'prod';
+import { isProduction } from './env.js';
 
 const transport: TransportSingleOptions | undefined = isProduction
   ? undefined

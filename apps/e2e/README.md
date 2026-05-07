@@ -26,7 +26,10 @@ The first run installs the Cypress binary (~250 MB cache).
 ## Required environment
 
 Copy `apps/e2e/.env.example` to `apps/e2e/.env`, or export the variables in
-your shell. Cypress strips the `CYPRESS_` prefix automatically:
+your shell — `cypress.config.ts` calls `dotenv.config()` at startup so the
+file is honoured automatically. Shell exports still win (dotenv does not
+override existing env vars), which keeps CI's `env:` block authoritative.
+Cypress strips the `CYPRESS_` prefix automatically:
 `CYPRESS_USER_ADMIN_A_EMAIL` is read as `Cypress.env('USER_ADMIN_A_EMAIL')`.
 
 | Variable                                       | Purpose                                                                  |

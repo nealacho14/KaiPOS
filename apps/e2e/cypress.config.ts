@@ -1,4 +1,11 @@
+import { config as loadDotenv } from 'dotenv';
 import { defineConfig } from 'cypress';
+
+// Load apps/e2e/.env for local runs. dotenv does not override variables that
+// are already set in the shell, so an explicit `export CYPRESS_BASE_URL=...`
+// or the GitHub Actions `env:` block still wins. CI works fine even though
+// no .env file is present (`override: false` is the default).
+loadDotenv();
 
 const baseUrl = process.env.CYPRESS_BASE_URL ?? 'http://localhost:3000';
 

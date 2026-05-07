@@ -1,0 +1,23 @@
+{
+  "name": "@kaipos/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "cy:open": "cypress open",
+    "cy:run": "cypress run",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@kaipos/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@kaipos/eslint-config": "workspace:*",
+    "@kaipos/tsconfig": "workspace:*",
+    "@types/node": "^22.0.0",
+    "cypress": "^13.17.0",
+    "dotenv": "^16.4.5",
+    "eslint": "^9.0.0",
+    "typescript": "^5.7.0"
+  }
+}

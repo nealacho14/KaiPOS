@@ -20,7 +20,21 @@ async function resolveMongoUri(): Promise<string> {
     return cachedUri;
   }
 
-  cachedUri = process.env.MONGO_URI || 'mongodb://localhost:27017/kaipos';
+  // Local path. The non-Lambda environment is Docker-only by policy: if a
+  // dev's .env points at Atlas, refuse loudly instead of silently writing
+  // demo/test data into a shared cluster. The Lambda path above already
+  // returned, so any Atlas SRV URI we see here came from a local .env.
+  const uri = process.env.MONGO_URI || 'mongodb://localhost:27017/kaipos';
+  if (uri.startsWith('mongodb+srv://')) {
+    throw new Error(
+      'Local backend refuses to connect to Atlas (mongodb+srv://). ' +
+        'KaiPOS local dev runs against Docker Mongo only — set ' +
+        'MONGO_URI=mongodb://localhost:27017/kaipos and start the stack with ' +
+        '`pnpm docker:up` (or `pnpm setup` for first-time bootstrap). ' +
+        'Atlas connections live exclusively in Lambda via MONGO_SECRET_ARN.',
+    );
+  }
+  cachedUri = uri;
   return cachedUri;
 }
 

@@ -2,13 +2,34 @@
 
 Two ways to run locally — both load `.env` from the repo root.
 
-## `pnpm dev` (Atlas / external Mongo)
+## `pnpm setup` (one-shot bootstrap)
 
-Backend on `:4000`, frontend on `:3000`. Uses `MONGO_URI` from `.env`. Vite proxies `/api` to the local backend.
+Implemented as `scripts/setup.sh`. Pre-checks Node 20 and a reachable Docker
+daemon, copies `.env.example` → `.env` if missing, brings the Docker stack up
+with `docker compose up -d --wait`, waits for Mongo to answer a ping, then
+runs `db:setup` and `db:seed`. Idempotent — safe to rerun. After it finishes,
+`pnpm dev` (or `pnpm docker:up`) gives you a working stack signed in as
+`admin@lacocinadekai.com` / `admin123`.
+
+## `pnpm dev` (Docker Mongo)
+
+Backend on `:4000`, frontend on `:3000`. Uses `MONGO_URI` from `.env`
+(default `mongodb://localhost:27017/kaipos`, served by the `mongo` container
+from `pnpm docker:up`). The backend refuses `mongodb+srv://` URIs at
+startup — Atlas is reserved for Lambda in AWS prod, reached via Secrets
+Manager. Vite proxies `/api` to the local backend.
 
 ## `pnpm docker:up` (containerized + local Mongo + MinIO)
 
 Backend on `:4001`, frontend on `:3001`. Compose file at `docker-compose.yml`.
+
+## `pnpm e2e` (Cypress)
+
+Headless Cypress run against the URL in `CYPRESS_BASE_URL` (default
+`http://localhost:3000`). Equivalent to
+`pnpm --filter @kaipos/e2e cy:run`. See `apps/e2e/README.md` for the
+required env vars and the staging seed contract used by the role/tenant
+suites.
 
 ### MinIO (local S3-compatible storage)
 
@@ -22,8 +43,8 @@ Backend on `:4001`, frontend on `:3001`. Compose file at `docker-compose.yml`.
 
 ## Environment variables
 
-- `MONGO_URI` — MongoDB connection string. Loaded from root `.env` for `pnpm dev`. For Docker, set in `docker-compose.yml` (the `environment:` block overrides `.env`). **Not used in AWS prod.**
-- `MONGO_SECRET_ARN` — ARN of the Secrets Manager secret holding the Atlas URI. Injected by CDK into the Lambda only in AWS prod. Never set locally. Also used as a signal by `db:seed` to refuse execution.
+- `MONGO_URI` — MongoDB connection string. Loaded from root `.env` for `pnpm dev`. **Must point at a local Mongo** — the backend rejects `mongodb+srv://` (Atlas) when `MONGO_SECRET_ARN` is unset. For Docker, set in `docker-compose.yml` (the `environment:` block overrides `.env`). **Not used in AWS prod.**
+- `MONGO_SECRET_ARN` — ARN of the Secrets Manager secret holding the Atlas URI. Injected by CDK into the Lambda only in AWS prod. Never set locally. Its presence is also the "we're in Lambda" signal that bypasses the local anti-Atlas guard; `db:seed`/`db:seed-cypress` refuse to run when it's set.
 - `JWT_SECRET` — HMAC secret for signing access tokens. Loaded from root `.env` in local dev and Docker. In AWS prod replaced by `JWT_SECRET_ARN` (Secrets Manager).
 - `CLOUDFRONT_SECRET` — Shared secret for CloudFront origin verification. Injected by CDK into the Lambda in AWS prod. Not set locally (middleware skips the check).
 - `ASSETS_BUCKET_NAME` — S3 bucket receiving pre-signed PUTs from `POST /api/products/upload-url` (keys scoped to `products/<branchId>/<uuid>.<ext>`). Injected by CDK from `AssetsStack` in AWS prod; set to `kaipos-assets-dev` in `docker-compose.yml`. If unset (e.g. `pnpm dev` without extra config), the upload endpoint returns 503 `ASSETS_NOT_CONFIGURED` instead of calling AWS.

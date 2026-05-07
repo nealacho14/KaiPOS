@@ -17,7 +17,7 @@ One command from a fresh clone gets you a running stack with seeded demo data:
 git clone <repo-url>
 cd KaiPOS
 pnpm setup        # node/docker pre-checks → .env → docker compose --wait → db:setup → db:seed
-pnpm dev          # backend :4000 + frontend :3000 (Atlas-style, against the Docker Mongo)
+pnpm dev          # backend :4000 + frontend :3000 (against the Docker Mongo)
 ```
 
 Sign in at http://localhost:3000 with `admin@lacocinadekai.com` / `admin123`.
@@ -27,15 +27,15 @@ stack as the database (Mongo + MinIO), so a working Docker daemon is required.
 
 ### Manual setup
 
-If you'd rather wire the pieces yourself (e.g. you point `MONGO_URI` at Atlas
-or another external Mongo), the long form:
+If you'd rather wire the pieces yourself, the long form (still Docker
+Mongo — `mongodb+srv://` URIs are refused at every layer):
 
 ```bash
 pnpm install                                       # install workspace deps
-cp .env.example .env                               # adjust MONGO_URI / JWT_SECRET
-pnpm docker:up                                     # optional — local Mongo + MinIO
+cp .env.example .env                               # adjust JWT_SECRET (MONGO_URI default is fine)
+pnpm docker:up                                     # local Mongo + MinIO
 pnpm --filter @kaipos/backend db:setup             # collections + validators + indexes
-pnpm --filter @kaipos/backend db:seed              # demo data (refuses Atlas)
+pnpm --filter @kaipos/backend db:seed              # demo data (Docker Mongo only)
 pnpm dev                                           # backend :4000 + frontend :3000
 ```
 
@@ -53,8 +53,8 @@ pnpm dev                                           # backend :4000 + frontend :3
 | `pnpm e2e`                               | Run the Cypress suite headless (alias of `--filter @kaipos/e2e cy:run`) |
 | `pnpm docker:up`                         | Start all services with Docker Compose (with build)                     |
 | `pnpm docker:down`                       | Stop Docker Compose services                                            |
-| `pnpm --filter @kaipos/backend db:setup` | Create MongoDB collections, validators, indexes (safe against Atlas)    |
-| `pnpm --filter @kaipos/backend db:seed`  | Insert demo data into local/Docker Mongo (refuses to run against Atlas) |
+| `pnpm --filter @kaipos/backend db:setup` | Create MongoDB collections, validators, indexes (idempotent)            |
+| `pnpm --filter @kaipos/backend db:seed`  | Insert demo data; Docker Mongo only — refuses `mongodb+srv://`          |
 | `pnpm deploy:prod`                       | Build apps and deploy all AWS CDK stacks to prod                        |
 | `pnpm deploy:prod:api`                   | Build backend and deploy only the API stack                             |
 | `pnpm deploy:prod:frontend`              | Build frontend and deploy only the frontend stack                       |
@@ -63,18 +63,21 @@ pnpm dev                                           # backend :4000 + frontend :3
 
 Copy `.env.example` to `.env` and set your values. The root `.env` is used both by `pnpm dev` (via `DOTENV_CONFIG_PATH`) and by Docker (via `env_file:` in `docker-compose.yml`).
 
-| Variable                  | Description                                               | Default                            |
-| ------------------------- | --------------------------------------------------------- | ---------------------------------- |
-| `MONGO_URI`               | MongoDB connection string (ignored inside Docker)         | `mongodb://localhost:27017/kaipos` |
-| `JWT_SECRET`              | HMAC secret for signing access tokens                     | _(required in dev)_                |
-| `PASSWORD_RESET_BASE_URL` | Frontend URL where password reset links point             | `http://localhost:3000`            |
-| `SES_SENDER_EMAIL`        | From-address for SES emails (if unset, tokens are logged) | _(unset)_                          |
+| Variable                  | Description                                                                                                                                                                                         | Default                            |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `MONGO_URI`               | Local Mongo connection string. `mongodb+srv://` is refused (Atlas lives in prod only, via Secrets Manager). Ignored inside Docker — the backend container hardcodes `mongodb://mongo:27017/kaipos`. | `mongodb://localhost:27017/kaipos` |
+| `JWT_SECRET`              | HMAC secret for signing access tokens                                                                                                                                                               | _(required in dev)_                |
+| `PASSWORD_RESET_BASE_URL` | Frontend URL where password reset links point                                                                                                                                                       | `http://localhost:3000`            |
+| `SES_SENDER_EMAIL`        | From-address for SES emails (if unset, tokens are logged)                                                                                                                                           | _(unset)_                          |
 
 ## Development Modes
 
 ### Local (`pnpm dev`)
 
-Uses MongoDB Atlas (or any external MongoDB) configured via `MONGO_URI` in `.env`.
+Uses the local Mongo configured via `MONGO_URI` in `.env` (default
+`mongodb://localhost:27017/kaipos`, served by the `mongo` container from
+`pnpm docker:up`). The backend refuses `mongodb+srv://` URIs — Atlas is
+prod-only and reached exclusively via Secrets Manager from Lambda.
 
 - **Backend API** on http://localhost:4000
 - **Frontend Admin** on http://localhost:3000
@@ -134,7 +137,7 @@ Logging uses **Pino** with structured JSON output. In local dev, `pino-pretty` p
 
 KaiPOS uses **MongoDB** with the native Node.js driver (`mongodb` package).
 
-- **Local (pnpm dev)**: MongoDB Atlas or any external MongoDB via `MONGO_URI` in `.env`
+- **Local (pnpm dev)**: the Docker `mongo` service (default `mongodb://localhost:27017/kaipos`). `mongodb+srv://` is refused at startup
 - **Local (Docker)**: MongoDB 7 via Docker Compose
 - **Production (AWS)**: MongoDB Atlas. The connection URI is stored in AWS
   Secrets Manager (`kaipos/prod/mongo-uri`); the Lambda resolves it at cold
@@ -145,8 +148,8 @@ KaiPOS uses **MongoDB** with the native Node.js driver (`mongodb` package).
 
 Two separate scripts:
 
-- `pnpm --filter @kaipos/backend db:setup` — creates collections, `$jsonSchema` validators, and indexes. Idempotent. Safe to run against local, Docker, and Atlas prod.
-- `pnpm --filter @kaipos/backend db:seed` — inserts demo data (business, branch, users, categories, products, modifiers, tables). **Refuses to run against Atlas**: fails fast if `MONGO_URI` contains `mongodb+srv://` or if `MONGO_SECRET_ARN` is set. Docker/local only.
+- `pnpm --filter @kaipos/backend db:setup` — creates collections, `$jsonSchema` validators, and indexes. Idempotent. Safe to run against local, Docker, and (operationally) Atlas via a tunnel from a workstation.
+- `pnpm --filter @kaipos/backend db:seed` — inserts demo data (business, branch, users, categories, products, modifiers, tables). **Docker/local only**: fails fast if `MONGO_URI` contains `mongodb+srv://` or if `MONGO_SECRET_ARN` is set.
 
 Running inside Docker:
 

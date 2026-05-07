@@ -2,7 +2,7 @@
 
 ## Setup and seed scripts
 
-- `apps/backend/src/db/setup.ts` — creates all collections with `$jsonSchema` validators and indexes (idempotent via `collMod` + `createIndex`). Runs anywhere: local, Docker, and Atlas prod. Exposed as `pnpm --filter @kaipos/backend db:setup`.
+- `apps/backend/src/db/setup.ts` — creates all collections with `$jsonSchema` validators and indexes (idempotent via `collMod` + `createIndex`). Runs against local/Docker Mongo, and against prod Atlas only from a workstation with a tunnel (or as a one-shot post-deploy job) — never via `pnpm dev` against Atlas, which the backend refuses. Exposed as `pnpm --filter @kaipos/backend db:setup`.
 - `apps/backend/src/db/seed.ts` — inserts demo data (1 business "La Cocina de Kai", 1 branch, 2 users, 5 categories, 10 products, 3 modifiers, 6 tables). **Guard: refuses to run if `MONGO_SECRET_ARN` is set or `MONGO_URI` contains `mongodb+srv://`** — Docker/local only. Passwords hashed at runtime via `src/lib/password.ts` (`hashPassword`). Seeded users: `admin@lacocinadekai.com` / `admin123` and `cajero@lacocinadekai.com` / `cajero123`. Idempotent: skips if business `la-cocina-de-kai` already exists. Exposed as `pnpm --filter @kaipos/backend db:seed`.
 
 ## RBAC

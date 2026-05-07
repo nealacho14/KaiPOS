@@ -83,6 +83,24 @@ else
   ok ".env already present (left untouched)"
 fi
 
+# Local-dev policy: MONGO_URI must point at Docker Mongo, never Atlas. Refuse
+# early so we don't burn time on `docker compose up` / `pnpm install` only to
+# fail at db:seed (which has its own anti-Atlas guard). Read .env directly —
+# we don't want to source it (would clobber the operator's shell env).
+mongo_uri_in_env="$(grep -E '^[[:space:]]*MONGO_URI=' .env 2>/dev/null | tail -n 1 | cut -d= -f2- | tr -d '"' | tr -d "'" || true)"
+if [ -n "${mongo_uri_in_env:-}" ] && printf '%s' "$mongo_uri_in_env" | grep -q '^mongodb+srv://'; then
+  err "Tu .env tiene MONGO_URI=mongodb+srv://... (Atlas)."
+  err "KaiPOS local-dev corre contra Docker Mongo, no Atlas."
+  err ""
+  err "Cambia esa línea en .env a:"
+  err "    MONGO_URI=mongodb://localhost:27017/kaipos"
+  err ""
+  err "Si necesitabas guardar la URI de Atlas para algo, copiala a un archivo"
+  err "aparte (.env.atlas, 1Password, etc.) — y rotala si la commiteaste."
+  exit 1
+fi
+ok "MONGO_URI is local (no Atlas SRV URI in .env)"
+
 # ----------------------------------------------------------------------------
 # 3. Install workspace dependencies (idempotent)
 # ----------------------------------------------------------------------------

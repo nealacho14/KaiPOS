@@ -588,8 +588,8 @@ export function generateOpenApiDocument(): OpenApiDocument {
         'KaiPOS backend HTTP API. Generated from Zod schemas via `pnpm --filter @kaipos/backend openapi:generate`.',
     },
     servers: [
-      { url: 'http://localhost:4000', description: 'pnpm dev (Atlas)' },
-      { url: 'http://localhost:4001', description: 'pnpm docker:up (local Mongo)' },
+      { url: 'http://localhost:4000', description: 'pnpm dev (Docker Mongo)' },
+      { url: 'http://localhost:4001', description: 'pnpm docker:up (Docker Mongo)' },
     ],
   }) as OpenApiDocument;
 }

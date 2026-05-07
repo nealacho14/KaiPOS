@@ -1,3 +1,4 @@
+import * as path from 'node:path';
 import * as cdk from 'aws-cdk-lib';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
@@ -40,21 +41,12 @@ export class FrontendStack extends cdk.Stack {
     // every behavior — including `/api/*`, where it masked real 4xx Lambda
     // responses as `200 text/html`. Per-behavior viewer-request rewrite is
     // the only way to get SPA deep-link routing without poisoning the API.
+    // The handler lives in `./spa-router.js` so it can be linted/edited as
+    // normal JavaScript instead of a string blob.
     const spaRouter = new cloudfront.Function(this, 'SpaRouter', {
-      code: cloudfront.FunctionCode.fromInline(`
-function handler(event) {
-  var request = event.request;
-  var uri = request.uri;
-  // Anything ending in a file extension (.js, .css, .ico, .png, etc.) is a
-  // real asset and must hit S3 as-is — let S3 return 404 if missing.
-  // Everything else is treated as a client-side route and rewritten so the
-  // SPA's React Router takes over from /index.html.
-  if (!/\\.[a-zA-Z0-9]+$/.test(uri)) {
-    request.uri = '/index.html';
-  }
-  return request;
-}
-      `),
+      code: cloudfront.FunctionCode.fromFile({
+        filePath: path.join(import.meta.dirname, 'spa-router.js'),
+      }),
       runtime: cloudfront.FunctionRuntime.JS_2_0,
     });
 

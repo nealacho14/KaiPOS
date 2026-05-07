@@ -61,30 +61,30 @@ These supersede the Open Questions in the spec:
 
 ### Tasks
 
-- [ ] **Seed de staging**: `apps/backend/src/db/seed-cypress.ts` que crea (idempotente) los dos negocios de test (`cypress-biz-a`, `cypress-biz-b`), un branch por negocio, y un usuario por rol en cada uno (`admin`, `manager`, `supervisor`, `cashier`, `waiter`, `kitchen`). Reutiliza `hashPassword` y los mismos patrones de UUID estables del seed existente. Mismas guardas anti-Atlas que `seed.ts` salvo `MONGO_SECRET_ARN` — para staging se usa el `db:seed-cypress` invocado manualmente o por workflow una sola vez tras provisión.
-- [ ] Script `pnpm --filter @kaipos/backend db:seed-cypress` con `DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/seed-cypress.ts`. El staging deploy lo corre una vez post-deploy o el operador lo invoca contra la URL de Mongo de staging desde su máquina con creds adecuadas.
-- [ ] Suite `apps/e2e/src/rbac.cy.ts`: para cada rol (admin, manager, supervisor, cashier, waiter, kitchen):
+- [x] **Seed de staging**: `apps/backend/src/db/seed-cypress.ts` que crea (idempotente) los dos negocios de test (`cypress-biz-a`, `cypress-biz-b`), un branch por negocio, y un usuario por rol en cada uno (`admin`, `manager`, `supervisor`, `cashier`, `waiter`, `kitchen`). Reutiliza `hashPassword` y los mismos patrones de UUID estables del seed existente. Mismas guardas anti-Atlas que `seed.ts` salvo `MONGO_SECRET_ARN` — para staging se usa el `db:seed-cypress` invocado manualmente o por workflow una sola vez tras provisión.
+- [x] Script `pnpm --filter @kaipos/backend db:seed-cypress` con `DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/seed-cypress.ts`. El staging deploy lo corre una vez post-deploy o el operador lo invoca contra la URL de Mongo de staging desde su máquina con creds adecuadas.
+- [x] Suite `apps/e2e/src/rbac.cy.ts`: para cada rol (admin, manager, supervisor, cashier, waiter, kitchen):
   - Login con la cuenta correspondiente.
   - Verificar visibilidad del sidebar: items presentes/ausentes según `hasPermission(role, permission)` (gating real ya implementado en `apps/frontend-admin/src/components/Sidebar`).
   - Acceso directo por URL a una ruta no permitida (e.g. `/users` para `cashier`) muestra "no autorizado" o redirige.
   - Logout entre roles.
   - Casos super_admin con `businessId === '*'`: el header business-picker permite seleccionar negocio y la SPA actúa scoped.
-- [ ] Suite `apps/e2e/src/products.cy.ts`: como admin de `cypress-biz-a`:
+- [x] Suite `apps/e2e/src/products.cy.ts`: como admin de `cypress-biz-a`:
   - Crear producto via UI (form en `/products/new`), confirmar aparece en la lista.
   - Editar el mismo producto (cambiar precio), confirmar el cambio se persiste tras refresh.
   - Eliminar el producto, confirmar desaparece de la lista.
   - Limpieza: si la suite falla a mitad, `afterEach` borra cualquier producto cuyo SKU coincida con el patrón `CYP-...` vía API (no via UI) para no dejar basura.
-- [ ] Suite `apps/e2e/src/multi-tenant.cy.ts`: como admin de `cypress-biz-a`, intentar acceder por URL directa a un producto cuyo `_id` pertenece a `cypress-biz-b` → la SPA debe mostrar 404 / "no encontrado" (porque la API retorna 404 por scoping de business). Mismo ejercicio para una categoría y una branch del negocio B. Para obtener IDs del biz-b, login transitorio con admin de biz-b al inicio de la suite y guardarlos en una variable de Cypress.
-- [ ] Custom command `cy.apiCreateProduct(payload)` y `cy.apiDeleteProduct(id)` para fixtures rápidas sin pasar por la UI.
-- [ ] Documentar en `apps/e2e/README.md` el catálogo completo de cuentas de test, sus credenciales (referenciadas como env vars), y qué SKU prefix se reserva para productos creados por Cypress (`CYP-`).
-- [ ] Actualizar `apps/e2e/.env.example` con los nuevos roles añadidos.
+- [x] Suite `apps/e2e/src/multi-tenant.cy.ts`: como admin de `cypress-biz-a`, intentar acceder por URL directa a un producto cuyo `_id` pertenece a `cypress-biz-b` → la SPA debe mostrar 404 / "no encontrado" (porque la API retorna 404 por scoping de business). Mismo ejercicio para una categoría y una branch del negocio B. Para obtener IDs del biz-b, login transitorio con admin de biz-b al inicio de la suite y guardarlos en una variable de Cypress. _(Implementación: usamos los IDs deterministas del seed-cypress en lugar de un login transitorio — más rápido y sin riesgo de race entre suites paralelas. Categoría/branch verificadas vía API por ausencia de rutas UI por-id.)_
+- [x] Custom command `cy.apiCreateProduct(payload)` y `cy.apiDeleteProduct(id)` para fixtures rápidas sin pasar por la UI.
+- [x] Documentar en `apps/e2e/README.md` el catálogo completo de cuentas de test, sus credenciales (referenciadas como env vars), y qué SKU prefix se reserva para productos creados por Cypress (`CYP-`).
+- [x] Actualizar `apps/e2e/.env.example` con los nuevos roles añadidos.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes.
-- [ ] `pnpm lint` passes.
-- [ ] `pnpm format:check` passes.
-- [ ] `pnpm build` succeeds.
+- [x] `pnpm typecheck` passes.
+- [x] `pnpm lint` passes.
+- [x] `pnpm format:check` passes.
+- [x] `pnpm build` succeeds.
 - [ ] Manual: contra `pnpm dev` local + `db:seed-cypress` aplicado, las 4 suites (auth, rbac, products, multi-tenant) corren verdes y los productos creados durante la suite quedan limpios al final.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->

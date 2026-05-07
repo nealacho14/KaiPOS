@@ -45,8 +45,100 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Verify OpenAPI in sync
+        run: |
+          pnpm --filter @kaipos/backend openapi:generate
+          if ! git diff --exit-code apps/backend/openapi.json; then
+            echo "::error::apps/backend/openapi.json is out of sync with the Zod schemas. Run 'pnpm --filter @kaipos/backend openapi:generate' and commit the result."
+            exit 1
+          fi
+
       - name: Test
         run: pnpm test
+
+  e2e:
+    name: E2E (Cypress)
+    runs-on: ubuntu-latest
+    # Cypress runs against the deployed staging frontend. CYPRESS_BASE_URL and
+    # the per-role/per-tenant credentials live in repo Variables (not Secrets)
+    # because they are documented staging accounts, not sensitive production
+    # data. The job is skipped when CYPRESS_BASE_URL is not configured so a
+    # fresh fork can still run quality checks.
+    if: vars.CYPRESS_BASE_URL != ''
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Cypress
+        run: pnpm --filter @kaipos/e2e cy:run
+        env:
+          # CYPRESS_* variables flow into Cypress.env(...) with the prefix
+          # stripped — see apps/e2e/.env.example for the full catalogue.
+          CYPRESS_BASE_URL: ${{ vars.CYPRESS_BASE_URL }}
+          # GITHUB_RUN_ID is namespaced through CYPRESS_ so the SKU prefix
+          # helper picks it up; this isolates products created by parallel
+          # PR runs against the same staging Mongo.
+          CYPRESS_GITHUB_RUN_ID: ${{ github.run_id }}
+          # Pre-seed admin used by auth.cy.ts.
+          CYPRESS_USER_ADMIN_EMAIL: ${{ vars.CYPRESS_USER_ADMIN_EMAIL }}
+          CYPRESS_USER_ADMIN_PASSWORD: ${{ vars.CYPRESS_USER_ADMIN_PASSWORD }}
+          # Per-role / per-tenant accounts from db:seed-cypress.
+          CYPRESS_USER_ADMIN_A_EMAIL: ${{ vars.CYPRESS_USER_ADMIN_A_EMAIL }}
+          CYPRESS_USER_ADMIN_A_PASSWORD: ${{ vars.CYPRESS_USER_ADMIN_A_PASSWORD }}
+          CYPRESS_USER_MANAGER_A_EMAIL: ${{ vars.CYPRESS_USER_MANAGER_A_EMAIL }}
+          CYPRESS_USER_MANAGER_A_PASSWORD: ${{ vars.CYPRESS_USER_MANAGER_A_PASSWORD }}
+          CYPRESS_USER_SUPERVISOR_A_EMAIL: ${{ vars.CYPRESS_USER_SUPERVISOR_A_EMAIL }}
+          CYPRESS_USER_SUPERVISOR_A_PASSWORD: ${{ vars.CYPRESS_USER_SUPERVISOR_A_PASSWORD }}
+          CYPRESS_USER_CASHIER_A_EMAIL: ${{ vars.CYPRESS_USER_CASHIER_A_EMAIL }}
+          CYPRESS_USER_CASHIER_A_PASSWORD: ${{ vars.CYPRESS_USER_CASHIER_A_PASSWORD }}
+          CYPRESS_USER_WAITER_A_EMAIL: ${{ vars.CYPRESS_USER_WAITER_A_EMAIL }}
+          CYPRESS_USER_WAITER_A_PASSWORD: ${{ vars.CYPRESS_USER_WAITER_A_PASSWORD }}
+          CYPRESS_USER_KITCHEN_A_EMAIL: ${{ vars.CYPRESS_USER_KITCHEN_A_EMAIL }}
+          CYPRESS_USER_KITCHEN_A_PASSWORD: ${{ vars.CYPRESS_USER_KITCHEN_A_PASSWORD }}
+          CYPRESS_USER_ADMIN_B_EMAIL: ${{ vars.CYPRESS_USER_ADMIN_B_EMAIL }}
+          CYPRESS_USER_ADMIN_B_PASSWORD: ${{ vars.CYPRESS_USER_ADMIN_B_PASSWORD }}
+          CYPRESS_USER_MANAGER_B_EMAIL: ${{ vars.CYPRESS_USER_MANAGER_B_EMAIL }}
+          CYPRESS_USER_MANAGER_B_PASSWORD: ${{ vars.CYPRESS_USER_MANAGER_B_PASSWORD }}
+          CYPRESS_USER_SUPERVISOR_B_EMAIL: ${{ vars.CYPRESS_USER_SUPERVISOR_B_EMAIL }}
+          CYPRESS_USER_SUPERVISOR_B_PASSWORD: ${{ vars.CYPRESS_USER_SUPERVISOR_B_PASSWORD }}
+          CYPRESS_USER_CASHIER_B_EMAIL: ${{ vars.CYPRESS_USER_CASHIER_B_EMAIL }}
+          CYPRESS_USER_CASHIER_B_PASSWORD: ${{ vars.CYPRESS_USER_CASHIER_B_PASSWORD }}
+          CYPRESS_USER_WAITER_B_EMAIL: ${{ vars.CYPRESS_USER_WAITER_B_EMAIL }}
+          CYPRESS_USER_WAITER_B_PASSWORD: ${{ vars.CYPRESS_USER_WAITER_B_PASSWORD }}
+          CYPRESS_USER_KITCHEN_B_EMAIL: ${{ vars.CYPRESS_USER_KITCHEN_B_EMAIL }}
+          CYPRESS_USER_KITCHEN_B_PASSWORD: ${{ vars.CYPRESS_USER_KITCHEN_B_PASSWORD }}
+          CYPRESS_USER_SUPER_ADMIN_EMAIL: ${{ vars.CYPRESS_USER_SUPER_ADMIN_EMAIL }}
+          CYPRESS_USER_SUPER_ADMIN_PASSWORD: ${{ vars.CYPRESS_USER_SUPER_ADMIN_PASSWORD }}
+
+      - name: Upload Cypress screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-screenshots
+          path: apps/e2e/cypress/screenshots
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload Cypress videos on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-videos
+          path: apps/e2e/cypress/videos
+          if-no-files-found: ignore
+          retention-days: 7
 
   changes:
     name: Detect Changes
@@ -72,7 +164,7 @@ jobs:
 
   deploy:
     name: Deploy to Production
-    needs: [quality, changes]
+    needs: [quality, e2e, changes]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     concurrency:

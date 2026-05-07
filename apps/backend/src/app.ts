@@ -12,6 +12,7 @@ import categoriesRoutes from './routes/categories.js';
 import kitchenStationsRoutes from './routes/kitchen-stations.js';
 import ordersRoutes from './routes/orders.js';
 import productsRoutes from './routes/products.js';
+import { registerDocsRoutes } from './openapi/docs.js';
 import type { AppEnv } from './types.js';
 
 const app = new Hono<AppEnv>();
@@ -34,5 +35,8 @@ app.route('/', categoriesRoutes);
 app.route('/', kitchenStationsRoutes);
 app.route('/', ordersRoutes);
 app.route('/', productsRoutes);
+
+// `/api/openapi.json` + `/api/docs` (Swagger UI). No-op in production.
+registerDocsRoutes(app);
 
 export default app;

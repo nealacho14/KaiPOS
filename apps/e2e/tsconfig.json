@@ -1,0 +1,11 @@
+{
+  "extends": "@kaipos/tsconfig/node.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "types": ["node", "cypress"],
+    "noEmit": true,
+    "rootDir": ".",
+    "baseUrl": "."
+  },
+  "include": ["src/**/*", "cypress.config.ts", "cypress.d.ts"]
+}

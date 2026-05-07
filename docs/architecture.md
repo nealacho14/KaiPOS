@@ -26,6 +26,13 @@ Database access goes through `src/db/client.ts` (MongoDB singleton) and `src/db/
 1. If `MONGO_SECRET_ARN` is set (AWS prod), it fetches the URI from AWS Secrets Manager and caches it in module scope.
 2. Otherwise it falls back to `MONGO_URI` env var (local dev / Docker).
 
+### OpenAPI documentation
+
+The backend exposes its HTTP contract via an `openapi.json` generated from the same Zod schemas the validation middleware uses, so docs cannot drift from runtime behavior.
+
+- **Generation**: `pnpm --filter @kaipos/backend openapi:generate` runs `src/openapi/generate.ts` and writes `apps/backend/openapi.json`. The registry lives in `src/openapi/registry.ts`. The file is committed to the repo and CI's `Verify OpenAPI in sync` step regenerates it and fails if `git diff` is non-empty.
+- **Local browsing**: `/api/docs` serves Swagger UI (CDN-hosted assets) reading from `/api/openapi.json`. Both routes are registered by `src/openapi/docs.ts` only when `process.env.NODE_ENV !== 'production'`, so the Lambda build never exposes them in prod.
+
 ## Frontend admin shell
 
 - React Router v7 with `BrowserRouter` wrapping the app (see `src/main.tsx`). Routes are declared in `src/App.tsx`; guards in `src/components/guards/` (`RequireAuth`, `RequirePermission`).

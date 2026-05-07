@@ -26,7 +26,7 @@ export function BusinessPicker() {
         // Auto-select the first business if none picked yet (super_admin
         // shouldn't see queries blow up on first load just because they
         // haven't touched the dropdown).
-        if (!selected && data.length > 0) {
+        if (!getSelectedBusinessId() && data.length > 0) {
           setSelected(data[0]._id);
           setSelectedBusinessId(data[0]._id);
         }
@@ -41,8 +41,10 @@ export function BusinessPicker() {
     return () => {
       cancelled = true;
     };
-    // Intentionally run once on mount; selection is local state from there.
-  }, [selected]);
+    // Run once on mount only. Re-fetching after we set `x-business-id` would
+    // trip the businesses endpoint (super_admin gate fails when the request
+    // is narrowed to a specific business) and erase the picker.
+  }, []);
 
   if (!businesses || businesses.length === 0) return null;
 

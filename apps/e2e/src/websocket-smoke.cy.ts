@@ -4,7 +4,23 @@
 // `ws-auth.test.ts`); here we only verify the chip flips to "active" after an
 // authenticated session is established. Requires the frontend build to have
 // `VITE_WS_ENDPOINT` pointing at a reachable backend WS (staging does).
+//
+// In local dev (Docker, `pnpm dev`) `VITE_WS_ENDPOINT` is unset so the chip
+// stays "idle" forever and this suite would always fail. Skip when the runner
+// targets a localhost base URL, or when CYPRESS_SKIP_WS_SMOKE=1 is set.
+function isDevEnvironment(): boolean {
+  if (Cypress.env('SKIP_WS_SMOKE')) return true;
+  const baseUrl = Cypress.config('baseUrl') ?? '';
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(baseUrl);
+}
+
 describe('websocket smoke', () => {
+  before(function () {
+    if (isDevEnvironment()) {
+      this.skip();
+    }
+  });
+
   beforeEach(() => {
     cy.window().then((win) => win.localStorage.clear());
   });

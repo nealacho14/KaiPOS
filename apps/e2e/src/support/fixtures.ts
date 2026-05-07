@@ -25,10 +25,13 @@ export const CYPRESS_FIXTURES = {
 // process pid (or `local`) to keep the suite reusable across `pnpm dev`.
 //
 // `Cypress.env('GITHUB_RUN_ID')` is set by the CI workflow (Phase 4); locally
-// the var is undefined and we use `local`.
+// the var is undefined and we use `local`. The prefix is uppercase because
+// the product form's SKU input force-uppercases on change, so anything we
+// type ends up uppercase in the DB; downstream `.startsWith()` filters and
+// `cy.contains()` matches are case-sensitive.
 export function cypressSkuPrefix(): string {
   const runId = Cypress.env('GITHUB_RUN_ID') as string | undefined;
-  return runId ? `CYP-${runId}-` : 'CYP-local-';
+  return runId ? `CYP-${runId.toUpperCase()}-` : 'CYP-LOCAL-';
 }
 
 // Generate a unique SKU within the current run. The product cleanup loop in

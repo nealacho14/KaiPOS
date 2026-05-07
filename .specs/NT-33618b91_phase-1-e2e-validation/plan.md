@@ -30,26 +30,26 @@ These supersede the Open Questions in the spec:
 
 ### Tasks
 
-- [ ] Crear workspace `apps/e2e/` con `package.json` (`@kaipos/e2e`, `private`, `type: "module"`), `tsconfig.json` extendiendo `@kaipos/tsconfig/node.json`, y dependencias: `cypress` (devDep), `@kaipos/shared` (workspace).
-- [ ] `apps/e2e/cypress.config.ts` con `baseUrl` desde `CYPRESS_BASE_URL` (default `http://localhost:3000`), `e2e.specPattern: 'src/**/*.cy.ts'`, `viewportWidth/Height` razonables, `video: false`, `retries: { runMode: 2, openMode: 0 }`.
-- [ ] `apps/e2e/src/support/commands.ts` con custom commands tipados:
+- [x] Crear workspace `apps/e2e/` con `package.json` (`@kaipos/e2e`, `private`, `type: "module"`), `tsconfig.json` extendiendo `@kaipos/tsconfig/node.json`, y dependencias: `cypress` (devDep), `@kaipos/shared` (workspace).
+- [x] `apps/e2e/cypress.config.ts` con `baseUrl` desde `CYPRESS_BASE_URL` (default `http://localhost:3000`), `e2e.specPattern: 'src/**/*.cy.ts'`, `viewportWidth/Height` razonables, `video: false`, `retries: { runMode: 2, openMode: 0 }`.
+- [x] `apps/e2e/src/support/commands.ts` con custom commands tipados:
   - `cy.apiLogin(email, password)` → POST `/api/auth/login` directo (rápido, sin pasar por el form), guarda tokens en `localStorage` siguiendo la convención del SPA.
   - `cy.loginAs(role)` → wrapper que mapea `'admin' | 'manager' | 'cashier' | ...` a credenciales pre-seeded leídas desde Cypress env (`Cypress.env('USER_ADMIN_EMAIL')` etc.).
   - `cy.logout()` → llama el endpoint y limpia storage.
-- [ ] `apps/e2e/src/support/e2e.ts` que importa commands; tipos en `apps/e2e/cypress.d.ts` para que TypeScript reconozca los custom commands.
-- [ ] Suite `apps/e2e/src/auth.cy.ts`: login válido (admin) llega a dashboard; login inválido muestra error y permanece en `/login`; sesión persiste tras refresh del browser; logout limpia tokens y redirige a `/login`; intentar acceder a ruta protegida sin token redirige a login.
-- [ ] `apps/e2e/.env.example` documentando todas las variables que la suite consume (`CYPRESS_BASE_URL`, `CYPRESS_USER_ADMIN_EMAIL`, etc.).
-- [ ] Scripts en `apps/e2e/package.json`: `cy:open`, `cy:run`, `lint`, `typecheck`, `test` (alias de `cy:run`).
-- [ ] README a nivel `apps/e2e/README.md`: cómo correr local (`pnpm --filter @kaipos/e2e cy:open`), variables requeridas, dónde viven las credenciales.
-- [ ] Wire `pnpm e2e` en `package.json` raíz como `pnpm --filter @kaipos/e2e cy:run` (cómodo desde la raíz).
-- [ ] Documentar en `apps/e2e/README.md` el contrato de seed de staging: qué cuentas y negocios deben existir (`cypress-biz-a`, `cypress-biz-b`, usuarios por rol). El script de seed real se entrega en P2.
+- [x] `apps/e2e/src/support/e2e.ts` que importa commands; tipos en `apps/e2e/cypress.d.ts` para que TypeScript reconozca los custom commands.
+- [x] Suite `apps/e2e/src/auth.cy.ts`: login válido (admin) llega a dashboard; login inválido muestra error y permanece en `/login`; sesión persiste tras refresh del browser; logout limpia tokens y redirige a `/login`; intentar acceder a ruta protegida sin token redirige a login.
+- [x] `apps/e2e/.env.example` documentando todas las variables que la suite consume (`CYPRESS_BASE_URL`, `CYPRESS_USER_ADMIN_EMAIL`, etc.).
+- [x] Scripts en `apps/e2e/package.json`: `cy:open`, `cy:run`, `lint`, `typecheck`. (Decisión: `test` se omite a propósito para que el `pnpm test` repo-wide del pre-commit/CI no invoque Cypress; el job `e2e` de la Fase 4 llama `cy:run` directamente.)
+- [x] README a nivel `apps/e2e/README.md`: cómo correr local (`pnpm --filter @kaipos/e2e cy:open`), variables requeridas, dónde viven las credenciales.
+- [x] Wire `pnpm e2e` en `package.json` raíz como `pnpm --filter @kaipos/e2e cy:run` (cómodo desde la raíz).
+- [x] Documentar en `apps/e2e/README.md` el contrato de seed de staging: qué cuentas y negocios deben existir (`cypress-biz-a`, `cypress-biz-b`, usuarios por rol). El script de seed real se entrega en P2.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes (incluye nueva workspace `@kaipos/e2e`).
-- [ ] `pnpm lint` passes.
-- [ ] `pnpm format:check` passes.
-- [ ] `pnpm build` succeeds.
+- [x] `pnpm typecheck` passes (incluye nueva workspace `@kaipos/e2e`).
+- [x] `pnpm lint` passes.
+- [x] `pnpm format:check` passes.
+- [x] `pnpm build` succeeds.
 - [ ] Manual: contra `pnpm dev` local con seed default, `pnpm --filter @kaipos/e2e cy:open` arranca Cypress y la suite `auth.cy.ts` corre verde de extremo a extremo.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->

@@ -1,0 +1,10 @@
+{
+  "extends": "@kaipos/tsconfig/node.json",
+  "compilerOptions": {
+    "types": ["node", "cypress"],
+    "noEmit": true,
+    "rootDir": ".",
+    "baseUrl": "."
+  },
+  "include": ["src/**/*", "cypress.config.ts", "cypress.d.ts"]
+}

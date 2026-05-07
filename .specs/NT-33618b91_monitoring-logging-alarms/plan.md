@@ -24,24 +24,24 @@
 
 ### Tasks
 
-- [ ] Editar `apps/backend/src/lib/logger.ts`:
+- [x] Editar `apps/backend/src/lib/logger.ts`:
   - Añadir bloque `redact: { paths: [...], censor: '[REDACTED]' }` al constructor de Pino con paths: `password`, `passwordHash`, `token`, `refreshToken`, `accessToken`, `jwtSecret`, `authorization`, `headers.authorization`, `req.headers.authorization`, `req.headers.cookie`, y sus variantes con wildcard `*.*` para objetos anidados.
   - Reemplazar `level: isProduction ? 'info' : 'debug'` por `level: process.env.LOG_LEVEL ?? (isProduction ? 'info' : 'debug')`.
-- [ ] Crear `apps/backend/src/lib/logger.test.ts` con vitest:
+- [x] Crear `apps/backend/src/lib/logger.test.ts` con vitest:
   - Test 1: `password: 'foo'` plano (top-level) en un log se imprime como `[REDACTED]`.
   - Test 2: `headers.authorization: 'Bearer xxx'` anidado se imprime como `[REDACTED]`.
   - Test 3: objeto en cualquier nivel con `passwordHash`, `token`, `accessToken`, `refreshToken`, `jwtSecret` también se redacta.
   - Test 4: `LOG_LEVEL=debug` en el env eleva el nivel sobre `info` por defecto.
   - Implementación: usar un `pino` con `destination` apuntando a un buffer en memoria (ej. `pino({ ...opts }, pino.destination({ dest, sync: true }))` o un `Writable` custom). Importar el módulo después de setear el env para que `LOG_LEVEL` tome efecto (`vi.resetModules()`).
-- [ ] Actualizar `docs/architecture.md` (sección "Backend pattern") para mencionar redaction + `LOG_LEVEL`.
+- [x] Actualizar `docs/architecture.md` (sección "Backend pattern") para mencionar redaction + `LOG_LEVEL`.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm --filter @kaipos/backend test` corre `logger.test.ts` y todos los casos pasan
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm --filter @kaipos/backend test` corre `logger.test.ts` y todos los casos pasan
 - [ ] Manual: `LOG_LEVEL=debug pnpm dev` muestra líneas `debug`; sin la env var, sólo `info` y arriba
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->

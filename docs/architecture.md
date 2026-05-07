@@ -21,6 +21,11 @@ The Hono app is defined in `src/app.ts` (shared between local and Lambda). Middl
 
 Structured logging uses **Pino** (`src/lib/logger.ts`). In dev, `pino-pretty` provides human-readable colorized output via a Pino transport. In production, logs are JSON. Use `createLogger(context)` for child loggers with request-scoped bindings (e.g., `requestId`). No `console.log` — all logging goes through Pino.
 
+Two operational details worth knowing:
+
+- **Redaction**: Pino's `redact` config replaces sensitive fields with `[REDACTED]` before they leave the process — `password`, `passwordHash`, `token`, `refreshToken`, `accessToken`, `jwtSecret`, plus `Authorization` and `Cookie` headers (top-level and one-level-deep variants). Tested in `src/lib/logger.test.ts`.
+- **Runtime log level**: `level` resolves to `process.env.LOG_LEVEL ?? (isProduction ? 'info' : 'debug')`. In prod we can flip the Lambda's `LOG_LEVEL` env var to `debug` from the AWS console without a redeploy and revert it the same way.
+
 Database access goes through `src/db/client.ts` (MongoDB singleton) and `src/db/collections.ts` (typed collection getters). The client resolves the connection URI in this order at cold start:
 
 1. If `MONGO_SECRET_ARN` is set (AWS prod), it fetches the URI from AWS Secrets Manager and caches it in module scope.

@@ -34,16 +34,47 @@ export class FrontendStack extends cdk.Stack {
     // CloudFront needs only the host, without scheme or path.
     const apiDomain = `${httpApi.apiId}.execute-api.${cdk.Stack.of(this).region}.amazonaws.com`;
 
+    // SPA fallback as a CloudFront Function attached only to the frontend
+    // behavior. A previous implementation used distribution-level
+    // `errorResponses` to rewrite 404 -> /index.html, but that applied to
+    // every behavior — including `/api/*`, where it masked real 4xx Lambda
+    // responses as `200 text/html`. Per-behavior viewer-request rewrite is
+    // the only way to get SPA deep-link routing without poisoning the API.
+    const spaRouter = new cloudfront.Function(this, 'SpaRouter', {
+      code: cloudfront.FunctionCode.fromInline(`
+function handler(event) {
+  var request = event.request;
+  var uri = request.uri;
+  // Anything ending in a file extension (.js, .css, .ico, .png, etc.) is a
+  // real asset and must hit S3 as-is — let S3 return 404 if missing.
+  // Everything else is treated as a client-side route and rewritten so the
+  // SPA's React Router takes over from /index.html.
+  if (!/\\.[a-zA-Z0-9]+$/.test(uri)) {
+    request.uri = '/index.html';
+  }
+  return request;
+}
+      `),
+      runtime: cloudfront.FunctionRuntime.JS_2_0,
+    });
+
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
       defaultBehavior: {
         origin: new origins.S3Origin(bucket, { originAccessIdentity: oai }),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        functionAssociations: [
+          {
+            function: spaRouter,
+            eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+          },
+        ],
       },
       additionalBehaviors: {
         // Proxy `/api/*` to API Gateway so the SPA can use relative URLs.
         // Same-origin means no CORS, and the API Gateway URL is never exposed
-        // to the browser.
+        // to the browser. Crucially, this behavior does NOT attach the SPA
+        // router function — Lambda 4xx must propagate as JSON to the client.
         '/api/*': {
           origin: new origins.HttpOrigin(apiDomain, {
             protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
@@ -58,14 +89,6 @@ export class FrontendStack extends cdk.Stack {
         },
       },
       defaultRootObject: 'index.html',
-      errorResponses: [
-        {
-          httpStatus: 404,
-          responseHttpStatus: 200,
-          responsePagePath: '/index.html',
-          ttl: cdk.Duration.minutes(5),
-        },
-      ],
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
     });
 

@@ -11,8 +11,14 @@ describe('auth', () => {
   });
 
   it('shows an error and stays on /login when credentials are invalid', () => {
+    // Unique email per run so we never accumulate failed attempts on the
+    // same record. The backend's loginAttempts collection locks an email
+    // for 15 minutes after MAX_LOGIN_ATTEMPTS=5 and re-locks on every
+    // subsequent failed login — a hardcoded address gets perma-stuck on
+    // ACCOUNT_LOCKED, which masks the 401 copy this test is asserting.
+    const invalidEmail = `cypress-no-such-user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@cypress.test`;
     cy.visit('/login');
-    cy.get('input[type=email]').type('nope@example.com');
+    cy.get('input[type=email]').type(invalidEmail);
     cy.get('input[type=password]').type('wrong-password');
     cy.contains('button', /iniciar sesión/i).click();
     cy.contains(/email o contraseña incorrectos/i).should('be.visible');

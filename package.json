@@ -15,6 +15,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,yaml,yml}\"",
     "test": "turbo test",
     "e2e": "pnpm --filter @kaipos/e2e cy:run",
+    "e2e:setup": "pnpm --filter @kaipos/backend db:seed-cypress",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
     "deploy:prod": "bash scripts/deploy-prod.sh",

@@ -6,6 +6,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "setup": "bash scripts/setup.sh",
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",

@@ -11,31 +11,46 @@ Cloud-native Point of Sale platform built with Node.js, TypeScript, React, and A
 
 ## Quick Start
 
+One command from a fresh clone gets you a running stack with seeded demo data:
+
 ```bash
-# Clone the repository
 git clone <repo-url>
 cd KaiPOS
+pnpm setup        # node/docker pre-checks → .env → docker compose --wait → db:setup → db:seed
+pnpm dev          # backend :4000 + frontend :3000 (Atlas-style, against the Docker Mongo)
+```
 
-# Install all dependencies (single command)
-pnpm install
+Sign in at http://localhost:3000 with `admin@lacocinadekai.com` / `admin123`.
 
-# Copy .env.example and configure your MongoDB URI
-cp .env.example .env
+`pnpm setup` is idempotent — rerunning it is safe. It uses the local Docker
+stack as the database (Mongo + MinIO), so a working Docker daemon is required.
 
-# Start all apps in development mode
-pnpm dev
+### Manual setup
+
+If you'd rather wire the pieces yourself (e.g. you point `MONGO_URI` at Atlas
+or another external Mongo), the long form:
+
+```bash
+pnpm install                                       # install workspace deps
+cp .env.example .env                               # adjust MONGO_URI / JWT_SECRET
+pnpm docker:up                                     # optional — local Mongo + MinIO
+pnpm --filter @kaipos/backend db:setup             # collections + validators + indexes
+pnpm --filter @kaipos/backend db:seed              # demo data (refuses Atlas)
+pnpm dev                                           # backend :4000 + frontend :3000
 ```
 
 ## Available Commands
 
 | Command                                  | Description                                                             |
 | ---------------------------------------- | ----------------------------------------------------------------------- |
+| `pnpm setup`                             | One-shot bootstrap: pre-checks, `.env`, Docker stack, schema + seed     |
 | `pnpm dev`                               | Start all apps in dev mode (backend + frontend)                         |
 | `pnpm build`                             | Build all packages                                                      |
 | `pnpm lint`                              | Lint all packages                                                       |
 | `pnpm typecheck`                         | Type-check all packages                                                 |
 | `pnpm format`                            | Format all files with Prettier                                          |
 | `pnpm format:check`                      | Check formatting without writing                                        |
+| `pnpm e2e`                               | Run the Cypress suite headless (alias of `--filter @kaipos/e2e cy:run`) |
 | `pnpm docker:up`                         | Start all services with Docker Compose (with build)                     |
 | `pnpm docker:down`                       | Stop Docker Compose services                                            |
 | `pnpm --filter @kaipos/backend db:setup` | Create MongoDB collections, validators, indexes (safe against Atlas)    |

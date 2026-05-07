@@ -26,7 +26,10 @@ The first run installs the Cypress binary (~250 MB cache).
 ## Required environment
 
 Copy `apps/e2e/.env.example` to `apps/e2e/.env`, or export the variables in
-your shell. Cypress strips the `CYPRESS_` prefix automatically:
+your shell — `cypress.config.ts` calls `dotenv.config()` at startup so the
+file is honoured automatically. Shell exports still win (dotenv does not
+override existing env vars), which keeps CI's `env:` block authoritative.
+Cypress strips the `CYPRESS_` prefix automatically:
 `CYPRESS_USER_ADMIN_A_EMAIL` is read as `Cypress.env('USER_ADMIN_A_EMAIL')`.
 
 | Variable                                       | Purpose                                                                  |
@@ -104,6 +107,36 @@ Every product the Cypress suite creates uses an SKU starting with
 that prefix so concurrent CI runs (multiple PRs against the same
 staging) don't fight over rows. Do **not** use the `CYP-` prefix for
 demo or production data.
+
+The CI job (`.github/workflows/ci.yml`) sets
+`CYPRESS_GITHUB_RUN_ID: ${{ github.run_id }}` so the prefix helper at
+`src/support/fixtures.ts:cypressSkuPrefix` resolves to a unique value
+per workflow run.
+
+## CI configuration
+
+The `e2e` job in `.github/workflows/ci.yml` runs Cypress in parallel
+with `quality`. Both must pass for `deploy` to run on `main`. The job
+auto-skips if `vars.CYPRESS_BASE_URL` is not set so a fork without
+staging credentials can still run lint/typecheck/test.
+
+Configure the following as repo-level **GitHub Actions Variables**
+(Settings → Secrets and variables → Actions → Variables tab — _not_
+Secrets, since these point at a documented staging environment):
+
+| Variable                                              | Value                                            |
+| ----------------------------------------------------- | ------------------------------------------------ |
+| `CYPRESS_BASE_URL`                                    | URL of the staging admin SPA                     |
+| `CYPRESS_USER_ADMIN_EMAIL` / `..._PASSWORD`           | Pre-seed admin (auth.cy.ts)                      |
+| `CYPRESS_USER_<ROLE>_<TENANT>_EMAIL` / `..._PASSWORD` | Per-role × per-tenant accounts from seed-cypress |
+| `CYPRESS_USER_SUPER_ADMIN_EMAIL` / `..._PASSWORD`     | Global super_admin from seed-cypress             |
+
+`<ROLE>` ∈ `ADMIN MANAGER SUPERVISOR CASHIER WAITER KITCHEN`,
+`<TENANT>` ∈ `A B`. The full list (28 variables) lives in the workflow
+file — copy each name verbatim into the Variables tab.
+
+Cypress strips the `CYPRESS_` prefix at runtime, so the suite reads
+e.g. `CYPRESS_USER_ADMIN_A_EMAIL` as `Cypress.env('USER_ADMIN_A_EMAIL')`.
 
 ## Conventions
 

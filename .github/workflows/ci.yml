@@ -59,12 +59,17 @@ jobs:
   e2e:
     name: E2E (Cypress)
     runs-on: ubuntu-latest
-    # Cypress runs against the deployed staging frontend. CYPRESS_BASE_URL and
+    # Cypress runs against the deployed prod frontend (KaiPOS is still in MVP
+    # phase, so "prod" doubles as the staging target). CYPRESS_BASE_URL and
     # the per-role/per-tenant credentials live in repo Variables (not Secrets)
-    # because they are documented staging accounts, not sensitive production
+    # because they are documented test accounts, not sensitive production
     # data. The job is skipped when CYPRESS_BASE_URL is not configured so a
     # fresh fork can still run quality checks.
-    if: vars.CYPRESS_BASE_URL != ''
+    #
+    # Scoped to push-to-main only: e2e is a deploy prerequisite, not a PR
+    # gate. PRs only run `quality` for fast feedback; the full e2e suite
+    # runs once the merge lands and gates production deploy.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CYPRESS_BASE_URL != ''
     steps:
       - name: Checkout
         uses: actions/checkout@v6

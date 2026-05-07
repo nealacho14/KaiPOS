@@ -72,9 +72,9 @@ would need to be rewritten.
 
 ---
 
-## The four CDK stacks
+## The CDK stacks
 
-All four live in `infra/lib/`, are instantiated by `infra/bin/infra.ts`,
+All stacks live in `infra/lib/`, are instantiated by `infra/bin/infra.ts`,
 and share a `StageConfig` from `infra/lib/config.ts`. Every stack is
 prefixed `kaipos-prod-*`.
 
@@ -179,6 +179,37 @@ CloudFront distribution:
 The `CloudFront → API Gateway` wiring is the reason the SPA can use
 relative `fetch("/api/health")` in both dev (Vite proxy) and prod
 (CloudFront behavior) with the exact same code.
+
+### 5. `kaipos-prod-websocket` — `infra/lib/websocket-stack.ts`
+
+API Gateway WebSocket API + three Lambdas (`$connect`, `$disconnect`,
+`$default`) + a DynamoDB connections table. See
+[`docs/realtime.md`](realtime.md) for channels, JWT handshake, and the
+publish helper used by the API Lambda.
+
+Exports: `webSocketStage`, `webSocketApi`, `connectionsTable`, plus
+`wsConnectFn` / `wsDisconnectFn` / `wsDefaultFn` (consumed by
+`MonitoringStack`).
+
+### 6. `kaipos-prod-monitoring` — `infra/lib/monitoring-stack.ts`
+
+Observability layer: SNS alerts topic with an email subscription
+(`config.alertsEmail`), CloudWatch metric filters on the API Lambda log
+group (`MongoConnectionErrors`, `AuthFailures`, `SlowRequests`), and
+8 alarms (HTTP API 5xx + p95 latency, API & WS Lambda Errors/Throttles,
+plus Mongo connection errors and slow-request volume). Alarms publish to
+the SNS topic. WS Lambda Errors/Throttles are aggregated via
+`MathExpression` so the total count stays ≤ 10 (free-tier ceiling).
+
+API Gateway access logs are emitted to a dedicated log group
+`/aws/apigateway/kaipos-prod-api-access-logs` (created in `ApiStack`,
+retention 30 days) with a JSON format including `requestId`, `path`,
+`status`, `responseLatency`, etc. — wired via the `CfnStage`
+`accessLogSettings` escape hatch because the L2 `HttpApi` does not
+expose them directly.
+
+See [`docs/observability.md`](observability.md) for the runbook, Logs
+Insights queries, and Atlas notes.
 
 ---
 

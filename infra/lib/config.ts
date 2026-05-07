@@ -14,6 +14,8 @@ export interface StageConfig {
   sesSenderEmail: string;
   /** Base URL for password reset links (frontend URL). */
   passwordResetBaseUrl: string;
+  /** Email subscribed to the SNS alerts topic. */
+  alertsEmail: string;
 }
 
 export function getStageConfig(rawStage: string | undefined): StageConfig {
@@ -38,5 +40,6 @@ export function getStageConfig(rawStage: string | undefined): StageConfig {
     sesSenderEmail: 'noreply@kaipos.com',
     // Placeholder — update when a custom domain is configured for the frontend.
     passwordResetBaseUrl: 'https://kaipos.com',
+    alertsEmail: 'kelvin.hernandezc30@gmail.com',
   };
 }

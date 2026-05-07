@@ -6,6 +6,7 @@ import { GithubOidcStack } from '../lib/github-oidc-stack.js';
 import { SecretsStack } from '../lib/secrets-stack.js';
 import { AssetsStack } from '../lib/assets-stack.js';
 import { WebSocketStack } from '../lib/websocket-stack.js';
+import { MonitoringStack } from '../lib/monitoring-stack.js';
 import { getStageConfig } from '../lib/config.js';
 
 const app = new cdk.App();
@@ -52,4 +53,15 @@ new FrontendStack(app, `${prefix}-frontend`, {
   env,
   config,
   httpApi: api.httpApi,
+});
+
+new MonitoringStack(app, `${prefix}-monitoring`, {
+  env,
+  config,
+  httpApi: api.httpApi,
+  apiFunction: api.apiFunction,
+  wsConnectFn: ws.wsConnectFn,
+  wsDisconnectFn: ws.wsDisconnectFn,
+  wsDefaultFn: ws.wsDefaultFn,
+  apiAccessLogGroup: api.apiAccessLogGroup,
 });

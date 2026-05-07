@@ -4,23 +4,45 @@ import { hashPassword } from '../lib/password.js';
 import { closeConnection, getDb } from './client.js';
 
 // ---------------------------------------------------------------------------
-// Atlas guard: refuse to run against MongoDB Atlas / prod Secrets Manager.
+// Atlas guard: refuse to run against MongoDB Atlas / prod Secrets Manager,
+// unless the operator opts in via KAIPOS_SEED_CYPRESS_ALLOW_ATLAS=1. The
+// escape hatch exists because while KaiPOS is in MVP phase the only deployed
+// AWS env is "prod" and CI e2e needs the cypress fixtures provisioned there.
+// Remove the hatch once a real staging cluster exists.
 // ---------------------------------------------------------------------------
+
+const ALLOW_ATLAS = process.env.KAIPOS_SEED_CYPRESS_ALLOW_ATLAS === '1';
 
 function assertLocalMongo(): void {
   if (process.env.MONGO_SECRET_ARN) {
-    throw new Error(
-      'seed-cypress refuses to run with MONGO_SECRET_ARN set. ' +
-        'This script is for local/Docker Mongo or a manually-provisioned staging tunnel only.',
+    if (!ALLOW_ATLAS) {
+      throw new Error(
+        'seed-cypress refuses to run with MONGO_SECRET_ARN set. ' +
+          'This script is for local/Docker Mongo or a manually-provisioned staging tunnel only. ' +
+          'To bypass intentionally for the MVP prod cluster, set KAIPOS_SEED_CYPRESS_ALLOW_ATLAS=1.',
+      );
+    }
+    logger.warn(
+      { secretArn: process.env.MONGO_SECRET_ARN },
+      'KAIPOS_SEED_CYPRESS_ALLOW_ATLAS=1 — seeding cypress fixtures against the Atlas cluster behind MONGO_SECRET_ARN',
     );
+    return;
   }
 
   const uri = process.env.MONGO_URI;
   if (uri && uri.includes('mongodb+srv://')) {
-    throw new Error(
-      'seed-cypress refuses to run against an Atlas URI (mongodb+srv://). ' +
-        'Use local/Docker Mongo or a staging tunnel only.',
+    if (!ALLOW_ATLAS) {
+      throw new Error(
+        'seed-cypress refuses to run against an Atlas URI (mongodb+srv://). ' +
+          'Use local/Docker Mongo or a staging tunnel only. ' +
+          'To bypass intentionally for the MVP prod cluster, set KAIPOS_SEED_CYPRESS_ALLOW_ATLAS=1.',
+      );
+    }
+    logger.warn(
+      { uri: uri.replace(/\/\/[^@]*@/, '//***@') },
+      'KAIPOS_SEED_CYPRESS_ALLOW_ATLAS=1 — seeding cypress fixtures against an Atlas URI',
     );
+    return;
   }
 
   const host = uri ?? '';

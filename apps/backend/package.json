@@ -10,7 +10,8 @@
     "test": "vitest run",
     "db:setup": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/setup.ts",
     "db:seed": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/seed.ts",
-    "db:seed-cypress": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/seed-cypress.ts"
+    "db:seed-cypress": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/seed-cypress.ts",
+    "openapi:generate": "tsx src/openapi/generate.ts && prettier --write --log-level=warn openapi.json"
   },
   "dependencies": {
     "@aws-sdk/client-apigatewaymanagementapi": "^3.693.0",
@@ -31,6 +32,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@asteasolutions/zod-to-openapi": "^8.5.0",
     "@kaipos/eslint-config": "workspace:*",
     "@kaipos/tsconfig": "workspace:*",
     "@types/aws-lambda": "^8.10.145",

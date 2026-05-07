@@ -96,23 +96,23 @@ These supersede the Open Questions in the spec:
 
 ### Tasks
 
-- [ ] Suite `apps/e2e/src/websocket-smoke.cy.ts`: login como admin, esperar a que el chip de WS en el `Header` muestre "Activo" (selector basado en `data-testid` o texto). Verifica el wiring extremo a extremo del `WebSocketProvider` sin entrar en lógica de canales/permisos (eso está cubierto por unit tests).
-- [ ] Si el SPA no expone un `data-testid` estable para el chip de WS, añadirlo como cambio mínimo (`apps/frontend-admin/src/layouts/Header.tsx` o equivalente). Usar `data-testid="ws-status"` con value `"active" | "inactive"`.
-- [ ] **OpenAPI generation** con `@asteasolutions/zod-to-openapi`:
+- [x] Suite `apps/e2e/src/websocket-smoke.cy.ts`: login como admin, esperar a que el chip de WS en el `Header` muestre "Activo" (selector basado en `data-testid` o texto). Verifica el wiring extremo a extremo del `WebSocketProvider` sin entrar en lógica de canales/permisos (eso está cubierto por unit tests).
+- [x] Si el SPA no expone un `data-testid` estable para el chip de WS, añadirlo como cambio mínimo (`apps/frontend-admin/src/layouts/Header.tsx` o equivalente). Usar `data-testid="ws-status"` con value `"active" | "inactive"`. _(Implementación: el atributo se aplicó directamente a `WsStatusChip` (el componente que renderiza el chip dentro del Header) — más cerca de la fuente de verdad y cubre tanto la variante full como la `compact` del header móvil. `data-status="active"` cuando el WS está `open`; cualquier otro estado mapea a `"inactive"`.)_
+- [x] **OpenAPI generation** con `@asteasolutions/zod-to-openapi`:
   - Añadir devDep en `apps/backend/package.json`.
   - `apps/backend/src/openapi/registry.ts` que registra cada ruta + esquema Zod (auth, users, branches, businesses, categories, kitchen-stations, orders, products) usando los schemas que ya existen en `apps/backend/src/schemas/`.
   - `apps/backend/src/openapi/generate.ts` (script) que escribe `apps/backend/openapi.json`. Invocable como `pnpm --filter @kaipos/backend openapi:generate`.
   - Versionar el archivo `openapi.json` resultante.
-- [ ] **`/api/docs` route** en `apps/backend/src/app.ts`: registrar **solo si `process.env.NODE_ENV !== 'production'`**. Servir Swagger UI vía CDN (script + link tags) leyendo de `/api/openapi.json`. Crear ruta `/api/openapi.json` que devuelve el JSON desde el filesystem (read-once, cache en módulo).
-- [ ] **CI check**: paso adicional en el job `quality` (`Verify OpenAPI in sync`) que corre `pnpm --filter @kaipos/backend openapi:generate` y `git diff --exit-code apps/backend/openapi.json`. Si difiere, falla el build con mensaje "Run openapi:generate and commit the result".
-- [ ] Documentar en `docs/architecture.md` (sección Backend) la nueva ruta `/api/docs` y el comando `openapi:generate`.
+- [x] **`/api/docs` route** en `apps/backend/src/app.ts`: registrar **solo si `process.env.NODE_ENV !== 'production'`**. Servir Swagger UI vía CDN (script + link tags) leyendo de `/api/openapi.json`. Crear ruta `/api/openapi.json` que devuelve el JSON desde el filesystem (read-once, cache en módulo). _(Implementación: el wiring vive en `apps/backend/src/openapi/docs.ts` y `app.ts` lo invoca al final via `registerDocsRoutes(app)`; la función es no-op en `NODE_ENV=production` — verificado manualmente con `NODE_ENV=production` ambas rutas devuelven 404 mientras `/api/health` sigue 200.)_
+- [x] **CI check**: paso adicional en el job `quality` (`Verify OpenAPI in sync`) que corre `pnpm --filter @kaipos/backend openapi:generate` y `git diff --exit-code apps/backend/openapi.json`. Si difiere, falla el build con mensaje "Run openapi:generate and commit the result".
+- [x] Documentar en `docs/architecture.md` (sección Backend) la nueva ruta `/api/docs` y el comando `openapi:generate`.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes.
-- [ ] `pnpm lint` passes.
-- [ ] `pnpm format:check` passes.
-- [ ] `pnpm build` succeeds.
+- [x] `pnpm typecheck` passes.
+- [x] `pnpm lint` passes.
+- [x] `pnpm format:check` passes.
+- [x] `pnpm build` succeeds.
 - [ ] Manual: corriendo `pnpm dev`, `http://localhost:4000/api/docs` carga Swagger UI con todas las rutas y esquemas. La suite `websocket-smoke.cy.ts` corre verde. `pnpm --filter @kaipos/backend openapi:generate` no produce diff cuando los schemas no han cambiado.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->

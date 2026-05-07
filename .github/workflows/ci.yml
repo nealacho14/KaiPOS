@@ -45,6 +45,14 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Verify OpenAPI in sync
+        run: |
+          pnpm --filter @kaipos/backend openapi:generate
+          if ! git diff --exit-code apps/backend/openapi.json; then
+            echo "::error::apps/backend/openapi.json is out of sync with the Zod schemas. Run 'pnpm --filter @kaipos/backend openapi:generate' and commit the result."
+            exit 1
+          fi
+
       - name: Test
         run: pnpm test
 

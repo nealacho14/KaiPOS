@@ -22,6 +22,8 @@ interface ApiStackProps extends cdk.StackProps {
 
 export class ApiStack extends cdk.Stack {
   readonly httpApi: apigw.HttpApi;
+  readonly apiFunction: lambda.Function;
+  readonly apiAccessLogGroup: logs.LogGroup;
 
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
@@ -117,6 +119,36 @@ export class ApiStack extends cdk.Stack {
       methods: [apigw.HttpMethod.ANY],
       integration: apiIntegration,
     });
+
+    // Access logs for the HTTP API default stage. CDK L2 HttpApi does not
+    // expose access log settings directly, so we attach them via the CfnStage
+    // escape hatch. Retention bounded to keep costs near $0 for MVP traffic.
+    this.apiAccessLogGroup = new logs.LogGroup(this, 'HttpApiAccessLogs', {
+      logGroupName: `/aws/apigateway/kaipos-${config.stage}-api-access-logs`,
+      retention: logs.RetentionDays.ONE_MONTH,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const defaultStage = this.httpApi.defaultStage!.node.defaultChild as apigw.CfnStage;
+    defaultStage.accessLogSettings = {
+      destinationArn: this.apiAccessLogGroup.logGroupArn,
+      format: JSON.stringify({
+        requestId: '$context.requestId',
+        ip: '$context.identity.sourceIp',
+        requestTime: '$context.requestTime',
+        httpMethod: '$context.httpMethod',
+        routeKey: '$context.routeKey',
+        path: '$context.path',
+        status: '$context.status',
+        protocol: '$context.protocol',
+        responseLength: '$context.responseLength',
+        integrationLatency: '$context.integrationLatency',
+        responseLatency: '$context.responseLatency',
+        userAgent: '$context.identity.userAgent',
+      }),
+    };
+
+    this.apiFunction = apiFunction;
 
     new cdk.CfnOutput(this, 'ApiUrl', {
       value: this.httpApi.url || '',

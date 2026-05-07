@@ -28,12 +28,18 @@ export interface WsStatusChipProps {
 
 export function WsStatusChip({ status, compact = false }: WsStatusChipProps) {
   const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.idle;
+  // `open` is the only state where the WS round-trip is fully wired. Everything
+  // else (connecting/reconnecting/closed/idle) is "not yet active" for the
+  // Cypress smoke test, which polls `data-status` until it sees `active`.
+  const dataStatus = status === 'open' ? 'active' : 'inactive';
 
   if (compact) {
     return (
       <Box
         role="status"
         aria-label={config.label}
+        data-testid="ws-status"
+        data-status={dataStatus}
         sx={{
           width: 24,
           height: 24,
@@ -63,6 +69,8 @@ export function WsStatusChip({ status, compact = false }: WsStatusChipProps) {
       size="small"
       color={config.color}
       variant={config.color === 'default' ? 'outlined' : 'filled'}
+      data-testid="ws-status"
+      data-status={dataStatus}
       label={
         <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
           <Box

@@ -61,7 +61,7 @@ describe('products · CRUD via UI as cypress-biz-a admin', () => {
 
     fieldInput(/^Nombre del producto/i).type(name);
     selectByLabel(/^Categoría$/i, CATEGORY);
-    fieldInput(/^SKU$/i).clear().type(sku);
+    fieldInput(/^SKU/i).clear().type(sku);
     fieldInput(/^Precio de venta/i)
       .clear()
       .type(String(initialPrice));

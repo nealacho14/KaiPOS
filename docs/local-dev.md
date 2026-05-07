@@ -2,6 +2,15 @@
 
 Two ways to run locally — both load `.env` from the repo root.
 
+## `pnpm setup` (one-shot bootstrap)
+
+Implemented as `scripts/setup.sh`. Pre-checks Node 20 and a reachable Docker
+daemon, copies `.env.example` → `.env` if missing, brings the Docker stack up
+with `docker compose up -d --wait`, waits for Mongo to answer a ping, then
+runs `db:setup` and `db:seed`. Idempotent — safe to rerun. After it finishes,
+`pnpm dev` (or `pnpm docker:up`) gives you a working stack signed in as
+`admin@lacocinadekai.com` / `admin123`.
+
 ## `pnpm dev` (Atlas / external Mongo)
 
 Backend on `:4000`, frontend on `:3000`. Uses `MONGO_URI` from `.env`. Vite proxies `/api` to the local backend.
@@ -9,6 +18,14 @@ Backend on `:4000`, frontend on `:3000`. Uses `MONGO_URI` from `.env`. Vite prox
 ## `pnpm docker:up` (containerized + local Mongo + MinIO)
 
 Backend on `:4001`, frontend on `:3001`. Compose file at `docker-compose.yml`.
+
+## `pnpm e2e` (Cypress)
+
+Headless Cypress run against the URL in `CYPRESS_BASE_URL` (default
+`http://localhost:3000`). Equivalent to
+`pnpm --filter @kaipos/e2e cy:run`. See `apps/e2e/README.md` for the
+required env vars and the staging seed contract used by the role/tenant
+suites.
 
 ### MinIO (local S3-compatible storage)
 

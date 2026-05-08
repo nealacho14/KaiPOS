@@ -108,6 +108,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Default: SES send resolves successfully so it never blocks audit assertions.
   mockSendPasswordResetEmail.mockResolvedValue(undefined);
+  // Default: tenant users always resolve a business so login() doesn't trip the
+  // BUSINESS_NOT_FOUND guard during audit-event assertions.
+  mockBusinessesCollection.findOne.mockResolvedValue({
+    _id: 'biz-1',
+    name: 'Acme',
+    slug: 'acme',
+  });
 });
 
 // ---------------------------------------------------------------------------

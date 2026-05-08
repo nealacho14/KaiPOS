@@ -112,13 +112,17 @@ export async function login(
 
   // Resolve the business in the same invocation so the client doesn't need a
   // follow-up /api/auth/me round-trip. super_admin has no tenant business.
+  // Mirror `me()`: an orphaned businessId (no matching doc) is a hard 404, not
+  // a silent null — otherwise login would succeed with `business: null` and
+  // the next /api/auth/me call would throw, producing inconsistent client state.
   let business: LoginResponse['business'] = null;
   if (user.businessId !== SUPER_ADMIN_BUSINESS_ID) {
     const businesses = await getBusinessesCollection();
     const found = await businesses.findOne({ _id: user.businessId });
-    if (found) {
-      business = { _id: found._id, name: found.name, slug: found.slug };
+    if (!found) {
+      throw new AppError('Business not found', 404, 'BUSINESS_NOT_FOUND');
     }
+    business = { _id: found._id, name: found.name, slug: found.slug };
   }
 
   return { accessToken, refreshToken, user: stripPasswordHash(user), business };

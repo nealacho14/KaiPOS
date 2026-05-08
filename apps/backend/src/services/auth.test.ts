@@ -82,6 +82,13 @@ const adminUser: User = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: tenant users always resolve a business. Tests that need to
+  // exercise the orphan path override this mock.
+  mockBusinessesCollection.findOne.mockResolvedValue({
+    _id: 'biz-1',
+    name: 'Acme',
+    slug: 'acme',
+  });
 });
 
 describe('auth service', () => {
@@ -116,6 +123,19 @@ describe('auth service', () => {
 
       expect(result.business).toBeNull();
       expect(mockBusinessesCollection.findOne).not.toHaveBeenCalled();
+    });
+
+    it('throws BUSINESS_NOT_FOUND when a tenant user has an orphaned businessId', async () => {
+      mockLoginAttemptsCollection.findOne.mockResolvedValue(null);
+      mockUsersCollection.findOne.mockResolvedValue(adminUser);
+      mockRefreshTokensCollection.insertOne.mockResolvedValue({});
+      mockLoginAttemptsCollection.deleteOne.mockResolvedValue({});
+      mockBusinessesCollection.findOne.mockResolvedValue(null);
+
+      await expect(login('admin@test.com', 'admin123')).rejects.toMatchObject({
+        statusCode: 404,
+        code: 'BUSINESS_NOT_FOUND',
+      });
     });
 
     it('throws UnauthorizedError on wrong password', async () => {

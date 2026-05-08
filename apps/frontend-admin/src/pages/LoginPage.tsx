@@ -307,45 +307,6 @@ export function LoginPage() {
               </Button>
             </Stack>
           </Box>
-
-          <Stack
-            direction="row"
-            spacing={1.5}
-            alignItems="center"
-            sx={{
-              mt: 2.5,
-              p: 1.75,
-              borderRadius: `${theme.radii.md}px`,
-              bgcolor: 'background.paper',
-              border: '1px solid',
-              borderColor: 'divider',
-              color: 'text.secondary',
-            }}
-          >
-            <Box
-              sx={{
-                width: 32,
-                height: 32,
-                borderRadius: `${theme.radii.sm}px`,
-                bgcolor: alpha(theme.palette.primary.main, 0.12),
-                color: 'primary.main',
-                display: 'grid',
-                placeItems: 'center',
-                ...theme.typography.body1,
-                flexShrink: 0,
-              }}
-            >
-              ⌘
-            </Box>
-            <Stack spacing={0.25}>
-              <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
-                ¿Eres miembro del staff?
-              </Typography>
-              <Typography variant="body2">
-                Ingresa directamente en la terminal con tu PIN de 4 dígitos.
-              </Typography>
-            </Stack>
-          </Stack>
         </Box>
 
         <Stack

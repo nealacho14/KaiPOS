@@ -56,20 +56,88 @@ jobs:
       - name: Test
         run: pnpm test
 
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check for app changes
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            app:
+              - 'apps/**'
+              - 'packages/**'
+              - 'infra/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+
+  deploy:
+    name: Deploy to Production
+    needs: [quality, changes]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Deploy
+        run: pnpm deploy:prod
+
+      - name: Notify success
+        if: success()
+        run: echo "Deployed commit ${{ github.sha }} to production"
+
+      - name: Notify failure
+        if: failure()
+        run: echo "Deploy failed for commit ${{ github.sha }}"
+
   e2e:
     name: E2E (Cypress)
+    needs: [deploy]
     runs-on: ubuntu-latest
-    # Cypress runs against the deployed prod frontend (KaiPOS is still in MVP
-    # phase, so "prod" doubles as the staging target). CYPRESS_BASE_URL and
-    # the per-role/per-tenant credentials live in repo Variables (not Secrets)
-    # because they are documented test accounts, not sensitive production
-    # data. The job is skipped when CYPRESS_BASE_URL is not configured so a
-    # fresh fork can still run quality checks.
+    # Cypress runs as a post-deploy smoke test against the freshly deployed
+    # prod frontend (KaiPOS is still in MVP phase, so "prod" doubles as the
+    # staging target). CYPRESS_BASE_URL and the per-role/per-tenant
+    # credentials live in repo Variables (not Secrets) because they are
+    # documented test accounts, not sensitive production data. The job is
+    # skipped when CYPRESS_BASE_URL is not configured so a fresh fork can
+    # still run quality checks.
     #
-    # Scoped to push-to-main only: e2e is a deploy prerequisite, not a PR
-    # gate. PRs only run `quality` for fast feedback; the full e2e suite
-    # runs once the merge lands and gates production deploy.
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CYPRESS_BASE_URL != ''
+    # If the suite fails, the workflow is marked red but prod stays on the
+    # just-deployed commit — rollback is manual (revert the offending commit
+    # and let CI redeploy).
+    if: vars.CYPRESS_BASE_URL != ''
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -91,6 +159,20 @@ jobs:
         # leaving the npm package without the matching binary in ~/.cache/Cypress.
         # Run the explicit installer so the binary is always present on this runner.
         run: pnpm --filter @kaipos/e2e exec cypress install
+
+      - name: Wait for new deployment to be live
+        # CloudFront invalidation + Lambda cold start can take ~30s after
+        # `pnpm deploy:prod` returns. Poll /api/health so Cypress hits the
+        # newly deployed code instead of a stale cache or a 502.
+        run: |
+          for i in {1..30}; do
+            if curl -fsS "${{ vars.CYPRESS_BASE_URL }}/api/health" >/dev/null; then
+              echo "Healthy"; exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Deployment did not become healthy in time"
+          exit 1
 
       - name: Run Cypress
         run: pnpm --filter @kaipos/e2e cy:run
@@ -150,69 +232,3 @@ jobs:
           path: apps/e2e/cypress/videos
           if-no-files-found: ignore
           retention-days: 7
-
-  changes:
-    name: Detect Changes
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    outputs:
-      app: ${{ steps.filter.outputs.app }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Check for app changes
-        id: filter
-        uses: dorny/paths-filter@v4
-        with:
-          filters: |
-            app:
-              - 'apps/**'
-              - 'packages/**'
-              - 'infra/**'
-              - 'pnpm-lock.yaml'
-              - 'package.json'
-
-  deploy:
-    name: Deploy to Production
-    needs: [quality, e2e, changes]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.changes.outputs.app == 'true'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: deploy-prod
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v5
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: us-east-1
-
-      - name: Deploy
-        run: pnpm deploy:prod
-
-      - name: Notify success
-        if: success()
-        run: echo "Deployed commit ${{ github.sha }} to production"
-
-      - name: Notify failure
-        if: failure()
-        run: echo "Deploy failed for commit ${{ github.sha }}"

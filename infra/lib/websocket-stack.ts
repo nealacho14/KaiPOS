@@ -63,11 +63,15 @@ export class WebSocketStack extends cdk.Stack {
 
     const lambdaCode = lambda.Code.fromAsset('../apps/backend/dist');
 
+    // Graviton/arm64: ~20% cheaper per GB-second across all WS handlers.
+    const architecture = lambda.Architecture.ARM_64;
+
     const wsConnectFn = new lambda.Function(this, 'WsConnectFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
+      architecture,
       handler: 'ws-connect.handler',
       code: lambdaCode,
-      memorySize: config.lambdaMemory,
+      memorySize: config.lambdaMemoryWsConnect,
       timeout: cdk.Duration.seconds(30),
       logRetention: logs.RetentionDays.ONE_MONTH,
       environment: { ...baseEnvironment },
@@ -76,9 +80,10 @@ export class WebSocketStack extends cdk.Stack {
 
     const wsDisconnectFn = new lambda.Function(this, 'WsDisconnectFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
+      architecture,
       handler: 'ws-disconnect.handler',
       code: lambdaCode,
-      memorySize: config.lambdaMemory,
+      memorySize: config.lambdaMemoryWsDisconnect,
       timeout: cdk.Duration.seconds(30),
       logRetention: logs.RetentionDays.ONE_MONTH,
       environment: { ...baseEnvironment },
@@ -87,9 +92,10 @@ export class WebSocketStack extends cdk.Stack {
 
     const wsDefaultFn = new lambda.Function(this, 'WsDefaultFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
+      architecture,
       handler: 'ws-default.handler',
       code: lambdaCode,
-      memorySize: config.lambdaMemory,
+      memorySize: config.lambdaMemoryWsDefault,
       timeout: cdk.Duration.seconds(30),
       logRetention: logs.RetentionDays.ONE_MONTH,
       environment: { ...baseEnvironment },

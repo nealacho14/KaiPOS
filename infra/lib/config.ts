@@ -4,7 +4,14 @@ export type Stage = 'prod';
 
 export interface StageConfig {
   stage: Stage;
-  lambdaMemory: number;
+  /** Memory (MB) for the HTTP API Lambda (Hono + Mongo + SES). */
+  lambdaMemoryApi: number;
+  /** Memory (MB) for ws-connect — JWT verify + DDB BatchWrite. */
+  lambdaMemoryWsConnect: number;
+  /** Memory (MB) for ws-disconnect — DDB Query + BatchWrite delete only. */
+  lambdaMemoryWsDisconnect: number;
+  /** Memory (MB) for ws-default — DDB + PostToConnection. */
+  lambdaMemoryWsDefault: number;
   removalPolicy: cdk.RemovalPolicy;
   autoDeleteObjects: boolean;
   domainName?: string;
@@ -28,7 +35,12 @@ export function getStageConfig(rawStage: string | undefined): StageConfig {
 
   return {
     stage: 'prod',
-    lambdaMemory: 1024,
+    // Sized per-function: api carries DB + business logic; ws-* are
+    // thin DDB/PostToConnection handlers and don't need 1 GB.
+    lambdaMemoryApi: 1024,
+    lambdaMemoryWsConnect: 512,
+    lambdaMemoryWsDisconnect: 256,
+    lambdaMemoryWsDefault: 512,
     removalPolicy: cdk.RemovalPolicy.RETAIN,
     autoDeleteObjects: false,
     // Placeholder — set when Route53 hosted zone + ACM cert are ready.

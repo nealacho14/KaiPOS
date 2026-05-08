@@ -12,6 +12,7 @@ import { login, refresh, logout, forgotPassword, resetPassword } from './auth.js
 
 const {
   mockUsersCollection,
+  mockBusinessesCollection,
   mockRefreshTokensCollection,
   mockLoginAttemptsCollection,
   mockPasswordResetTokensCollection,
@@ -22,6 +23,9 @@ const {
     findOne: vi.fn(),
     insertOne: vi.fn(),
     updateOne: vi.fn(),
+  },
+  mockBusinessesCollection: {
+    findOne: vi.fn(),
   },
   mockRefreshTokensCollection: {
     findOne: vi.fn(),
@@ -46,6 +50,7 @@ const {
 
 vi.mock('../db/collections.js', () => ({
   getUsersCollection: () => Promise.resolve(mockUsersCollection),
+  getBusinessesCollection: () => Promise.resolve(mockBusinessesCollection),
   getRefreshTokensCollection: () => Promise.resolve(mockRefreshTokensCollection),
   getLoginAttemptsCollection: () => Promise.resolve(mockLoginAttemptsCollection),
   getPasswordResetTokensCollection: () => Promise.resolve(mockPasswordResetTokensCollection),

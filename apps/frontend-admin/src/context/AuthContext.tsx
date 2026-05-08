@@ -102,14 +102,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: data.user,
     });
     setUser(data.user);
-
-    try {
-      const me = await apiJson<MeResponse>('/api/auth/me');
-      setBusiness(me.business);
-    } catch {
-      setBusiness(null);
-    }
-
+    // /api/auth/login now returns `business` alongside the user, so we no
+    // longer fire a follow-up /api/auth/me here.
+    setBusiness(data.business);
     setStatus('authenticated');
   }, []);
 

@@ -4,6 +4,7 @@ import { login, refresh, logout, forgotPassword, resetPassword } from './auth.js
 
 const {
   mockUsersCollection,
+  mockBusinessesCollection,
   mockRefreshTokensCollection,
   mockLoginAttemptsCollection,
   mockPasswordResetTokensCollection,
@@ -12,6 +13,9 @@ const {
     findOne: vi.fn(),
     insertOne: vi.fn(),
     updateOne: vi.fn(),
+  },
+  mockBusinessesCollection: {
+    findOne: vi.fn(),
   },
   mockRefreshTokensCollection: {
     findOne: vi.fn(),
@@ -34,6 +38,7 @@ const {
 
 vi.mock('../db/collections.js', () => ({
   getUsersCollection: () => Promise.resolve(mockUsersCollection),
+  getBusinessesCollection: () => Promise.resolve(mockBusinessesCollection),
   getRefreshTokensCollection: () => Promise.resolve(mockRefreshTokensCollection),
   getLoginAttemptsCollection: () => Promise.resolve(mockLoginAttemptsCollection),
   getPasswordResetTokensCollection: () => Promise.resolve(mockPasswordResetTokensCollection),
@@ -77,15 +82,27 @@ const adminUser: User = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: tenant users always resolve a business. Tests that need to
+  // exercise the orphan path override this mock.
+  mockBusinessesCollection.findOne.mockResolvedValue({
+    _id: 'biz-1',
+    name: 'Acme',
+    slug: 'acme',
+  });
 });
 
 describe('auth service', () => {
   describe('login', () => {
-    it('returns tokens and user on valid credentials', async () => {
+    it('returns tokens, user and business on valid credentials', async () => {
       mockLoginAttemptsCollection.findOne.mockResolvedValue(null);
       mockUsersCollection.findOne.mockResolvedValue(adminUser);
       mockRefreshTokensCollection.insertOne.mockResolvedValue({});
       mockLoginAttemptsCollection.deleteOne.mockResolvedValue({});
+      mockBusinessesCollection.findOne.mockResolvedValue({
+        _id: 'biz-1',
+        name: 'Acme',
+        slug: 'acme',
+      });
 
       const result = await login('admin@test.com', 'admin123');
 
@@ -93,6 +110,32 @@ describe('auth service', () => {
       expect(result.refreshToken).toBe('mock-refresh-token');
       expect(result.user.email).toBe('admin@test.com');
       expect(result.user).not.toHaveProperty('passwordHash');
+      expect(result.business).toEqual({ _id: 'biz-1', name: 'Acme', slug: 'acme' });
+    });
+
+    it('returns business=null for super_admin', async () => {
+      mockLoginAttemptsCollection.findOne.mockResolvedValue(null);
+      mockUsersCollection.findOne.mockResolvedValue({ ...adminUser, businessId: '*' });
+      mockRefreshTokensCollection.insertOne.mockResolvedValue({});
+      mockLoginAttemptsCollection.deleteOne.mockResolvedValue({});
+
+      const result = await login('admin@test.com', 'admin123');
+
+      expect(result.business).toBeNull();
+      expect(mockBusinessesCollection.findOne).not.toHaveBeenCalled();
+    });
+
+    it('throws BUSINESS_NOT_FOUND when a tenant user has an orphaned businessId', async () => {
+      mockLoginAttemptsCollection.findOne.mockResolvedValue(null);
+      mockUsersCollection.findOne.mockResolvedValue(adminUser);
+      mockRefreshTokensCollection.insertOne.mockResolvedValue({});
+      mockLoginAttemptsCollection.deleteOne.mockResolvedValue({});
+      mockBusinessesCollection.findOne.mockResolvedValue(null);
+
+      await expect(login('admin@test.com', 'admin123')).rejects.toMatchObject({
+        statusCode: 404,
+        code: 'BUSINESS_NOT_FOUND',
+      });
     });
 
     it('throws UnauthorizedError on wrong password', async () => {

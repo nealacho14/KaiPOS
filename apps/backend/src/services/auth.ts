@@ -1,4 +1,4 @@
-import type { MeResponse, TokenPayload } from '@kaipos/shared/types';
+import type { LoginResponse, MeResponse, TokenPayload } from '@kaipos/shared/types';
 import { SUPER_ADMIN_BUSINESS_ID } from '@kaipos/shared/permissions';
 import {
   getBusinessesCollection,
@@ -20,7 +20,7 @@ import {
 import { UnauthorizedError, AppError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
 import { sendPasswordResetEmail } from '../lib/ses.js';
-import { stripPasswordHash, type SafeUser } from '../lib/user-sanitize.js';
+import { stripPasswordHash } from '../lib/user-sanitize.js';
 import { logAuditEvent } from './audit.js';
 
 const log = createLogger({ module: 'auth-service' });
@@ -29,7 +29,7 @@ export async function login(
   email: string,
   password: string,
   rememberMe: boolean = false,
-): Promise<{ accessToken: string; refreshToken: string; user: SafeUser }> {
+): Promise<LoginResponse> {
   const loginAttempts = await getLoginAttemptsCollection();
 
   // Check rate limiting
@@ -110,7 +110,22 @@ export async function login(
     metadata: rememberMe ? { rememberMe: true } : undefined,
   });
 
-  return { accessToken, refreshToken, user: stripPasswordHash(user) };
+  // Resolve the business in the same invocation so the client doesn't need a
+  // follow-up /api/auth/me round-trip. super_admin has no tenant business.
+  // Mirror `me()`: an orphaned businessId (no matching doc) is a hard 404, not
+  // a silent null — otherwise login would succeed with `business: null` and
+  // the next /api/auth/me call would throw, producing inconsistent client state.
+  let business: LoginResponse['business'] = null;
+  if (user.businessId !== SUPER_ADMIN_BUSINESS_ID) {
+    const businesses = await getBusinessesCollection();
+    const found = await businesses.findOne({ _id: user.businessId });
+    if (!found) {
+      throw new AppError('Business not found', 404, 'BUSINESS_NOT_FOUND');
+    }
+    business = { _id: found._id, name: found.name, slug: found.slug };
+  }
+
+  return { accessToken, refreshToken, user: stripPasswordHash(user), business };
 }
 
 export async function refresh(

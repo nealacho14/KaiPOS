@@ -43,10 +43,15 @@ export async function getClient(): Promise<MongoClient> {
     const uri = await resolveMongoUri();
     client = new MongoClient(uri, {
       maxPoolSize: 10,
-      minPoolSize: 1,
+      // Don't pin a warm socket open while the Lambda container is idle.
+      // The pool ramps up on demand under real traffic.
+      minPoolSize: 0,
       maxIdleTimeMS: 30000,
-      serverSelectionTimeoutMS: 10000,
-      connectTimeoutMS: 10000,
+      // Fail fast if Atlas is unreachable (IP allowlist drift, DNS issue):
+      // 5s is enough on a healthy network and avoids burning 10s of Lambda
+      // duration before surfacing the error.
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 5000,
     });
     try {
       await client.connect();

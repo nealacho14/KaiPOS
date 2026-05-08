@@ -43,9 +43,12 @@ export class ApiStack extends cdk.Stack {
     // This avoids NAT Gateway costs (~$33/month fixed).
     const apiFunction = new lambda.Function(this, 'ApiFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
+      // Graviton/arm64: ~20% cheaper per GB-second and slightly faster
+      // cold starts. All deps in this bundle are pure JS.
+      architecture: lambda.Architecture.ARM_64,
       handler: 'api.handler',
       code: lambda.Code.fromAsset('../apps/backend/dist'),
-      memorySize: config.lambdaMemory,
+      memorySize: config.lambdaMemoryApi,
       timeout: cdk.Duration.seconds(30),
       // Bound log cost and limit exposure of any data that lands in logs.
       logRetention: logs.RetentionDays.ONE_MONTH,
@@ -77,11 +80,15 @@ export class ApiStack extends cdk.Stack {
       }),
     );
 
-    // Allow sending password-reset emails via SES
+    // Allow sending password-reset emails via SES. Restricted to the verified
+    // sender identity in this account/region — compromise of this Lambda role
+    // cannot send mail from any other identity.
     apiFunction.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['ses:SendEmail'],
-        resources: ['*'],
+        resources: [
+          `arn:aws:ses:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:identity/${config.sesSenderEmail}`,
+        ],
       }),
     );
 
@@ -125,7 +132,10 @@ export class ApiStack extends cdk.Stack {
     // escape hatch. Retention bounded to keep costs near $0 for MVP traffic.
     this.apiAccessLogGroup = new logs.LogGroup(this, 'HttpApiAccessLogs', {
       logGroupName: `/aws/apigateway/kaipos-${config.stage}-api-access-logs`,
-      retention: logs.RetentionDays.ONE_MONTH,
+      // Access logs duplicate request metadata that the Lambda log group also
+      // captures (with more context). Two weeks is enough for triage; the
+      // Lambda log group keeps the longer ONE_MONTH retention.
+      retention: logs.RetentionDays.TWO_WEEKS,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 

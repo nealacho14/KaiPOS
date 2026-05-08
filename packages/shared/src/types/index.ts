@@ -216,6 +216,9 @@ export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
   user: Omit<User, 'passwordHash'>;
+  // Returned alongside the user so the frontend doesn't need a follow-up
+  // /api/auth/me round-trip after login. `null` for super_admin.
+  business: { _id: string; name: string; slug: string } | null;
 }
 
 export interface MeResponse {

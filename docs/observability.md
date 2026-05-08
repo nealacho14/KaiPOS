@@ -20,13 +20,13 @@ all alerts is `config.alertsEmail` (today
 
 ## Log groups at a glance
 
-| Log group                                     | Source                      | Retention | Notes                                                                                                                               |
-| --------------------------------------------- | --------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `/aws/lambda/<ApiFunction>`                   | api Lambda (Pino JSON)      | 30 days   | Carries `request completed` lines with `requestId`, `path`, `statusCode`, `durationMs`. All metric filters target this log group.   |
-| `/aws/lambda/<WsConnectFunction>`             | WS `$connect` Lambda        | 30 days   | JWT handshake, channel subscribes.                                                                                                  |
-| `/aws/lambda/<WsDisconnectFunction>`          | WS `$disconnect` Lambda     | 30 days   | Cleanup of connections table rows.                                                                                                  |
-| `/aws/lambda/<WsDefaultFunction>`             | WS `$default` Lambda        | 30 days   | Pings/acks via PostToConnection.                                                                                                    |
-| `/aws/apigateway/kaipos-prod-api-access-logs` | HTTP API access logs (JSON) | 30 days   | One line per request from the API Gateway side — useful when the Lambda log is missing (e.g., a 4xx/5xx that never hit the Lambda). |
+| Log group                                     | Source                      | Retention | Notes                                                                                                                                                                                                                                                                    |
+| --------------------------------------------- | --------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/aws/lambda/<ApiFunction>`                   | api Lambda (Pino JSON)      | 30 days   | Carries `request completed` lines with `requestId`, `path`, `statusCode`, `durationMs`. All metric filters target this log group.                                                                                                                                        |
+| `/aws/lambda/<WsConnectFunction>`             | WS `$connect` Lambda        | 30 days   | JWT handshake, channel subscribes.                                                                                                                                                                                                                                       |
+| `/aws/lambda/<WsDisconnectFunction>`          | WS `$disconnect` Lambda     | 30 days   | Cleanup of connections table rows.                                                                                                                                                                                                                                       |
+| `/aws/lambda/<WsDefaultFunction>`             | WS `$default` Lambda        | 30 days   | Pings/acks via PostToConnection.                                                                                                                                                                                                                                         |
+| `/aws/apigateway/kaipos-prod-api-access-logs` | HTTP API access logs (JSON) | 14 days   | One line per request from the API Gateway side — useful when the Lambda log is missing (e.g., a 4xx/5xx that never hit the Lambda). Shorter retention than the Lambda log groups since this duplicates per-request metadata that the richer Lambda log already captures. |
 
 Pino emits JSON in production, so all `$.field = value` filter patterns
 work directly on the application log groups.
@@ -62,6 +62,13 @@ fields path, durationMs
 | sort p100 desc
 | limit 10
 ```
+
+Note: under `LOG_LEVEL=info` (the prod default), 2xx/3xx `request completed`
+lines are emitted at `debug` and dropped — except when `durationMs > 3000`,
+where the line is force-promoted to `info` so it stays visible to this query
+and to the `SlowRequests` metric filter. Errors (4xx/5xx) are always emitted
+at `warn` / `error`. To see the full traffic stream temporarily, switch the
+api Lambda's `LOG_LEVEL` env var to `debug`.
 
 Useful before opening a perf ticket — hit the API log group with a 24 h
 range. `path` comes from `requestLogger`, so values are normalized to
@@ -254,9 +261,9 @@ The whole monitoring layer is designed to be **$0/month** on the AWS
 free tier.
 
 - **CloudWatch Alarms**: free up to 10 (we provision 8).
-- **CloudWatch Logs ingestion**: 5 GB/month free; our 30-day retention
-  on the api Lambda + access logs sits comfortably below that for MVP
-  traffic.
+- **CloudWatch Logs ingestion**: 5 GB/month free; the api Lambda log
+  group keeps 30 days while API Gateway access logs are bounded to 14
+  days, sitting comfortably below the free tier for MVP traffic.
 - **CloudWatch Metric Filters**: free.
 - **SNS**: 1k email notifications/month free.
 

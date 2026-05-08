@@ -69,24 +69,6 @@ describe('LoginPage', () => {
               updatedAt: new Date(),
               createdBy: 'system',
             },
-          },
-        });
-      }
-      if (url === '/api/auth/me') {
-        return jsonResponse(200, {
-          success: true,
-          data: {
-            user: {
-              _id: 'u1',
-              businessId: 'b1',
-              email: 'admin@x.com',
-              name: 'Admin',
-              role: 'admin',
-              isActive: true,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              createdBy: 'system',
-            },
             business: { _id: 'b1', name: 'Biz', slug: 'biz' },
           },
         });
@@ -182,13 +164,8 @@ describe('LoginPage', () => {
               updatedAt: new Date(),
               createdBy: 'system',
             },
+            business: null,
           },
-        });
-      }
-      if (url === '/api/auth/me') {
-        return jsonResponse(200, {
-          success: true,
-          data: { user: {}, business: null },
         });
       }
       throw new Error(`Unexpected fetch: ${url}`);

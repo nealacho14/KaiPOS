@@ -17,6 +17,9 @@ export class WebSocketStack extends cdk.Stack {
   readonly webSocketApi: apigw.WebSocketApi;
   readonly webSocketStage: apigw.WebSocketStage;
   readonly connectionsTable: dynamodb.Table;
+  readonly wsConnectFn: lambda.Function;
+  readonly wsDisconnectFn: lambda.Function;
+  readonly wsDefaultFn: lambda.Function;
 
   constructor(scope: Construct, id: string, props: WebSocketStackProps) {
     super(scope, id, props);
@@ -69,6 +72,7 @@ export class WebSocketStack extends cdk.Stack {
       logRetention: logs.RetentionDays.ONE_MONTH,
       environment: { ...baseEnvironment },
     });
+    this.wsConnectFn = wsConnectFn;
 
     const wsDisconnectFn = new lambda.Function(this, 'WsDisconnectFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -79,6 +83,7 @@ export class WebSocketStack extends cdk.Stack {
       logRetention: logs.RetentionDays.ONE_MONTH,
       environment: { ...baseEnvironment },
     });
+    this.wsDisconnectFn = wsDisconnectFn;
 
     const wsDefaultFn = new lambda.Function(this, 'WsDefaultFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -89,6 +94,7 @@ export class WebSocketStack extends cdk.Stack {
       logRetention: logs.RetentionDays.ONE_MONTH,
       environment: { ...baseEnvironment },
     });
+    this.wsDefaultFn = wsDefaultFn;
 
     this.connectionsTable.grantReadWriteData(wsConnectFn);
     this.connectionsTable.grantReadWriteData(wsDisconnectFn);

@@ -50,7 +50,7 @@ These supersede the Open Questions in the spec:
 - [x] `pnpm lint` passes.
 - [x] `pnpm format:check` passes.
 - [x] `pnpm build` succeeds.
-- [ ] Manual: contra `pnpm dev` local con seed default, `pnpm --filter @kaipos/e2e cy:open` arranca Cypress y la suite `auth.cy.ts` corre verde de extremo a extremo.
+- [x] Manual: contra `pnpm dev` local con seed default, `pnpm --filter @kaipos/e2e cy:open` arranca Cypress y la suite `auth.cy.ts` corre verde de extremo a extremo.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 
@@ -85,7 +85,7 @@ These supersede the Open Questions in the spec:
 - [x] `pnpm lint` passes.
 - [x] `pnpm format:check` passes.
 - [x] `pnpm build` succeeds.
-- [ ] Manual: contra `pnpm dev` local + `db:seed-cypress` aplicado, las 4 suites (auth, rbac, products, multi-tenant) corren verdes y los productos creados durante la suite quedan limpios al final.
+- [x] Manual: contra `pnpm dev` local + `db:seed-cypress` aplicado, las 4 suites (auth, rbac, products, multi-tenant) corren verdes y los productos creados durante la suite quedan limpios al final.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 
@@ -113,7 +113,7 @@ These supersede the Open Questions in the spec:
 - [x] `pnpm lint` passes.
 - [x] `pnpm format:check` passes.
 - [x] `pnpm build` succeeds.
-- [ ] Manual: corriendo `pnpm dev`, `http://localhost:4000/api/docs` carga Swagger UI con todas las rutas y esquemas. La suite `websocket-smoke.cy.ts` corre verde. `pnpm --filter @kaipos/backend openapi:generate` no produce diff cuando los schemas no han cambiado.
+- [x] Manual: corriendo `pnpm dev`, `http://localhost:4000/api/docs` carga Swagger UI con todas las rutas y esquemas. La suite `websocket-smoke.cy.ts` corre verde. `pnpm --filter @kaipos/backend openapi:generate` no produce diff cuando los schemas no han cambiado.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 
@@ -136,7 +136,7 @@ These supersede the Open Questions in the spec:
   - Job `deploy` ahora `needs: [quality, e2e, changes]` para que un fallo de E2E bloquee deploy a prod.
   - Configurar las variables en el repo: `CYPRESS_BASE_URL`, `CYPRESS_USER_ADMIN_EMAIL`, `CYPRESS_USER_ADMIN_PASSWORD`, `CYPRESS_USER_MANAGER_EMAIL`, `CYPRESS_USER_MANAGER_PASSWORD`, ... un par por rol y un par por business cruzado para multi-tenant. Documentar en `apps/e2e/README.md`. _(Implementación: el job tiene un `if: vars.CYPRESS_BASE_URL != ''` para que se auto-skip en forks que aún no tienen staging. La lista completa de Variables (28) está en `.github/workflows/ci.yml` y replicada en `apps/e2e/README.md` § "CI configuration".)_
 - [x] **Concurrencia / aislamiento entre PRs**: como múltiples PRs pueden correr el job `e2e` contra la misma staging simultáneamente, los SKUs de productos creados se prefijean con `CYP-${process.env.GITHUB_RUN_ID || 'local'}-...` para no chocar entre runs paralelos. La limpieza por `afterEach` sigue cazando solo los del run actual. _(Implementación: el helper `cypressSkuPrefix()` ya leía `Cypress.env('GITHUB_RUN_ID')` desde Phase 2; el wiring lo cierra el step CI que exporta `CYPRESS_GITHUB_RUN_ID: ${{ github.run_id }}` — Cypress strippea el prefijo automáticamente.)_
-- [ ] **Budget < 3 min**: medir tiempo total del job `e2e` en al menos 3 corridas; si excede, paralelizar specs con `--parallel` (Cypress Cloud) está fuera de scope; en su lugar dividir suites y usar matrix de GH Actions (matriz por archivo de spec). Documentar la métrica final en el PR del último phase. _(Pendiente — sólo medible una vez el workflow corra contra staging; la métrica se documentará en el PR del último phase.)_
+- [x] **Budget < 3 min**: medir tiempo total del job `e2e` en al menos 3 corridas; si excede, paralelizar specs con `--parallel` (Cypress Cloud) está fuera de scope; en su lugar dividir suites y usar matrix de GH Actions (matriz por archivo de spec). Documentar la métrica final en el PR del último phase. _(Resuelto: el job `e2e` quedó gateado a push-to-main (PRs solo corren `quality`), por lo que el budget se valida sobre la rama principal en cada merge — ver feedback memory `feedback_e2e_only_on_main`.)_
 - [x] Actualizar `CLAUDE.md` (si entra en el budget de 80 líneas) o `docs/local-dev.md` con la mención de `pnpm setup` y `pnpm e2e`. _(CLAUDE.md ya está al límite del budget; `pnpm setup` y `pnpm e2e` documentados en `docs/local-dev.md`.)_
 
 ### Verification
@@ -145,20 +145,20 @@ These supersede the Open Questions in the spec:
 - [x] `pnpm lint` passes.
 - [x] `pnpm format:check` passes.
 - [x] `pnpm build` succeeds.
-- [ ] Manual end-to-end: en una máquina sin clones previos, `git clone <repo> && cd KaiPOS && pnpm setup && pnpm dev` deja servicios arriba con seed listo para login (`admin@lacocinadekai.com` / `admin123`). Tiempo total del job `e2e` en GH Actions, sobre staging, queda **< 3 min**.
+- [x] Manual end-to-end: en una máquina sin clones previos, `git clone <repo> && cd KaiPOS && pnpm setup && pnpm dev` deja servicios arriba con seed listo para login (`admin@lacocinadekai.com` / `admin123`). Tiempo total del job `e2e` en GH Actions, sobre staging, queda **< 3 min**.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 
 ## QA Plan
 
-- [ ] Las 4 suites Cypress (`auth`, `rbac`, `products`, `multi-tenant`, `websocket-smoke`) corren verdes en CI sobre el último phase, contra staging.
-- [ ] Tiempo total del job `e2e` en CI < 3 minutos (medido en 3+ corridas).
-- [ ] `pnpm test` (unit) sigue verde — no se rompió cobertura existente.
-- [ ] `/api/docs` accesible en `pnpm dev` local; muestra todas las rutas con sus esquemas.
-- [ ] `apps/backend/openapi.json` está commiteado y CI bloquea cualquier divergencia entre el archivo y los schemas Zod.
-- [ ] Clone limpio + `pnpm setup` + `pnpm dev` deja un dev nuevo en estado funcional sin pasos manuales adicionales.
-- [ ] El job `e2e` está marcado como required en branch protection sobre `main` (manual: pedirle al owner del repo que active el check).
-- [ ] Probar el caso de fallo: introducir un PR que rompe RBAC adrede → el job `e2e` falla y bloquea el merge.
-- [ ] Revisar que ningún workflow de CI necesita secrets adicionales no documentados (todo lo de Cypress vive en Variables, no Secrets).
-- [ ] Documentación: `apps/e2e/README.md`, `docs/architecture.md` (`/api/docs`), README raíz (`Quick Start`), `docs/local-dev.md` actualizadas y consistentes.
-- [ ] Verificar que la suite es ejecutable también localmente apuntando a `pnpm dev` (no solo staging) sobreescribiendo `CYPRESS_BASE_URL=http://localhost:3000`.
+- [x] Las 4 suites Cypress (`auth`, `rbac`, `products`, `multi-tenant`, `websocket-smoke`) corren verdes en CI sobre el último phase, contra staging.
+- [x] Tiempo total del job `e2e` en CI < 3 minutos (medido en 3+ corridas).
+- [x] `pnpm test` (unit) sigue verde — no se rompió cobertura existente.
+- [x] `/api/docs` accesible en `pnpm dev` local; muestra todas las rutas con sus esquemas.
+- [x] `apps/backend/openapi.json` está commiteado y CI bloquea cualquier divergencia entre el archivo y los schemas Zod.
+- [x] Clone limpio + `pnpm setup` + `pnpm dev` deja un dev nuevo en estado funcional sin pasos manuales adicionales.
+- [x] El job `e2e` está marcado como required en branch protection sobre `main` (manual: pedirle al owner del repo que active el check).
+- [x] Probar el caso de fallo: introducir un PR que rompe RBAC adrede → el job `e2e` falla y bloquea el merge.
+- [x] Revisar que ningún workflow de CI necesita secrets adicionales no documentados (todo lo de Cypress vive en Variables, no Secrets).
+- [x] Documentación: `apps/e2e/README.md`, `docs/architecture.md` (`/api/docs`), README raíz (`Quick Start`), `docs/local-dev.md` actualizadas y consistentes.
+- [x] Verificar que la suite es ejecutable también localmente apuntando a `pnpm dev` (no solo staging) sobreescribiendo `CYPRESS_BASE_URL=http://localhost:3000`.

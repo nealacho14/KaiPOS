@@ -47,6 +47,7 @@ TypeScript strict, ES2022. MongoDB native driver (no Mongoose). Prettier: double
 - [docs/realtime.md](docs/realtime.md) — WebSocket (channels, auth, publish helper).
 - [docs/local-dev.md](docs/local-dev.md) — Docker, MinIO, environment variables.
 - [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) — AWS stacks, CloudFront, secrets.
+- [docs/observability.md](docs/observability.md) — alarms, runbook, Logs Insights queries.
 - [infra/DEPLOYMENT.md](infra/DEPLOYMENT.md) — deployment runbook.
 - [packages/ui/README.md](packages/ui/README.md) — design tokens and variants.
 - [apps/frontend-admin/README.md](apps/frontend-admin/README.md) — admin routes and dev notes.

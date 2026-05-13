@@ -1,10 +1,8 @@
 # CLAUDE.md
 
-Guidance for Claude Code (claude.ai/code) when working in this repo.
-
 ## Project
 
-KaiPOS is a cloud-native Point of Sale platform. Monorepo: pnpm workspaces + Turborepo. Apps under `apps/` (`backend`, `frontend-admin`), libs under `packages/` (`shared`, `ui`, `tsconfig`, `eslint-config`), AWS CDK in `infra/`.
+KaiPOS — cloud-native Point of Sale. pnpm + Turborepo monorepo: apps in `apps/` (`backend`, `frontend-admin`), libs in `packages/` (`shared`, `ui`, `tsconfig`, `eslint-config`), AWS CDK in `infra/`.
 
 ## Commands
 
@@ -33,12 +31,17 @@ Login (after seed): `admin@lacocinadekai.com` / `admin123`.
 - **Design system boundary.** In `apps/**/src` never import from `@mui/material`, `@mui/material/*`, or `lucide-react` directly. Everything routes through `@kaipos/ui` (re-exports both). Enforced by `no-restricted-imports` in `packages/eslint-config/react.js`.
 - **Design tokens.** In `apps/**/src` never use `fontSize: <n>`, `fontWeight: <n>` or `borderRadius: <n>` numeric literals in `sx`/`style`. Use `<Typography variant="...">` (or `theme.typography.X`), `theme.radii.X`, `theme.shape.borderRadius`. Spacing always via the MUI scale (`p={2}`, `m={3}`, `theme.spacing(n)`) — never `'<n>px'` strings. Colors via `palette.*` or `colors.*` — never hex/rgb literals. See `packages/ui/README.md` for variant mapping.
 - **Shared RBAC types.** `Permission`, `ROLE_PERMISSIONS`, `hasPermission`, `SUPER_ADMIN_BUSINESS_ID` live only in `@kaipos/shared` / `@kaipos/shared/permissions`. No local shim in apps.
-- **Lambda config.** `apps/backend/tsup.config.ts` bundles workspace packages and `mongodb`, leaves `@aws-sdk/*` external (provided by Node 20 runtime), emits `dist/package.json` with `type: "module"`, and injects a `createRequire` banner.
-- **No Atlas in local.** The backend (`src/db/client.ts`) and `pnpm setup` refuse a `mongodb+srv://` URI when `MONGO_SECRET_ARN` is unset; `db:seed` and `db:seed-cypress` do the same. Atlas credentials live only in Secrets Manager (`kaipos/prod/mongo-uri`) and are read by Lambda at cold start — never put them in `.env`.
+- **Lambda bundling.** Don't change `apps/backend/tsup.config.ts` without preserving: workspace packages + `mongodb` bundled, `@aws-sdk/*` external (Node 20 runtime), `dist/package.json` with `type: "module"`, and the `createRequire` banner.
+- **No Atlas in local.** Never put `mongodb+srv://` in `.env`. Atlas creds live only in Secrets Manager (`kaipos/prod/mongo-uri`) and load at Lambda cold start; `src/db/client.ts`, `pnpm setup` and the seed scripts refuse `mongodb+srv://` when `MONGO_SECRET_ARN` is unset.
+- **OpenAPI in sync.** After changing a Zod schema, run `pnpm --filter @kaipos/backend openapi:generate` and commit `apps/backend/openapi.json` — CI's `quality` job fails otherwise.
+
+## Tests & CI
+
+Vitest everywhere (unit + integration). PR CI runs `quality` only (format / lint / typecheck / build / openapi-sync / test); E2E is a **post-deploy smoke**, not a deploy gate. Pre-commit hook runs `lint-staged` (eslint + prettier on staged files), then `pnpm typecheck` and `pnpm test` against the full monorepo — fix issues, never `--no-verify`.
 
 ## Style
 
-TypeScript strict, ES2022. MongoDB native driver (no Mongoose). Prettier: double quotes, semicolons, trailing commas, 100 char width. Unused vars prefixed with `_`.
+TypeScript strict, ES2022. MongoDB native driver (no Mongoose). Prettier: double quotes, semicolons, trailing commas, 100-char width. Unused vars prefixed with `_`.
 
 ## Deeper docs
 

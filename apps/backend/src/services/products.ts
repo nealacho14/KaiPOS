@@ -215,6 +215,12 @@ export async function createProduct(
     dietaryTags: input.dietaryTags,
     modifierGroups: input.modifierGroups,
     kitchenStationIds: input.kitchenStationIds,
+    ...(input.variants !== undefined ? { variants: input.variants } : {}),
+    ...(input.availabilityWindow !== undefined
+      ? { availabilityWindow: input.availabilityWindow }
+      : {}),
+    sortOrder: input.sortOrder,
+    ...(input.barcode !== undefined ? { barcode: input.barcode } : {}),
     isActive: true,
     createdAt: now,
     updatedAt: now,

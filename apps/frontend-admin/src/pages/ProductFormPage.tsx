@@ -276,6 +276,7 @@ function formToCreatePayload(form: FormState, branchId: string): CreateProductPa
     dietaryTags: form.dietaryTags,
     modifierGroups: form.modifierGroups,
     kitchenStationIds: form.kitchenStationIds,
+    sortOrder: 0,
   };
 }
 
@@ -1037,7 +1038,13 @@ function ModifiersCard({ groups, onChange }: ModifiersCardProps) {
   const addGroup = () => {
     onChange([
       ...groups,
-      { id: crypto.randomUUID(), name: 'Nuevo grupo', required: false, options: [] },
+      {
+        id: crypto.randomUUID(),
+        name: 'Nuevo grupo',
+        required: false,
+        maxSelectable: 1,
+        options: [],
+      },
     ]);
   };
 

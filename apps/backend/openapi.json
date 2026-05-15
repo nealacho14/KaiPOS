@@ -1797,6 +1797,30 @@
           },
           {
             "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "required": false,
+            "name": "activeNow",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "featuredIn",
+            "in": "query"
+          },
+          {
+            "schema": {
               "type": "string",
               "minLength": 1
             },
@@ -2029,6 +2053,10 @@
                         "required": {
                           "type": "boolean"
                         },
+                        "maxSelectable": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
                         "options": {
                           "type": "array",
                           "items": {
@@ -2044,13 +2072,36 @@
                               },
                               "priceDelta": {
                                 "type": "number"
+                              },
+                              "available": {
+                                "type": "object",
+                                "properties": {
+                                  "daysOfWeek": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 6
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "from": {
+                                    "type": "string",
+                                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                  },
+                                  "to": {
+                                    "type": "string",
+                                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                  }
+                                },
+                                "additionalProperties": false
                               }
                             },
                             "required": ["id", "label", "priceDelta"]
                           }
                         }
                       },
-                      "required": ["id", "name", "required", "options"]
+                      "required": ["id", "name", "required", "maxSelectable", "options"]
                     },
                     "default": []
                   },
@@ -2061,6 +2112,66 @@
                       "minLength": 1
                     },
                     "default": []
+                  },
+                  "variants": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "sku": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "priceDelta": {
+                          "type": "number"
+                        },
+                        "imageUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        }
+                      },
+                      "required": ["id", "name", "sku", "priceDelta"]
+                    }
+                  },
+                  "availabilityWindow": {
+                    "type": "object",
+                    "properties": {
+                      "daysOfWeek": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 6
+                        },
+                        "minItems": 1
+                      },
+                      "from": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                      },
+                      "to": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                      }
+                    },
+                    "required": ["daysOfWeek", "from", "to"]
+                  },
+                  "sortOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "barcode": {
+                    "type": "string",
+                    "minLength": 1
                   }
                 },
                 "required": ["branchId", "name", "description", "price", "category", "sku", "stock"]
@@ -2316,6 +2427,10 @@
                         "required": {
                           "type": "boolean"
                         },
+                        "maxSelectable": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
                         "options": {
                           "type": "array",
                           "items": {
@@ -2331,13 +2446,36 @@
                               },
                               "priceDelta": {
                                 "type": "number"
+                              },
+                              "available": {
+                                "type": "object",
+                                "properties": {
+                                  "daysOfWeek": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 6
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "from": {
+                                    "type": "string",
+                                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                  },
+                                  "to": {
+                                    "type": "string",
+                                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                  }
+                                },
+                                "additionalProperties": false
                               }
                             },
                             "required": ["id", "label", "priceDelta"]
                           }
                         }
                       },
-                      "required": ["id", "name", "required", "options"]
+                      "required": ["id", "name", "required", "maxSelectable", "options"]
                     }
                   },
                   "kitchenStationIds": {
@@ -2346,6 +2484,65 @@
                       "type": "string",
                       "minLength": 1
                     }
+                  },
+                  "variants": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "sku": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "priceDelta": {
+                          "type": "number"
+                        },
+                        "imageUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        }
+                      },
+                      "required": ["id", "name", "sku", "priceDelta"]
+                    }
+                  },
+                  "availabilityWindow": {
+                    "type": "object",
+                    "properties": {
+                      "daysOfWeek": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 6
+                        },
+                        "minItems": 1
+                      },
+                      "from": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                      },
+                      "to": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                      }
+                    },
+                    "required": ["daysOfWeek", "from", "to"]
+                  },
+                  "sortOrder": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "barcode": {
+                    "type": "string",
+                    "minLength": 1
                   },
                   "isActive": {
                     "type": "boolean"

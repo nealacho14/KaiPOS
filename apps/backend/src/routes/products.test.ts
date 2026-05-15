@@ -88,6 +88,7 @@ const sampleProduct: Product = {
   dietaryTags: [],
   modifierGroups: [],
   kitchenStationIds: [],
+  sortOrder: 0,
   isActive: true,
   createdAt: now,
   updatedAt: now,

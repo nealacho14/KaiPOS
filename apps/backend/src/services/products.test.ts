@@ -88,6 +88,7 @@ function makeProduct(overrides: Partial<Product> = {}): Product {
     dietaryTags: [],
     modifierGroups: [],
     kitchenStationIds: [],
+    sortOrder: 0,
     isActive: true,
     createdAt: now,
     updatedAt: now,
@@ -164,6 +165,7 @@ const validCreateInput: CreateProductInput = {
   dietaryTags: [],
   modifierGroups: [],
   kitchenStationIds: [],
+  sortOrder: 0,
 };
 
 beforeEach(() => {
@@ -180,6 +182,7 @@ describe('products service', () => {
       await listProducts(adminPayload, {
         branchId: 'br-1',
         includeInactive: false,
+        activeNow: false,
         page: 1,
         limit: 50,
       });
@@ -197,6 +200,7 @@ describe('products service', () => {
         branchId: 'br-1',
         q: 'arroz',
         includeInactive: false,
+        activeNow: false,
         page: 1,
         limit: 50,
       });
@@ -216,6 +220,7 @@ describe('products service', () => {
         branchId: 'br-1',
         category: 'Entradas',
         includeInactive: false,
+        activeNow: false,
         page: 1,
         limit: 50,
       });
@@ -232,6 +237,7 @@ describe('products service', () => {
       await listProducts(adminPayload, {
         branchId: 'br-1',
         includeInactive: true,
+        activeNow: false,
         page: 1,
         limit: 50,
       });
@@ -246,6 +252,7 @@ describe('products service', () => {
       await listProducts(superAdminPayload, {
         branchId: 'br-1',
         includeInactive: false,
+        activeNow: false,
         page: 1,
         limit: 50,
       });
@@ -261,6 +268,7 @@ describe('products service', () => {
         branchId: 'br-1',
         businessId: 'biz-99',
         includeInactive: false,
+        activeNow: false,
         page: 1,
         limit: 50,
       });
@@ -550,6 +558,7 @@ describe('products service', () => {
       dietaryTags: [],
       modifierGroups: [],
       kitchenStationIds: [],
+      sortOrder: 0,
     };
 
     it('createProduct publishes product.created on the branch channel', async () => {

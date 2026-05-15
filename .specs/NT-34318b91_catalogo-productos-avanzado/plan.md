@@ -39,88 +39,88 @@
 
 #### Shared types (`packages/shared/src/types/index.ts`)
 
-- [ ] Agregar `timezone: string` (required) a `Branch` (default conceptual `America/Santo_Domingo`; el backend lo aplica).
-- [ ] Extender `ModifierGroup` con `maxSelectable: number` (entero ≥ 1).
-- [ ] Extender `ModifierOption` con `available?: { daysOfWeek?: number[]; from?: string; to?: string }` (formato `HH:mm`).
-- [ ] Agregar `interface ProductVariant { id: string; name: string; sku: string; priceDelta: number; imageUrl?: string }`.
-- [ ] Agregar `interface AvailabilityWindow { daysOfWeek: number[]; from: string; to: string }`.
-- [ ] Extender `Product` con: `variants?: ProductVariant[]`, `availabilityWindow?: AvailabilityWindow`, `sortOrder: number` (required), `barcode?: string`.
-- [ ] Agregar `interface ProductPreference { _id: string; businessId: string; branchId: string; productId: string; featured: boolean; sortOrderOverride?: number; updatedAt: Date; updatedBy: string }`.
-- [ ] Extender `AUDIT_ACTIONS` con: `product_featured`, `product_unfeatured`, `products_reordered`.
+- [x] Agregar `timezone: string` (required) a `Branch` (default conceptual `America/Santo_Domingo`; el backend lo aplica).
+- [x] Extender `ModifierGroup` con `maxSelectable: number` (entero ≥ 1).
+- [x] Extender `ModifierOption` con `available?: { daysOfWeek?: number[]; from?: string; to?: string }` (formato `HH:mm`).
+- [x] Agregar `interface ProductVariant { id: string; name: string; sku: string; priceDelta: number; imageUrl?: string }`.
+- [x] Agregar `interface AvailabilityWindow { daysOfWeek: number[]; from: string; to: string }`.
+- [x] Extender `Product` con: `variants?: ProductVariant[]`, `availabilityWindow?: AvailabilityWindow`, `sortOrder: number` (required), `barcode?: string`.
+- [x] Agregar `interface ProductPreference { _id: string; businessId: string; branchId: string; productId: string; featured: boolean; sortOrderOverride?: number; updatedAt: Date; updatedBy: string }`.
+- [x] Extender `AUDIT_ACTIONS` con: `product_featured`, `product_unfeatured`, `products_reordered`.
 
 #### Zod schemas (`packages/shared/src/schemas/products.ts`)
 
-- [ ] Agregar `productVariantSchema` con SKU min(1) y `priceDelta: z.number()`.
-- [ ] Agregar `availabilityWindowSchema` con `daysOfWeek: z.array(z.number().int().min(0).max(6)).min(1)`, `from`/`to` con regex `/^([01]\d|2[0-3]):[0-5]\d$/`.
-- [ ] Extender `modifierOptionSchema` con `available?: { daysOfWeek?, from?, to? }` (mismo formato).
-- [ ] Extender `modifierGroupSchema` con `maxSelectable: z.number().int().min(1)` + `.refine((g) => g.maxSelectable <= g.options.length, ...)`.
-- [ ] Extender `createProductSchema` / `updateProductSchema` con `variants?`, `availabilityWindow?`, `sortOrder: z.number().int().min(0).default(0)`, `barcode?: z.string().min(1).optional()`.
-- [ ] Refinement en `createProductSchema`: SKUs únicos dentro de `variants` (validación adicional en el service).
-- [ ] Extender `listProductsQuerySchema` con `activeNow?: boolean` (coerción string→bool igual que `includeInactive`), `featuredIn?: string` (branchId).
-- [ ] Agregar `reorderProductsSchema` con `{ branchId: string; items: Array<{ id: z.string().uuid(), sortOrder: z.number().int().min(0) }>.min(1).max(500) }`.
-- [ ] Agregar `featureProductSchema` con `{ branchId: string; featured: boolean }`.
-- [ ] Re-export desde `apps/backend/src/schemas/products.ts` (ya es passthrough — sin cambios estructurales).
+- [x] Agregar `productVariantSchema` con SKU min(1) y `priceDelta: z.number()`.
+- [x] Agregar `availabilityWindowSchema` con `daysOfWeek: z.array(z.number().int().min(0).max(6)).min(1)`, `from`/`to` con regex `/^([01]\d|2[0-3]):[0-5]\d$/`.
+- [x] Extender `modifierOptionSchema` con `available?: { daysOfWeek?, from?, to? }` (mismo formato).
+- [x] Extender `modifierGroupSchema` con `maxSelectable: z.number().int().min(1)` + `.refine((g) => g.maxSelectable <= g.options.length, ...)`.
+- [x] Extender `createProductSchema` / `updateProductSchema` con `variants?`, `availabilityWindow?`, `sortOrder: z.number().int().min(0).default(0)`, `barcode?: z.string().min(1).optional()`.
+- [x] Refinement en `createProductSchema`: SKUs únicos dentro de `variants` (validación adicional en el service).
+- [x] Extender `listProductsQuerySchema` con `activeNow?: boolean` (coerción string→bool igual que `includeInactive`), `featuredIn?: string` (branchId).
+- [x] Agregar `reorderProductsSchema` con `{ branchId: string; items: Array<{ id: z.string().uuid(), sortOrder: z.number().int().min(0) }>.min(1).max(500) }`.
+- [x] Agregar `featureProductSchema` con `{ branchId: string; featured: boolean }`.
+- [x] Re-export desde `apps/backend/src/schemas/products.ts` (ya es passthrough — sin cambios estructurales).
 
 #### Permissions (`packages/shared/src/permissions.ts`)
 
-- [ ] **No** agregar tokens nuevos. Mantener `products:write` para feature/reorder y `products:read` para `featuredIn`/`activeNow`.
+- [x] **No** agregar tokens nuevos. Mantener `products:write` para feature/reorder y `products:read` para `featuredIn`/`activeNow`.
 
 #### DB validators e índices (`apps/backend/src/db/setup.ts`)
 
-- [ ] **`branches` validator**: agregar `timezone` a `required` y a `properties` (`bsonType: 'string'`).
-- [ ] **`products` validator**:
+- [x] **`branches` validator**: agregar `timezone` a `required` y a `properties` (`bsonType: 'string'`).
+- [x] **`products` validator**:
   - `modifierGroups[].items.required` agregar `maxSelectable`; `properties` agregar `maxSelectable: { bsonType: 'number' }` (number por la convención de driver int→double documentada en el archivo).
   - `modifierGroups[].items.properties.options.items.properties.available: { bsonType: 'object', properties: { daysOfWeek: { bsonType: 'array', items: { bsonType: 'number' } }, from: { bsonType: 'string' }, to: { bsonType: 'string' } } }`.
   - `variants: { bsonType: 'array', items: { bsonType: 'object', required: ['id','name','sku','priceDelta'], properties: { id, name, sku, priceDelta, imageUrl } } }`.
   - `availabilityWindow: { bsonType: 'object', required: ['daysOfWeek','from','to'], properties: { daysOfWeek: array of number, from: string, to: string } }`.
   - `barcode: { bsonType: 'string' }`.
   - `sortOrder: { bsonType: 'number' }` y agregarlo a `required` (después del backfill — ver script abajo).
-- [ ] **`products` índices nuevos**:
+- [x] **`products` índices nuevos**:
   - `{ branchId: 1, category: 1, sortOrder: 1 }` (no único).
   - `{ branchId: 1, barcode: 1 }` con `unique: true` y `partialFilterExpression: { barcode: { $type: 'string' } }`.
-- [ ] **Nueva colección `productPreferences`**:
+- [x] **Nueva colección `productPreferences`**:
   - Validator con `required: ['businessId','branchId','productId','featured','updatedAt','updatedBy']` y `properties` consistente.
   - Índice único `{ businessId: 1, branchId: 1, productId: 1 }`.
   - Índice `{ businessId: 1, branchId: 1, featured: 1 }` para `featuredIn` queries.
 
 #### Collections helper (`apps/backend/src/db/collections.ts`)
 
-- [ ] Agregar `getProductPreferencesCollection(): Promise<Collection<ProductPreference>>`.
+- [x] Agregar `getProductPreferencesCollection(): Promise<Collection<ProductPreference>>`.
 
 #### Backfill script (`apps/backend/scripts/backfill-product-sort-order.ts`)
 
-- [ ] Crear script idempotente:
+- [x] Crear script idempotente:
   - `updateMany({ sortOrder: { $exists: false } }, { $set: { sortOrder: 0 } })`.
   - Logs por sucursal/cantidad. No falla si 0 docs.
   - **Importante**: correrlo **antes** del `db:setup` final, porque agregar `sortOrder` a `required` con `validationLevel: 'moderate'` no rompe inserts existentes, pero sí futuros updates a docs sin el campo.
-- [ ] Agregar `db:backfill:sortorder` a `apps/backend/package.json` scripts.
-- [ ] Agregar `timezone` default `'America/Santo_Domingo'` a las branches existentes en el mismo script (o un sub-comando) para que el cambio de validator no rompa updates.
+- [x] Agregar `db:backfill:sortorder` a `apps/backend/package.json` scripts.
+- [x] Agregar `timezone` default `'America/Santo_Domingo'` a las branches existentes en el mismo script (o un sub-comando) para que el cambio de validator no rompa updates.
 
 #### Seed (`apps/backend/src/db/seed.ts` y `seed-cypress.ts`)
 
-- [ ] Branches sembradas: agregar `timezone: 'America/Santo_Domingo'`.
-- [ ] Productos sembrados: agregar `sortOrder: 0` y `modifierGroups[].maxSelectable` donde aplique (1 si hay opciones, sino omitir el grupo).
+- [x] Branches sembradas: agregar `timezone: 'America/Santo_Domingo'`.
+- [x] Productos sembrados: agregar `sortOrder: 0` y `modifierGroups[].maxSelectable` donde aplique (1 si hay opciones, sino omitir el grupo).
 
 #### OpenAPI
 
-- [ ] Correr `pnpm --filter @kaipos/backend openapi:generate` y commitear `apps/backend/openapi.json`.
+- [x] Correr `pnpm --filter @kaipos/backend openapi:generate` y commitear `apps/backend/openapi.json`.
 
 #### Tests
 
-- [ ] `packages/shared/src/schemas/products.test.ts` (crear si no existe): cubrir parses positivos/negativos de los schemas nuevos (variants con SKU duplicado, availabilityWindow inválido, `maxSelectable > options.length`).
-- [ ] `apps/backend/src/db/setup.test.ts` no es necesario reescribir; smoke test corriendo `pnpm --filter @kaipos/backend db:setup` localmente cuenta como verificación.
+- [x] `packages/shared/src/schemas/products.test.ts` (crear si no existe): cubrir parses positivos/negativos de los schemas nuevos (variants con SKU duplicado, availabilityWindow inválido, `maxSelectable > options.length`).
+- [x] `apps/backend/src/db/setup.test.ts` no es necesario reescribir; smoke test corriendo `pnpm --filter @kaipos/backend db:setup` localmente cuenta como verificación.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm test` passes (incluye el nuevo `products.test.ts` de shared)
-- [ ] `pnpm --filter @kaipos/backend db:setup` corre idempotente sin errores (Docker Mongo).
-- [ ] Backfill script: `pnpm --filter @kaipos/backend db:backfill:sortorder` ejecuta sin errores y los productos seedeados conservan `sortOrder: 0`.
-- [ ] `apps/backend/openapi.json` regenerado y comiteado; `git diff` muestra los campos nuevos en los schemas.
-- [ ] Manual: confirmar en `mongosh` que el índice `{branchId:1,barcode:1}` existe con `partialFilterExpression`.
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm test` passes (incluye el nuevo `products.test.ts` de shared)
+- [x] `pnpm --filter @kaipos/backend db:setup` corre idempotente sin errores (Docker Mongo).
+- [x] Backfill script: `pnpm --filter @kaipos/backend db:backfill:sortorder` ejecuta sin errores y los productos seedeados conservan `sortOrder: 0`.
+- [x] `apps/backend/openapi.json` regenerado y comiteado; `git diff` muestra los campos nuevos en los schemas.
+- [x] Manual: confirmar en `mongosh` que el índice `{branchId:1,barcode:1}` existe con `partialFilterExpression`.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 

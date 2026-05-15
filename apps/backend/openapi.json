@@ -2610,6 +2610,211 @@
         }
       }
     },
+    "/api/products/reorder": {
+      "patch": {
+        "tags": ["products"],
+        "summary": "Bulk-update sortOrder for products in a branch",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "branchId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "sortOrder": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": ["id", "sortOrder"]
+                    },
+                    "minItems": 1,
+                    "maxItems": 500
+                  }
+                },
+                "required": ["branchId", "items"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reorder applied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "matched": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": ["matched"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "One or more product ids not found in this branch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [false]
+                    },
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["success", "error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/products/{id}/feature": {
+      "patch": {
+        "tags": ["products"],
+        "summary": "Toggle a product as featured for a branch",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "branchId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "featured": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["branchId", "featured"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated product preference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "_id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["_id"],
+                      "additionalProperties": {
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found in this branch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [false]
+                    },
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["success", "error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/products/upload-url": {
       "post": {
         "tags": ["products"],

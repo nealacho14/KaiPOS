@@ -1797,6 +1797,30 @@
           },
           {
             "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "required": false,
+            "name": "activeNow",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "featuredIn",
+            "in": "query"
+          },
+          {
+            "schema": {
               "type": "string",
               "minLength": 1
             },
@@ -2029,6 +2053,10 @@
                         "required": {
                           "type": "boolean"
                         },
+                        "maxSelectable": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
                         "options": {
                           "type": "array",
                           "items": {
@@ -2044,13 +2072,36 @@
                               },
                               "priceDelta": {
                                 "type": "number"
+                              },
+                              "available": {
+                                "type": "object",
+                                "properties": {
+                                  "daysOfWeek": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 6
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "from": {
+                                    "type": "string",
+                                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                  },
+                                  "to": {
+                                    "type": "string",
+                                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                  }
+                                },
+                                "additionalProperties": false
                               }
                             },
                             "required": ["id", "label", "priceDelta"]
                           }
                         }
                       },
-                      "required": ["id", "name", "required", "options"]
+                      "required": ["id", "name", "required", "maxSelectable", "options"]
                     },
                     "default": []
                   },
@@ -2061,6 +2112,66 @@
                       "minLength": 1
                     },
                     "default": []
+                  },
+                  "variants": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "sku": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "priceDelta": {
+                          "type": "number"
+                        },
+                        "imageUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        }
+                      },
+                      "required": ["id", "name", "sku", "priceDelta"]
+                    }
+                  },
+                  "availabilityWindow": {
+                    "type": "object",
+                    "properties": {
+                      "daysOfWeek": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 6
+                        },
+                        "minItems": 1
+                      },
+                      "from": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                      },
+                      "to": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                      }
+                    },
+                    "required": ["daysOfWeek", "from", "to"]
+                  },
+                  "sortOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "barcode": {
+                    "type": "string",
+                    "minLength": 1
                   }
                 },
                 "required": ["branchId", "name", "description", "price", "category", "sku", "stock"]
@@ -2316,6 +2427,10 @@
                         "required": {
                           "type": "boolean"
                         },
+                        "maxSelectable": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
                         "options": {
                           "type": "array",
                           "items": {
@@ -2331,13 +2446,36 @@
                               },
                               "priceDelta": {
                                 "type": "number"
+                              },
+                              "available": {
+                                "type": "object",
+                                "properties": {
+                                  "daysOfWeek": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 6
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "from": {
+                                    "type": "string",
+                                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                  },
+                                  "to": {
+                                    "type": "string",
+                                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                                  }
+                                },
+                                "additionalProperties": false
                               }
                             },
                             "required": ["id", "label", "priceDelta"]
                           }
                         }
                       },
-                      "required": ["id", "name", "required", "options"]
+                      "required": ["id", "name", "required", "maxSelectable", "options"]
                     }
                   },
                   "kitchenStationIds": {
@@ -2346,6 +2484,65 @@
                       "type": "string",
                       "minLength": 1
                     }
+                  },
+                  "variants": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "sku": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "priceDelta": {
+                          "type": "number"
+                        },
+                        "imageUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        }
+                      },
+                      "required": ["id", "name", "sku", "priceDelta"]
+                    }
+                  },
+                  "availabilityWindow": {
+                    "type": "object",
+                    "properties": {
+                      "daysOfWeek": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 6
+                        },
+                        "minItems": 1
+                      },
+                      "from": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                      },
+                      "to": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                      }
+                    },
+                    "required": ["daysOfWeek", "from", "to"]
+                  },
+                  "sortOrder": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "barcode": {
+                    "type": "string",
+                    "minLength": 1
                   },
                   "isActive": {
                     "type": "boolean"
@@ -2409,6 +2606,211 @@
         "responses": {
           "204": {
             "description": "Deleted (no content)"
+          }
+        }
+      }
+    },
+    "/api/products/reorder": {
+      "patch": {
+        "tags": ["products"],
+        "summary": "Bulk-update sortOrder for products in a branch",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "branchId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "sortOrder": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": ["id", "sortOrder"]
+                    },
+                    "minItems": 1,
+                    "maxItems": 500
+                  }
+                },
+                "required": ["branchId", "items"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reorder applied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "matched": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": ["matched"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "One or more product ids not found in this branch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [false]
+                    },
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["success", "error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/products/{id}/feature": {
+      "patch": {
+        "tags": ["products"],
+        "summary": "Toggle a product as featured for a branch",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "branchId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "featured": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["branchId", "featured"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated product preference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "_id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["_id"],
+                      "additionalProperties": {
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found in this branch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [false]
+                    },
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message"]
+                    }
+                  },
+                  "required": ["success", "error"]
+                }
+              }
+            }
           }
         }
       }

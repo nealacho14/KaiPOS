@@ -1,10 +1,12 @@
 import type {
   Allergen,
+  AvailabilityWindow,
   DietaryTag,
   ModifierGroup,
   ModifierOption,
   Product,
   ProductAvailability,
+  ProductVariant,
   ServiceSchedule,
   StockUnit,
 } from '@kaipos/shared';
@@ -19,6 +21,7 @@ import {
   Card,
   CardContent,
   CardHeader,
+  Checkbox,
   Chip,
   ChevronRight,
   Divider,
@@ -34,8 +37,10 @@ import {
   Select,
   Skeleton,
   Stack,
+  Star,
   Switch,
   TextField,
+  Tooltip,
   Typography,
   Upload,
   X,
@@ -69,6 +74,7 @@ import {
   createProduct,
   generateUploadUrl,
   getProduct,
+  setProductFeatured,
   toProductsApiError,
   updateProduct,
   type CreateProductPayload,
@@ -141,6 +147,20 @@ const STOCK_UNIT_LABELS: Record<StockUnit, string> = {
 const UPLOAD_MIME: readonly string[] = ['image/jpeg', 'image/png', 'image/webp'] as const;
 const UPLOAD_MAX_BYTES = 2 * 1024 * 1024;
 
+// Spanish single-letter labels for the seven day-of-week checkboxes used in
+// availability windows. Order is L–D (Monday-first) which matches the local
+// market convention; the underlying value is the JS Date weekday index
+// (0 = Sunday … 6 = Saturday).
+const DAYS_OF_WEEK: ReadonlyArray<{ value: number; label: string; full: string }> = [
+  { value: 1, label: 'L', full: 'Lunes' },
+  { value: 2, label: 'M', full: 'Martes' },
+  { value: 3, label: 'M', full: 'Miércoles' },
+  { value: 4, label: 'J', full: 'Jueves' },
+  { value: 5, label: 'V', full: 'Viernes' },
+  { value: 6, label: 'S', full: 'Sábado' },
+  { value: 0, label: 'D', full: 'Domingo' },
+];
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -157,6 +177,7 @@ interface FormState {
   price: string;
   category: string;
   sku: string;
+  barcode: string;
   stock: string;
   cost: string;
   taxRate: string;
@@ -170,6 +191,8 @@ interface FormState {
   dietaryTags: DietaryTag[];
   modifierGroups: ModifierGroup[];
   kitchenStationIds: string[];
+  variants: ProductVariant[];
+  availabilityWindow: AvailabilityWindow | null;
 }
 
 type LoadState = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready' };
@@ -187,6 +210,7 @@ function initialForm(): FormState {
     price: '',
     category: '',
     sku: '',
+    barcode: '',
     stock: '0',
     cost: '',
     taxRate: '',
@@ -200,6 +224,8 @@ function initialForm(): FormState {
     dietaryTags: [],
     modifierGroups: [],
     kitchenStationIds: [],
+    variants: [],
+    availabilityWindow: null,
   };
 }
 
@@ -210,6 +236,7 @@ function productToForm(p: Product): FormState {
     price: String(p.price ?? ''),
     category: p.category,
     sku: p.sku,
+    barcode: p.barcode ?? '',
     stock: String(p.stock ?? 0),
     cost: p.cost !== undefined ? String(p.cost) : '',
     taxRate: p.taxRate !== undefined ? String(p.taxRate) : '',
@@ -223,9 +250,16 @@ function productToForm(p: Product): FormState {
     dietaryTags: [...p.dietaryTags],
     modifierGroups: p.modifierGroups.map((g) => ({
       ...g,
-      options: g.options.map((o) => ({ ...o })),
+      options: g.options.map((o) => ({
+        ...o,
+        ...(o.available ? { available: { ...o.available } } : {}),
+      })),
     })),
     kitchenStationIds: [...p.kitchenStationIds],
+    variants: p.variants ? p.variants.map((v) => ({ ...v })) : [],
+    availabilityWindow: p.availabilityWindow
+      ? { ...p.availabilityWindow, daysOfWeek: [...p.availabilityWindow.daysOfWeek] }
+      : null,
   };
 }
 
@@ -276,6 +310,10 @@ function formToCreatePayload(form: FormState, branchId: string): CreateProductPa
     dietaryTags: form.dietaryTags,
     modifierGroups: form.modifierGroups,
     kitchenStationIds: form.kitchenStationIds,
+    ...(form.variants.length > 0 ? { variants: form.variants } : {}),
+    ...(form.availabilityWindow ? { availabilityWindow: form.availabilityWindow } : {}),
+    ...(form.barcode.trim() !== '' ? { barcode: form.barcode.trim() } : {}),
+    sortOrder: 0,
   };
 }
 
@@ -299,6 +337,9 @@ function formToUpdatePayload(form: FormState): UpdateProductPayload {
     dietaryTags: form.dietaryTags,
     modifierGroups: form.modifierGroups,
     kitchenStationIds: form.kitchenStationIds,
+    variants: form.variants.length > 0 ? form.variants : undefined,
+    availabilityWindow: form.availabilityWindow ?? undefined,
+    barcode: form.barcode.trim() !== '' ? form.barcode.trim() : undefined,
   };
 }
 
@@ -309,12 +350,16 @@ const FIELD_ERROR_COPY: Record<string, string> = {
   name: 'El nombre es obligatorio.',
   category: 'La categoría es obligatoria.',
   sku: 'El SKU es obligatorio.',
+  barcode: 'El código de barras no es válido.',
   price: 'Ingresa un precio válido.',
   stock: 'Ingresa una cantidad válida.',
   cost: 'Ingresa un costo válido.',
   taxRate: 'Ingresa un IVA entre 0 y 100.',
   lowStockThreshold: 'Ingresa un umbral válido.',
   imageUrl: 'La URL de la imagen no es válida.',
+  variants: 'Revisa las variantes — SKUs deben ser únicos.',
+  availabilityWindow: 'Revisa el horario de disponibilidad.',
+  modifierGroups: 'Revisa los modificadores — máx. seleccionables ≤ opciones.',
 };
 
 function validateClientSide(
@@ -378,6 +423,14 @@ export function ProductFormPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Featured (per-branch preference, stored separately from the Product doc).
+  // Optimistic local state, reverted if the server call fails. Only meaningful
+  // in edit mode because we need a known productId; in create mode we render
+  // a disabled placeholder.
+  const [featured, setFeatured] = useState(false);
+  const [featuredSaving, setFeaturedSaving] = useState(false);
+  const [featuredError, setFeaturedError] = useState<string | null>(null);
 
   const updateForm = useCallback((patch: Partial<FormState>) => {
     setForm((prev) => ({ ...prev, ...patch }));
@@ -508,6 +561,28 @@ export function ProductFormPage() {
     [branchId, updateForm],
   );
 
+  const handleToggleFeatured = useCallback(async () => {
+    if (!id || !branchId) return;
+    const next = !featured;
+    setFeatured(next);
+    setFeaturedSaving(true);
+    setFeaturedError(null);
+    try {
+      await setProductFeatured(id, { branchId, featured: next });
+    } catch (err) {
+      // Revert optimistic toggle and surface the message.
+      setFeatured(!next);
+      const mapped = toProductsApiError(err);
+      setFeaturedError(
+        mapped.status === 403
+          ? 'No tienes permiso para destacar productos en esta sucursal.'
+          : mapped.message || 'No pudimos actualizar el destacado.',
+      );
+    } finally {
+      setFeaturedSaving(false);
+    }
+  }, [branchId, featured, id]);
+
   const handleSubmit = useCallback(async () => {
     const errors = validateClientSide(form, branchId);
     if (errors) {
@@ -618,6 +693,24 @@ export function ProductFormPage() {
       >
         <Breadcrumb category={form.category} name={form.name} mode={mode} />
         <Stack direction="row" spacing={1} alignItems="center">
+          {mode === 'edit' && canWrite && (
+            <Tooltip
+              title={featured ? 'Quitar destacado en esta sucursal' : 'Destacar en esta sucursal'}
+            >
+              <span>
+                <IconButton
+                  size="small"
+                  aria-label={featured ? 'Quitar destacado' : 'Destacar'}
+                  aria-pressed={featured}
+                  onClick={handleToggleFeatured}
+                  disabled={featuredSaving || !branchId}
+                  color={featured ? 'warning' : 'default'}
+                >
+                  <Star size={18} aria-hidden fill={featured ? 'currentColor' : 'none'} />
+                </IconButton>
+              </span>
+            </Tooltip>
+          )}
           <Button size="small" disabled>
             Vista previa
           </Button>
@@ -631,6 +724,12 @@ export function ProductFormPage() {
           </Button>
         </Stack>
       </Stack>
+
+      {featuredError && (
+        <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setFeaturedError(null)}>
+          {featuredError}
+        </Alert>
+      )}
 
       {mode === 'edit' && branchId && (
         <Box sx={{ mb: 2 }}>
@@ -672,6 +771,34 @@ export function ProductFormPage() {
           <PricingCard form={form} updateForm={updateForm} fieldErrors={fieldErrors} />
 
           <InventoryCard form={form} updateForm={updateForm} />
+
+          <VariantsCard
+            variants={form.variants}
+            onChange={(next) => updateForm({ variants: next })}
+            onUploadImage={async (file) => {
+              if (!branchId) throw new Error('branch required');
+              if (!UPLOAD_MIME.includes(file.type)) {
+                throw new Error('UNSUPPORTED_TYPE');
+              }
+              if (file.size > UPLOAD_MAX_BYTES) {
+                throw new Error('TOO_LARGE');
+              }
+              const { uploadUrl, publicUrl } = await generateUploadUrl({
+                branchId,
+                contentType: file.type as 'image/jpeg' | 'image/png' | 'image/webp',
+                fileSize: file.size,
+              });
+              const putRes = await fetch(uploadUrl, {
+                method: 'PUT',
+                headers: { 'content-type': file.type },
+                body: file,
+              });
+              if (!putRes.ok) {
+                throw new Error('UPLOAD_FAILED');
+              }
+              return publicUrl;
+            }}
+          />
 
           <ModifiersCard
             groups={form.modifierGroups}
@@ -855,6 +982,15 @@ function BasicInfoCard({
           />
         </Stack>
         <TextField
+          label="Código de barras"
+          value={form.barcode}
+          onChange={(e) => updateForm({ barcode: e.target.value })}
+          error={Boolean(fieldErrors.barcode)}
+          helperText={fieldErrors.barcode ?? 'Opcional. Usado para búsqueda rápida en POS y KDS.'}
+          inputProps={{ style: { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' } }}
+          fullWidth
+        />
+        <TextField
           label="Descripción corta"
           value={form.description}
           onChange={(e) => updateForm({ description: e.target.value })}
@@ -1037,7 +1173,13 @@ function ModifiersCard({ groups, onChange }: ModifiersCardProps) {
   const addGroup = () => {
     onChange([
       ...groups,
-      { id: crypto.randomUUID(), name: 'Nuevo grupo', required: false, options: [] },
+      {
+        id: crypto.randomUUID(),
+        name: 'Nuevo grupo',
+        required: false,
+        maxSelectable: 1,
+        options: [],
+      },
     ]);
   };
 
@@ -1229,6 +1371,24 @@ function SortableGroup({
           label={group.required ? 'Requerido' : 'Opcional'}
           sx={{ m: 0 }}
         />
+        <Tooltip title="Máx. opciones que un cliente puede elegir">
+          <TextField
+            size="small"
+            label="Máx."
+            type="number"
+            value={group.maxSelectable}
+            onChange={(e) => {
+              const next = Math.max(1, Math.floor(parseRequiredNumber(e.target.value) || 1));
+              onUpdate({ maxSelectable: next });
+            }}
+            inputProps={{ min: 1, step: 1 }}
+            error={group.maxSelectable > group.options.length}
+            helperText={
+              group.maxSelectable > group.options.length ? `≤ ${group.options.length}` : undefined
+            }
+            sx={{ width: 88 }}
+          />
+        </Tooltip>
         <IconButton
           size="small"
           color="error"
@@ -1290,37 +1450,305 @@ function SortableOption({ option, onUpdate, onRemove }: SortableOptionProps) {
     opacity: isDragging ? 0.6 : 1,
   };
 
+  const [scheduleOpen, setScheduleOpen] = useState(Boolean(option.available));
+  const hasSchedule = Boolean(option.available);
+
   return (
-    <Stack ref={setNodeRef} style={style} direction="row" spacing={1} alignItems="center">
-      <IconButton
-        size="small"
-        aria-label={`Reordenar opción ${option.label}`}
-        {...attributes}
-        {...listeners}
-        sx={{ cursor: 'grab', touchAction: 'none', color: 'text.disabled' }}
-      >
-        <GripVertical size={14} aria-hidden />
-      </IconButton>
-      <TextField
-        size="small"
-        label="Opción"
-        value={option.label}
-        onChange={(e) => onUpdate({ label: e.target.value })}
-        sx={{ flex: 2 }}
-      />
-      <TextField
-        size="small"
-        label="Δ Precio"
-        type="number"
-        value={option.priceDelta}
-        onChange={(e) => onUpdate({ priceDelta: parseRequiredNumber(e.target.value) })}
-        inputProps={{ step: '0.01' }}
-        sx={{ width: 120 }}
-      />
-      <IconButton size="small" aria-label={`Eliminar opción ${option.label}`} onClick={onRemove}>
-        <X size={14} aria-hidden />
-      </IconButton>
+    <Stack ref={setNodeRef} style={style} spacing={0.75}>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <IconButton
+          size="small"
+          aria-label={`Reordenar opción ${option.label}`}
+          {...attributes}
+          {...listeners}
+          sx={{ cursor: 'grab', touchAction: 'none', color: 'text.disabled' }}
+        >
+          <GripVertical size={14} aria-hidden />
+        </IconButton>
+        <TextField
+          size="small"
+          label="Opción"
+          value={option.label}
+          onChange={(e) => onUpdate({ label: e.target.value })}
+          sx={{ flex: 2 }}
+        />
+        <TextField
+          size="small"
+          label="Δ Precio"
+          type="number"
+          value={option.priceDelta}
+          onChange={(e) => onUpdate({ priceDelta: parseRequiredNumber(e.target.value) })}
+          inputProps={{ step: '0.01' }}
+          sx={{ width: 120 }}
+        />
+        <Button
+          size="small"
+          variant={hasSchedule ? 'outlined' : 'text'}
+          onClick={() => setScheduleOpen((v) => !v)}
+          aria-expanded={scheduleOpen}
+        >
+          {scheduleOpen ? 'Ocultar horario' : hasSchedule ? 'Horario ✓' : 'Horario'}
+        </Button>
+        <IconButton size="small" aria-label={`Eliminar opción ${option.label}`} onClick={onRemove}>
+          <X size={14} aria-hidden />
+        </IconButton>
+      </Stack>
+      {scheduleOpen && (
+        <Box sx={{ pl: 4 }}>
+          <AvailabilityScheduleEditor
+            window={
+              option.available
+                ? {
+                    daysOfWeek: option.available.daysOfWeek ?? [],
+                    from: option.available.from ?? '11:00',
+                    to: option.available.to ?? '15:00',
+                  }
+                : null
+            }
+            optional
+            onChange={(next) => onUpdate(next ? { available: next } : { available: undefined })}
+          />
+        </Box>
+      )}
     </Stack>
+  );
+}
+
+interface VariantsCardProps {
+  variants: ProductVariant[];
+  onChange: (next: ProductVariant[]) => void;
+  onUploadImage: (file: File) => Promise<string>;
+}
+
+function VariantsCard({ variants, onChange, onUploadImage }: VariantsCardProps) {
+  // Inline duplicate-SKU detection mirrors the backend's `VARIANT_SKU_DUPLICATE`
+  // check so the user sees the issue before submitting. We render the error on
+  // the *second* occurrence of a SKU; the first row stays unmarked so the user
+  // can decide which one to fix.
+  const seen = new Set<string>();
+  const duplicateSkuIds = new Set<string>();
+  for (const v of variants) {
+    const key = v.sku.trim();
+    if (!key) continue;
+    if (seen.has(key)) duplicateSkuIds.add(v.id);
+    else seen.add(key);
+  }
+
+  const addVariant = () => {
+    onChange([...variants, { id: crypto.randomUUID(), name: '', sku: '', priceDelta: 0 }]);
+  };
+
+  const updateVariant = (id: string, patch: Partial<ProductVariant>) => {
+    onChange(variants.map((v) => (v.id === id ? { ...v, ...patch } : v)));
+  };
+
+  const removeVariant = (id: string) => {
+    onChange(variants.filter((v) => v.id !== id));
+  };
+
+  return (
+    <SectionCard
+      title="Variantes"
+      subtitle="Tamaños, presentaciones u otros SKUs derivados del producto."
+      action={
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<Plus size={16} aria-hidden />}
+          onClick={addVariant}
+        >
+          Variante
+        </Button>
+      }
+    >
+      {variants.length === 0 ? (
+        <Typography variant="body2" color="text.secondary">
+          Sin variantes. Agrega una si el producto tiene tallas o presentaciones (p. ej. 250 ml /
+          500 ml).
+        </Typography>
+      ) : (
+        <Stack spacing={2}>
+          {variants.map((variant) => (
+            <VariantRow
+              key={variant.id}
+              variant={variant}
+              isDuplicateSku={duplicateSkuIds.has(variant.id)}
+              onUpdate={(patch) => updateVariant(variant.id, patch)}
+              onRemove={() => removeVariant(variant.id)}
+              onUploadImage={onUploadImage}
+            />
+          ))}
+        </Stack>
+      )}
+    </SectionCard>
+  );
+}
+
+interface VariantRowProps {
+  variant: ProductVariant;
+  isDuplicateSku: boolean;
+  onUpdate: (patch: Partial<ProductVariant>) => void;
+  onRemove: () => void;
+  onUploadImage: (file: File) => Promise<string>;
+}
+
+function VariantRow({
+  variant,
+  isDuplicateSku,
+  onUpdate,
+  onRemove,
+  onUploadImage,
+}: VariantRowProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handlePick = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const url = await onUploadImage(file);
+      onUpdate({ imageUrl: url });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'UPLOAD_FAILED';
+      setUploadError(
+        msg === 'UNSUPPORTED_TYPE'
+          ? 'Formato no soportado.'
+          : msg === 'TOO_LARGE'
+            ? 'La imagen supera el máximo de 2 MB.'
+            : 'No pudimos subir la imagen.',
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <Box
+      sx={(theme) => ({
+        p: 2,
+        borderRadius: `${theme.radii.md}px`,
+        border: '1px solid',
+        borderColor: 'divider',
+        bgcolor: 'action.hover',
+      })}
+    >
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start">
+        <Stack spacing={1.5} sx={{ flex: 1, minWidth: 0 }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <TextField
+              size="small"
+              label="Nombre"
+              value={variant.name}
+              onChange={(e) => onUpdate({ name: e.target.value })}
+              sx={{ flex: 2 }}
+              required
+            />
+            <TextField
+              size="small"
+              label="SKU"
+              value={variant.sku}
+              onChange={(e) => onUpdate({ sku: e.target.value.toUpperCase() })}
+              error={isDuplicateSku}
+              helperText={isDuplicateSku ? 'SKU duplicado entre variantes.' : undefined}
+              inputProps={{
+                style: { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' },
+              }}
+              sx={{ flex: 1 }}
+              required
+            />
+            <TextField
+              size="small"
+              label="Δ Precio"
+              type="number"
+              value={variant.priceDelta}
+              onChange={(e) => onUpdate({ priceDelta: parseRequiredNumber(e.target.value) })}
+              inputProps={{ step: '0.01' }}
+              InputProps={{ startAdornment: <AdornmentText>$</AdornmentText> }}
+              sx={{ width: 130 }}
+            />
+          </Stack>
+          {uploadError && (
+            <Alert severity="error" sx={{ mt: 0 }}>
+              {uploadError}
+            </Alert>
+          )}
+        </Stack>
+        <Stack spacing={0.5} alignItems="center">
+          {variant.imageUrl ? (
+            <Box
+              component="img"
+              src={variant.imageUrl}
+              alt={`Variante ${variant.name}`}
+              sx={(theme) => ({
+                width: 56,
+                height: 56,
+                borderRadius: `${theme.radii.sm}px`,
+                objectFit: 'cover',
+                border: '1px solid',
+                borderColor: 'divider',
+              })}
+            />
+          ) : (
+            <Box
+              aria-hidden
+              sx={(theme) => ({
+                width: 56,
+                height: 56,
+                borderRadius: `${theme.radii.sm}px`,
+                display: 'grid',
+                placeItems: 'center',
+                bgcolor: 'background.paper',
+                color: 'text.disabled',
+                border: '1px dashed',
+                borderColor: 'divider',
+              })}
+            >
+              <ImageIcon size={20} aria-hidden />
+            </Box>
+          )}
+          <Stack direction="row" spacing={0.5}>
+            <Button
+              size="small"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              sx={{ minWidth: 'auto', px: 1 }}
+            >
+              {uploading ? '…' : variant.imageUrl ? 'Cambiar' : 'Imagen'}
+            </Button>
+            {variant.imageUrl && (
+              <Button
+                size="small"
+                color="error"
+                onClick={() => onUpdate({ imageUrl: undefined })}
+                disabled={uploading}
+                sx={{ minWidth: 'auto', px: 1 }}
+              >
+                Quitar
+              </Button>
+            )}
+          </Stack>
+          <input
+            ref={inputRef}
+            type="file"
+            accept={UPLOAD_MIME.join(',')}
+            onChange={handlePick}
+            style={{ display: 'none' }}
+          />
+        </Stack>
+        <IconButton
+          size="small"
+          color="error"
+          aria-label={`Eliminar variante ${variant.name || variant.sku}`}
+          onClick={onRemove}
+        >
+          <X size={16} aria-hidden />
+        </IconButton>
+      </Stack>
+    </Box>
   );
 }
 
@@ -1484,6 +1912,8 @@ function AvailabilityCard({ form, updateForm }: AvailabilityCardProps) {
     updateForm({ serviceSchedules: next });
   };
 
+  const windowEnabled = form.availabilityWindow !== null;
+
   return (
     <SectionCard title="Disponibilidad">
       <Stack divider={<Divider flexItem />}>
@@ -1508,7 +1938,7 @@ function AvailabilityCard({ form, updateForm }: AvailabilityCardProps) {
       </Stack>
       <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
         <Typography variant="subtitle2" sx={{ mb: 1 }}>
-          Horario
+          Horario de servicio
         </Typography>
         <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
           {SERVICE_SCHEDULES.map((s) => {
@@ -1527,7 +1957,126 @@ function AvailabilityCard({ form, updateForm }: AvailabilityCardProps) {
           })}
         </Stack>
       </Box>
+      <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+        <FormControlLabel
+          sx={{ alignItems: 'flex-start', m: 0, justifyContent: 'space-between', width: '100%' }}
+          labelPlacement="start"
+          control={
+            <Switch
+              checked={windowEnabled}
+              onChange={(e) =>
+                updateForm({
+                  availabilityWindow: e.target.checked
+                    ? { daysOfWeek: [1, 2, 3, 4, 5], from: '11:00', to: '15:00' }
+                    : null,
+                })
+              }
+            />
+          }
+          label={
+            <Box>
+              <Typography variant="subtitle2">Activar disponibilidad por horario</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Limita el producto a días y franja horaria específica.
+              </Typography>
+            </Box>
+          }
+        />
+        {windowEnabled && (
+          <Box sx={{ mt: 1.5 }}>
+            <AvailabilityScheduleEditor
+              window={form.availabilityWindow}
+              onChange={(next) => updateForm({ availabilityWindow: next })}
+            />
+          </Box>
+        )}
+      </Box>
     </SectionCard>
+  );
+}
+
+// Editor for an AvailabilityWindow (or ModifierOptionAvailability when
+// `optional`). Renders day-of-week checkboxes (L–D) plus `from`/`to` time
+// inputs. `onChange(null)` indicates the user cleared all fields and the
+// schedule should be considered disabled.
+function AvailabilityScheduleEditor({
+  window,
+  optional = false,
+  onChange,
+}: {
+  window: AvailabilityWindow | null;
+  optional?: boolean;
+  onChange: (next: AvailabilityWindow | null) => void;
+}) {
+  const days = window?.daysOfWeek ?? [];
+  const from = window?.from ?? '11:00';
+  const to = window?.to ?? '15:00';
+
+  const setDays = (nextDays: number[]) => {
+    if (nextDays.length === 0) {
+      onChange(optional ? null : { daysOfWeek: [], from, to });
+      return;
+    }
+    onChange({ daysOfWeek: nextDays, from, to });
+  };
+
+  const toggleDay = (value: number) => {
+    if (days.includes(value)) {
+      setDays(days.filter((d) => d !== value));
+    } else {
+      setDays([...days, value].sort((a, b) => a - b));
+    }
+  };
+
+  return (
+    <Stack spacing={1.5}>
+      <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+        {DAYS_OF_WEEK.map((d) => {
+          const selected = days.includes(d.value);
+          return (
+            <FormControlLabel
+              key={d.value}
+              sx={{ m: 0 }}
+              control={
+                <Checkbox
+                  size="small"
+                  checked={selected}
+                  onChange={() => toggleDay(d.value)}
+                  inputProps={{ 'aria-label': d.full }}
+                />
+              }
+              label={d.label}
+            />
+          );
+        })}
+      </Stack>
+      <Stack direction="row" spacing={2}>
+        <TextField
+          size="small"
+          label="Desde"
+          type="time"
+          value={from}
+          onChange={(e) => onChange({ daysOfWeek: days, from: e.target.value, to })}
+          InputLabelProps={{ shrink: true }}
+          inputProps={{ step: 300 }}
+          sx={{ flex: 1 }}
+        />
+        <TextField
+          size="small"
+          label="Hasta"
+          type="time"
+          value={to}
+          onChange={(e) => onChange({ daysOfWeek: days, from, to: e.target.value })}
+          InputLabelProps={{ shrink: true }}
+          inputProps={{ step: 300 }}
+          sx={{ flex: 1 }}
+        />
+      </Stack>
+      <Typography variant="caption" color="text.secondary">
+        Si la franja cruza medianoche (p. ej. 22:00–02:00), interpretamos dos sub-rangos del día
+        seleccionado.
+      </Typography>
+    </Stack>
   );
 }
 

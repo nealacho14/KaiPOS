@@ -20,14 +20,37 @@ export function assertBranchAccess(actor: TokenPayload, branchId: string): void 
   }
 }
 
-export function requireBranchAccess(paramName: string): MiddlewareHandler<AppEnv> {
+/**
+ * Where to look for the branchId. `auto` (default) checks path param → query
+ * → JSON body in that order. Pass `body` to force body-only when the same key
+ * could also appear in the path (e.g. POST /reorder with `branchId` in body).
+ */
+export type BranchIdSource = 'auto' | 'param' | 'query' | 'body';
+
+export function requireBranchAccess(
+  paramName: string,
+  source: BranchIdSource = 'auto',
+): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     const user = c.get('user');
     if (!user) {
       throw new ForbiddenError('Authentication required');
     }
 
-    const branchId = c.req.param(paramName) ?? c.req.query(paramName);
+    let branchId: string | undefined;
+    if (source === 'param') {
+      branchId = c.req.param(paramName);
+    } else if (source === 'query') {
+      branchId = c.req.query(paramName);
+    } else if (source === 'body') {
+      branchId = await readBranchIdFromBody(c, paramName);
+    } else {
+      branchId =
+        c.req.param(paramName) ??
+        c.req.query(paramName) ??
+        (await readBranchIdFromBody(c, paramName));
+    }
+
     if (!branchId) {
       throw new ForbiddenError('Branch ID is required');
     }
@@ -35,4 +58,19 @@ export function requireBranchAccess(paramName: string): MiddlewareHandler<AppEnv
     assertBranchAccess(user, branchId);
     await next();
   };
+}
+
+async function readBranchIdFromBody(
+  c: Parameters<MiddlewareHandler<AppEnv>>[0],
+  key: string,
+): Promise<string | undefined> {
+  // Hono caches parsed JSON, so this read is safe to repeat downstream
+  // (e.g. inside the route handler that re-parses with Zod).
+  try {
+    const body = (await c.req.json()) as Record<string, unknown> | null;
+    const value = body?.[key];
+    return typeof value === 'string' ? value : undefined;
+  } catch {
+    return undefined;
+  }
 }

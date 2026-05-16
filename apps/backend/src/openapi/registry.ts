@@ -33,8 +33,10 @@ import {
 } from '../schemas/orders.js';
 import {
   createProductSchema,
+  featureProductSchema,
   listProductsQuerySchema,
   productIdParamSchema,
+  reorderProductsSchema,
   updateProductSchema,
   uploadUrlSchema,
 } from '../schemas/products.js';
@@ -537,6 +539,51 @@ export function buildRegistry(): OpenAPIRegistry {
     request: { params: productIdParamSchema },
     responses: {
       204: { description: 'Deleted (no content)' },
+    },
+  });
+
+  r.registerPath({
+    method: 'patch',
+    path: '/api/products/reorder',
+    tags: ['products'],
+    summary: 'Bulk-update sortOrder for products in a branch',
+    security: [{ [bearerScheme]: [] }],
+    request: { body: { content: { 'application/json': { schema: reorderProductsSchema } } } },
+    responses: {
+      200: {
+        description: 'Reorder applied',
+        content: {
+          'application/json': {
+            schema: successEnvelope(z.object({ matched: z.number().int().min(0) })),
+          },
+        },
+      },
+      400: {
+        description: 'One or more product ids not found in this branch',
+        content: { 'application/json': { schema: errorEnvelope } },
+      },
+    },
+  });
+
+  r.registerPath({
+    method: 'patch',
+    path: '/api/products/{id}/feature',
+    tags: ['products'],
+    summary: 'Toggle a product as featured for a branch',
+    security: [{ [bearerScheme]: [] }],
+    request: {
+      params: productIdParamSchema,
+      body: { content: { 'application/json': { schema: featureProductSchema } } },
+    },
+    responses: {
+      200: {
+        description: 'Updated product preference',
+        content: { 'application/json': { schema: successEnvelope(idObject) } },
+      },
+      404: {
+        description: 'Product not found in this branch',
+        content: { 'application/json': { schema: errorEnvelope } },
+      },
     },
   });
 

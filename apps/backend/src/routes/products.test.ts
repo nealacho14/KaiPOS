@@ -6,7 +6,12 @@ import { errorHandler } from '../middleware/error-handler.js';
 import { AppError, ForbiddenError, NotFoundError } from '../lib/errors.js';
 import productsRoutes from './products.js';
 
-const { mockVerifyAccessToken, mockProductsService, mockLogAuditEvent } = vi.hoisted(() => ({
+const {
+  mockVerifyAccessToken,
+  mockProductsService,
+  mockProductPreferencesService,
+  mockLogAuditEvent,
+} = vi.hoisted(() => ({
   mockVerifyAccessToken: vi.fn(),
   mockProductsService: {
     listProducts: vi.fn(),
@@ -14,7 +19,11 @@ const { mockVerifyAccessToken, mockProductsService, mockLogAuditEvent } = vi.hoi
     createProduct: vi.fn(),
     updateProduct: vi.fn(),
     deleteProduct: vi.fn(),
+    reorderProducts: vi.fn(),
     generateUploadUrl: vi.fn(),
+  },
+  mockProductPreferencesService: {
+    setFeatured: vi.fn(),
   },
   mockLogAuditEvent: vi.fn(),
 }));
@@ -29,7 +38,12 @@ vi.mock('../services/products.js', () => ({
   createProduct: (...args: unknown[]) => mockProductsService.createProduct(...args),
   updateProduct: (...args: unknown[]) => mockProductsService.updateProduct(...args),
   deleteProduct: (...args: unknown[]) => mockProductsService.deleteProduct(...args),
+  reorderProducts: (...args: unknown[]) => mockProductsService.reorderProducts(...args),
   generateUploadUrl: (...args: unknown[]) => mockProductsService.generateUploadUrl(...args),
+}));
+
+vi.mock('../services/product-preferences.js', () => ({
+  setFeatured: (...args: unknown[]) => mockProductPreferencesService.setFeatured(...args),
 }));
 
 vi.mock('../services/audit.js', () => ({
@@ -527,6 +541,214 @@ describe('products routes', () => {
       expect(res.status).toBe(503);
       const body = (await res.json()) as { code: string };
       expect(body.code).toBe('ASSETS_NOT_CONFIGURED');
+    });
+  });
+
+  describe('PATCH /api/products/reorder', () => {
+    const reorderBody = {
+      branchId: 'br-1',
+      items: [
+        { id: '11111111-1111-4111-a111-111111111111', sortOrder: 0 },
+        { id: '22222222-2222-4222-a222-222222222222', sortOrder: 1 },
+      ],
+    };
+
+    it('admin reorders products → 200', async () => {
+      mockProductsService.reorderProducts.mockResolvedValue({ matched: 2 });
+
+      const app = createApp();
+      const res = await app.request(
+        '/api/products/reorder',
+        withToken(adminPayload, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reorderBody),
+        }),
+      );
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { data: { matched: number } };
+      expect(body.data.matched).toBe(2);
+    });
+
+    it('cashier (no products:write) → 403 + audit', async () => {
+      const app = createApp();
+      const res = await app.request(
+        '/api/products/reorder',
+        withToken(cashierPayload, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reorderBody),
+        }),
+      );
+
+      expect(res.status).toBe(403);
+      expect(mockProductsService.reorderProducts).not.toHaveBeenCalled();
+      expect(mockLogAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'authorization_failed',
+          metadata: expect.objectContaining({ permission: 'products:write' }),
+        }),
+      );
+    });
+
+    it('cashier from branch B reordering branch A → 403', async () => {
+      const app = createApp();
+      const res = await app.request(
+        '/api/products/reorder',
+        withToken(cashierBranchB, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reorderBody),
+        }),
+      );
+
+      expect(res.status).toBe(403);
+      expect(mockProductsService.reorderProducts).not.toHaveBeenCalled();
+    });
+
+    it('rejects empty items array with 400', async () => {
+      const app = createApp();
+      const res = await app.request(
+        '/api/products/reorder',
+        withToken(adminPayload, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ branchId: 'br-1', items: [] }),
+        }),
+      );
+
+      expect(res.status).toBe(400);
+      expect(mockProductsService.reorderProducts).not.toHaveBeenCalled();
+    });
+
+    it('service-level 400 for unknown ids surfaces with details', async () => {
+      mockProductsService.reorderProducts.mockRejectedValue(
+        new AppError(
+          'One or more products were not found in this branch',
+          400,
+          'REORDER_PRODUCT_NOT_FOUND',
+          [{ field: 'items.id', message: 'Product x not found' }],
+        ),
+      );
+
+      const app = createApp();
+      const res = await app.request(
+        '/api/products/reorder',
+        withToken(adminPayload, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reorderBody),
+        }),
+      );
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { code: string };
+      expect(body.code).toBe('REORDER_PRODUCT_NOT_FOUND');
+    });
+  });
+
+  describe('PATCH /api/products/:id/feature', () => {
+    const featureBody = { branchId: 'br-1', featured: true };
+
+    it('admin toggles featured → 200', async () => {
+      mockProductPreferencesService.setFeatured.mockResolvedValue({
+        _id: 'pref-1',
+        businessId: 'biz-1',
+        branchId: 'br-1',
+        productId: VALID_UUID,
+        featured: true,
+        updatedAt: now,
+        updatedBy: 'admin-1',
+      });
+
+      const app = createApp();
+      const res = await app.request(
+        `/api/products/${VALID_UUID}/feature`,
+        withToken(adminPayload, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(featureBody),
+        }),
+      );
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { data: { featured: boolean } };
+      expect(body.data.featured).toBe(true);
+    });
+
+    it('cashier → 403 (lacks products:write)', async () => {
+      const app = createApp();
+      const res = await app.request(
+        `/api/products/${VALID_UUID}/feature`,
+        withToken(cashierPayload, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(featureBody),
+        }),
+      );
+
+      expect(res.status).toBe(403);
+      expect(mockProductPreferencesService.setFeatured).not.toHaveBeenCalled();
+    });
+
+    it('cashier in branch B feature-toggling in branch A → 403', async () => {
+      const app = createApp();
+      const res = await app.request(
+        `/api/products/${VALID_UUID}/feature`,
+        withToken(cashierBranchB, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(featureBody),
+        }),
+      );
+
+      expect(res.status).toBe(403);
+      expect(mockProductPreferencesService.setFeatured).not.toHaveBeenCalled();
+    });
+
+    it('rejects non-uuid id with 400', async () => {
+      const app = createApp();
+      const res = await app.request(
+        '/api/products/not-a-uuid/feature',
+        withToken(adminPayload, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(featureBody),
+        }),
+      );
+
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects missing branchId in body with 400', async () => {
+      const app = createApp();
+      const res = await app.request(
+        `/api/products/${VALID_UUID}/feature`,
+        withToken(adminPayload, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ featured: true }),
+        }),
+      );
+
+      expect(res.status).toBe(400);
+    });
+
+    it('service NotFoundError → 404', async () => {
+      mockProductPreferencesService.setFeatured.mockRejectedValue(new NotFoundError('Product'));
+
+      const app = createApp();
+      const res = await app.request(
+        `/api/products/${VALID_UUID}/feature`,
+        withToken(adminPayload, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(featureBody),
+        }),
+      );
+
+      expect(res.status).toBe(404);
     });
   });
 });

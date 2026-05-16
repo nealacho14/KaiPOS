@@ -14,6 +14,7 @@ import {
   Edit,
   FormControl,
   FormControlLabel,
+  GripVertical,
   IconButton,
   ImageIcon,
   Inbox,
@@ -24,6 +25,8 @@ import {
   Skeleton,
   Snackbar,
   Stack,
+  Star,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -31,8 +34,26 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Trash2,
 } from '@kaipos/ui';
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EmptyState, PageHeader, PaginationFooter } from '../components/index.js';
@@ -41,7 +62,13 @@ import { useWebSocketContext } from '../context/WebSocketContext.js';
 import { useActiveBranch } from '../hooks/useActiveBranch.js';
 import { useBranches } from '../hooks/useBranches.js';
 import { ApiError, type Pagination } from '../lib/api.js';
-import { deleteProduct, listProducts } from '../lib/products-api.js';
+import {
+  deleteProduct,
+  listProducts,
+  reorderProducts,
+  setProductFeatured,
+  toProductsApiError,
+} from '../lib/products-api.js';
 
 type FetchState =
   | { status: 'loading' }
@@ -88,6 +115,8 @@ export function ProductsListPage() {
   const debouncedQuery = useDebounced(query, 300);
   const [category, setCategory] = useState<string>('');
   const [includeInactive, setIncludeInactive] = useState(false);
+  const [onlyFeatured, setOnlyFeatured] = useState(false);
+  const [onlyActiveNow, setOnlyActiveNow] = useState(false);
 
   const [state, setState] = useState<FetchState>({ status: 'loading' });
   const [reloadKey, setReloadKey] = useState(0);
@@ -97,6 +126,27 @@ export function ProductsListPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [lowStockToast, setLowStockToast] = useState<string | null>(null);
+
+  // Reorder mode. When active, the row click → edit interaction is replaced
+  // with drag handles. Filters that change result-set membership (search,
+  // includeInactive, featured) are locked while reordering — but the category
+  // filter stays available because reordering is typically scoped per-category.
+  const [reorderMode, setReorderMode] = useState(false);
+  const [reorderDraft, setReorderDraft] = useState<Product[] | null>(null);
+  const [reorderSaving, setReorderSaving] = useState(false);
+  const [reorderToast, setReorderToast] = useState<{
+    severity: 'success' | 'error';
+    message: string;
+  } | null>(null);
+
+  // Set of product IDs locally known to be featured for the active branch.
+  // Toggled via the per-row star button; persisted via setProductFeatured.
+  // We treat the local set as optimistic — revert on error.
+  // Initial load: empty (no batched "is featured?" lookup exists yet). The
+  // user can switch on the "Sólo destacados" filter to scope the fetch to
+  // already-featured rows, which then seeds the set.
+  const [featuredIds, setFeaturedIds] = useState<Set<string>>(new Set());
+  const [featuredPending, setFeaturedPending] = useState<Set<string>>(new Set());
 
   const retry = useCallback(() => {
     setState({ status: 'loading' });
@@ -141,22 +191,26 @@ export function ProductsListPage() {
       if (
         message.type === 'product.created' ||
         message.type === 'product.updated' ||
-        message.type === 'product.deleted'
+        message.type === 'product.deleted' ||
+        message.type === 'product.reordered'
       ) {
-        setReloadKey((n) => n + 1);
+        // While the user is mid-reorder, skip the refetch — otherwise we'd
+        // discard the in-progress draft. The save handler will refetch after
+        // a successful flush.
+        if (!reorderMode) setReloadKey((n) => n + 1);
       } else if (message.type === 'product.low-stock') {
         const payload = message.payload as { name?: string } | undefined;
         const name = payload?.name ?? 'Un producto';
         setLowStockToast(`${name} está bajo de stock`);
       }
     });
-  }, [branchChannel]);
+  }, [branchChannel, reorderMode]);
 
   // Reset to first page whenever the filter/sucursal changes — otherwise the
   // request asks for `page=3` of a result set that may now have one page.
   useEffect(() => {
     setPage(0);
-  }, [branchId, debouncedQuery, category, includeInactive]);
+  }, [branchId, debouncedQuery, category, includeInactive, onlyFeatured, onlyActiveNow]);
 
   useEffect(() => {
     if (!branchId) return;
@@ -167,11 +221,23 @@ export function ProductsListPage() {
       q: debouncedQuery.trim() || undefined,
       category: category || undefined,
       includeInactive: includeInactive || undefined,
+      activeNow: onlyActiveNow || undefined,
+      featuredIn: onlyFeatured ? branchId : undefined,
       page: page + 1,
       limit,
     })
       .then(({ data, pagination }) => {
-        if (!cancelled) setState({ status: 'success', data, pagination });
+        if (cancelled) return;
+        setState({ status: 'success', data, pagination });
+        // Seed the local featured set when the request was scoped to featured
+        // products — anything that came back is featured by definition.
+        if (onlyFeatured) {
+          setFeaturedIds((prev) => {
+            const next = new Set(prev);
+            for (const p of data) next.add(p._id);
+            return next;
+          });
+        }
       })
       .catch((err) => {
         if (!cancelled) setState({ status: 'error', message: mapError(err) });
@@ -179,13 +245,118 @@ export function ProductsListPage() {
     return () => {
       cancelled = true;
     };
-  }, [branchId, debouncedQuery, category, includeInactive, reloadKey, page, limit]);
+  }, [
+    branchId,
+    debouncedQuery,
+    category,
+    includeInactive,
+    onlyFeatured,
+    onlyActiveNow,
+    reloadKey,
+    page,
+    limit,
+  ]);
 
   const categoryOptions = useMemo(() => {
     if (state.status !== 'success') return [];
     const set = new Set(state.data.map((p) => p.category));
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'es'));
   }, [state]);
+
+  const startReorder = useCallback(() => {
+    if (state.status !== 'success') return;
+    setReorderDraft([...state.data]);
+    setReorderMode(true);
+  }, [state]);
+
+  const cancelReorder = useCallback(() => {
+    setReorderDraft(null);
+    setReorderMode(false);
+  }, []);
+
+  const saveReorder = useCallback(async () => {
+    if (!branchId || !reorderDraft) return;
+    setReorderSaving(true);
+    try {
+      // Persist the new top-to-bottom order using the index as `sortOrder`.
+      // The backend bulkWrite enforces matchedCount === items.length and
+      // returns a 400 with the missing IDs if any row went stale (e.g. a peer
+      // deleted a product mid-reorder). We surface that as a snackbar so the
+      // user knows to refetch and try again.
+      const items = reorderDraft.map((p, idx) => ({ id: p._id, sortOrder: idx }));
+      await reorderProducts(branchId, items);
+      setReorderToast({ severity: 'success', message: 'Orden actualizado.' });
+      setReorderDraft(null);
+      setReorderMode(false);
+      retry();
+    } catch (err) {
+      const mapped = toProductsApiError(err);
+      const message =
+        mapped.code === 'REORDER_PRODUCT_NOT_FOUND'
+          ? 'Algunos productos cambiaron mientras reordenabas. Refresca y vuelve a intentar.'
+          : mapped.status === 403
+            ? 'No tienes permiso para reordenar productos en esta sucursal.'
+            : mapped.message || 'No pudimos guardar el orden.';
+      setReorderToast({ severity: 'error', message });
+    } finally {
+      setReorderSaving(false);
+    }
+  }, [branchId, reorderDraft, retry]);
+
+  const handleDraftReorder = useCallback((fromId: string, toId: string) => {
+    setReorderDraft((draft) => {
+      if (!draft) return draft;
+      const fromIdx = draft.findIndex((p) => p._id === fromId);
+      const toIdx = draft.findIndex((p) => p._id === toId);
+      if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return draft;
+      return arrayMove(draft, fromIdx, toIdx);
+    });
+  }, []);
+
+  const handleToggleFeatured = useCallback(
+    async (product: Product) => {
+      if (!branchId) return;
+      const wasFeatured = featuredIds.has(product._id);
+      const next = !wasFeatured;
+      setFeaturedIds((prev) => {
+        const cp = new Set(prev);
+        if (next) cp.add(product._id);
+        else cp.delete(product._id);
+        return cp;
+      });
+      setFeaturedPending((prev) => {
+        const cp = new Set(prev);
+        cp.add(product._id);
+        return cp;
+      });
+      try {
+        await setProductFeatured(product._id, { branchId, featured: next });
+      } catch (err) {
+        // Revert and surface
+        setFeaturedIds((prev) => {
+          const cp = new Set(prev);
+          if (wasFeatured) cp.add(product._id);
+          else cp.delete(product._id);
+          return cp;
+        });
+        const mapped = toProductsApiError(err);
+        setReorderToast({
+          severity: 'error',
+          message:
+            mapped.status === 403
+              ? 'No tienes permiso para destacar productos en esta sucursal.'
+              : mapped.message || 'No pudimos actualizar el destacado.',
+        });
+      } finally {
+        setFeaturedPending((prev) => {
+          const cp = new Set(prev);
+          cp.delete(product._id);
+          return cp;
+        });
+      }
+    },
+    [branchId, featuredIds],
+  );
 
   const handleConfirmDelete = useCallback(async () => {
     if (!pendingDelete) return;
@@ -225,7 +396,22 @@ export function ProductsListPage() {
       {branchId && (
         <Chip size="small" label={`Sucursal: ${branchName ?? '—'}`} variant="outlined" />
       )}
-      {canWrite && (
+      {canWrite && !reorderMode && state.status === 'success' && state.data.length > 1 && (
+        <Button variant="outlined" onClick={startReorder} disabled={reorderSaving}>
+          Reordenar
+        </Button>
+      )}
+      {reorderMode && (
+        <>
+          <Button onClick={cancelReorder} disabled={reorderSaving}>
+            Cancelar
+          </Button>
+          <Button variant="contained" onClick={saveReorder} disabled={reorderSaving}>
+            {reorderSaving ? 'Guardando…' : 'Guardar orden'}
+          </Button>
+        </>
+      )}
+      {canWrite && !reorderMode && (
         <Button
           variant="contained"
           startIcon={<Plus size={16} aria-hidden />}
@@ -263,15 +449,16 @@ export function ProductsListPage() {
             direction={{ xs: 'column', sm: 'row' }}
             spacing={2}
             alignItems={{ xs: 'stretch', sm: 'center' }}
-            sx={{ mb: 3 }}
+            sx={{ mb: 3, flexWrap: 'wrap', gap: 2 }}
           >
             <TextField
               size="small"
               label="Buscar"
-              placeholder="Nombre o SKU"
+              placeholder="Nombre, SKU o código de barras"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               sx={{ minWidth: 240 }}
+              disabled={reorderMode}
             />
             <FormControl size="small" sx={{ minWidth: 200 }}>
               <InputLabel id="category-filter-label">Categoría</InputLabel>
@@ -297,12 +484,45 @@ export function ProductsListPage() {
                   <Checkbox
                     checked={includeInactive}
                     onChange={(e) => setIncludeInactive(e.target.checked)}
+                    disabled={reorderMode}
                   />
                 }
                 label="Incluir inactivos"
               />
             )}
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={onlyFeatured}
+                  onChange={(e) => setOnlyFeatured(e.target.checked)}
+                  disabled={reorderMode}
+                />
+              }
+              label="Sólo destacados"
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={onlyActiveNow}
+                  onChange={(e) => setOnlyActiveNow(e.target.checked)}
+                  disabled={reorderMode}
+                />
+              }
+              label="Sólo disponibles ahora"
+            />
           </Stack>
+          {onlyActiveNow && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              El conteo total es pre-filtro de horario. La lista muestra solo los disponibles ahora
+              según la zona horaria de la sucursal.
+            </Alert>
+          )}
+          {reorderMode && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Arrastra para reordenar dentro de la sucursal. Los filtros están deshabilitados
+              mientras reordenas, excepto la categoría.
+            </Alert>
+          )}
 
           {state.status === 'loading' && <LoadingTable />}
 
@@ -345,26 +565,35 @@ export function ProductsListPage() {
 
           {state.status === 'success' && state.data.length > 0 && (
             <>
-              <ProductsTable
-                products={state.data}
-                canWrite={canWrite}
-                canDelete={canDelete}
-                onEdit={(id) => navigate(`/products/${id}/edit`)}
-                onDelete={(product) => {
-                  setDeleteError(null);
-                  setPendingDelete(product);
-                }}
-              />
-              <PaginationFooter
-                count={state.pagination.total}
-                page={page}
-                limit={limit}
-                onPageChange={setPage}
-                onLimitChange={(next) => {
-                  setLimit(next);
-                  setPage(0);
-                }}
-              />
+              {reorderMode && reorderDraft ? (
+                <ReorderableProductsTable products={reorderDraft} onReorder={handleDraftReorder} />
+              ) : (
+                <ProductsTable
+                  products={state.data}
+                  canWrite={canWrite}
+                  canDelete={canDelete}
+                  featuredIds={featuredIds}
+                  featuredPending={featuredPending}
+                  onEdit={(id) => navigate(`/products/${id}/edit`)}
+                  onToggleFeatured={canWrite ? handleToggleFeatured : undefined}
+                  onDelete={(product) => {
+                    setDeleteError(null);
+                    setPendingDelete(product);
+                  }}
+                />
+              )}
+              {!reorderMode && (
+                <PaginationFooter
+                  count={state.pagination.total}
+                  page={page}
+                  limit={limit}
+                  onPageChange={setPage}
+                  onLimitChange={(next) => {
+                    setLimit(next);
+                    setPage(0);
+                  }}
+                />
+              )}
             </>
           )}
         </>
@@ -413,6 +642,21 @@ export function ProductsListPage() {
           {lowStockToast}
         </Alert>
       </Snackbar>
+
+      <Snackbar
+        open={reorderToast !== null}
+        autoHideDuration={5000}
+        onClose={() => setReorderToast(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          severity={reorderToast?.severity ?? 'success'}
+          variant="filled"
+          onClose={() => setReorderToast(null)}
+        >
+          {reorderToast?.message}
+        </Alert>
+      </Snackbar>
     </>
   );
 }
@@ -429,6 +673,9 @@ function LoadingTable() {
             <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Categoría</TableCell>
             <TableCell align="right">Precio</TableCell>
             <TableCell>Estado</TableCell>
+            <TableCell align="center" sx={{ width: 64 }}>
+              Destacado
+            </TableCell>
             <TableCell align="right" sx={{ width: 120 }}>
               Acciones
             </TableCell>
@@ -455,6 +702,9 @@ function LoadingTable() {
               <TableCell>
                 <Skeleton variant="rounded" width={64} height={24} />
               </TableCell>
+              <TableCell align="center">
+                <Skeleton variant="circular" width={24} height={24} sx={{ mx: 'auto' }} />
+              </TableCell>
               <TableCell align="right">
                 <Skeleton variant="rounded" width={80} height={28} sx={{ ml: 'auto' }} />
               </TableCell>
@@ -470,11 +720,23 @@ interface ProductsTableProps {
   products: Product[];
   canWrite: boolean;
   canDelete: boolean;
+  featuredIds: Set<string>;
+  featuredPending: Set<string>;
   onEdit: (id: string) => void;
   onDelete: (product: Product) => void;
+  onToggleFeatured?: (product: Product) => void;
 }
 
-function ProductsTable({ products, canWrite, canDelete, onEdit, onDelete }: ProductsTableProps) {
+function ProductsTable({
+  products,
+  canWrite,
+  canDelete,
+  featuredIds,
+  featuredPending,
+  onEdit,
+  onDelete,
+  onToggleFeatured,
+}: ProductsTableProps) {
   // On xs the row is the click target; the explicit Acciones column is hidden
   // because it doesn't fit alongside name + price + status chip at 375 px.
   return (
@@ -490,81 +752,229 @@ function ProductsTable({ products, canWrite, canDelete, onEdit, onDelete }: Prod
             <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Categoría</TableCell>
             <TableCell align="right">Precio</TableCell>
             <TableCell>Estado</TableCell>
+            <TableCell align="center" sx={{ width: 64 }}>
+              Destacado
+            </TableCell>
             <TableCell align="right" sx={{ width: 120, display: { xs: 'none', sm: 'table-cell' } }}>
               Acciones
             </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {products.map((product) => (
-            <TableRow
-              key={product._id}
-              hover
-              onClick={canWrite ? () => onEdit(product._id) : undefined}
-              sx={canWrite ? { cursor: 'pointer' } : undefined}
-            >
-              <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                <ProductThumb imageUrl={product.imageUrl} alt={product.name} />
-              </TableCell>
-              <TableCell sx={(theme) => ({ ...theme.typography.subtitle2 })}>
-                {product.name}
-              </TableCell>
-              <TableCell
-                sx={(theme) => ({
-                  display: { xs: 'none', sm: 'table-cell' },
-                  ...theme.typography.mono,
-                  fontSize: theme.typography.body2.fontSize,
-                  color: 'text.secondary',
-                })}
+          {products.map((product) => {
+            const isFeatured = featuredIds.has(product._id);
+            const pending = featuredPending.has(product._id);
+            return (
+              <TableRow
+                key={product._id}
+                hover
+                onClick={canWrite ? () => onEdit(product._id) : undefined}
+                sx={canWrite ? { cursor: 'pointer' } : undefined}
               >
-                {product.sku}
-              </TableCell>
-              <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                <Chip size="small" label={product.category} />
-              </TableCell>
-              <TableCell align="right" sx={(theme) => ({ ...theme.typography.mono })}>
-                {formatCurrency(product.price)}
-              </TableCell>
-              <TableCell>
-                <Chip
-                  size="small"
-                  color={product.isActive ? 'success' : 'default'}
-                  variant={product.isActive ? 'filled' : 'outlined'}
-                  label={product.isActive ? 'Activo' : 'Inactivo'}
-                />
-              </TableCell>
-              <TableCell
-                align="right"
-                onClick={(e) => e.stopPropagation()}
-                sx={{ display: { xs: 'none', sm: 'table-cell' } }}
-              >
-                <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                  {canWrite && (
-                    <IconButton
-                      size="small"
-                      aria-label={`Editar ${product.name}`}
-                      onClick={() => onEdit(product._id)}
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                  <ProductThumb imageUrl={product.imageUrl} alt={product.name} />
+                </TableCell>
+                <TableCell sx={(theme) => ({ ...theme.typography.subtitle2 })}>
+                  {product.name}
+                </TableCell>
+                <TableCell
+                  sx={(theme) => ({
+                    display: { xs: 'none', sm: 'table-cell' },
+                    ...theme.typography.mono,
+                    fontSize: theme.typography.body2.fontSize,
+                    color: 'text.secondary',
+                  })}
+                >
+                  {product.sku}
+                </TableCell>
+                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                  <Chip size="small" label={product.category} />
+                </TableCell>
+                <TableCell align="right" sx={(theme) => ({ ...theme.typography.mono })}>
+                  {formatCurrency(product.price)}
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    size="small"
+                    color={product.isActive ? 'success' : 'default'}
+                    variant={product.isActive ? 'filled' : 'outlined'}
+                    label={product.isActive ? 'Activo' : 'Inactivo'}
+                  />
+                </TableCell>
+                <TableCell align="center" onClick={(e) => e.stopPropagation()}>
+                  {onToggleFeatured ? (
+                    <Tooltip
+                      title={
+                        isFeatured
+                          ? 'Quitar destacado en esta sucursal'
+                          : 'Destacar en esta sucursal'
+                      }
                     >
-                      <Edit size={16} aria-hidden />
-                    </IconButton>
+                      <span>
+                        <IconButton
+                          size="small"
+                          aria-label={
+                            isFeatured
+                              ? `Quitar destacado: ${product.name}`
+                              : `Destacar: ${product.name}`
+                          }
+                          aria-pressed={isFeatured}
+                          color={isFeatured ? 'warning' : 'default'}
+                          disabled={pending}
+                          onClick={() => onToggleFeatured(product)}
+                        >
+                          <Star size={16} aria-hidden fill={isFeatured ? 'currentColor' : 'none'} />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  ) : (
+                    <Star
+                      size={16}
+                      aria-hidden
+                      fill={isFeatured ? 'currentColor' : 'none'}
+                      style={{ color: isFeatured ? undefined : 'transparent' }}
+                    />
                   )}
-                  {canDelete && product.isActive && (
-                    <IconButton
-                      size="small"
-                      color="error"
-                      aria-label={`Desactivar ${product.name}`}
-                      onClick={() => onDelete(product)}
-                    >
-                      <Trash2 size={16} aria-hidden />
-                    </IconButton>
-                  )}
-                </Stack>
-              </TableCell>
-            </TableRow>
-          ))}
+                </TableCell>
+                <TableCell
+                  align="right"
+                  onClick={(e) => e.stopPropagation()}
+                  sx={{ display: { xs: 'none', sm: 'table-cell' } }}
+                >
+                  <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                    {canWrite && (
+                      <IconButton
+                        size="small"
+                        aria-label={`Editar ${product.name}`}
+                        onClick={() => onEdit(product._id)}
+                      >
+                        <Edit size={16} aria-hidden />
+                      </IconButton>
+                    )}
+                    {canDelete && product.isActive && (
+                      <IconButton
+                        size="small"
+                        color="error"
+                        aria-label={`Desactivar ${product.name}`}
+                        onClick={() => onDelete(product)}
+                      >
+                        <Trash2 size={16} aria-hidden />
+                      </IconButton>
+                    )}
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </TableContainer>
+  );
+}
+
+interface ReorderableProductsTableProps {
+  products: Product[];
+  onReorder: (fromId: string, toId: string) => void;
+}
+
+function ReorderableProductsTable({ products, onReorder }: ReorderableProductsTableProps) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    onReorder(String(active.id), String(over.id));
+  };
+
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={products.map((p) => p._id)} strategy={verticalListSortingStrategy}>
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ width: 48 }}>Orden</TableCell>
+                <TableCell sx={{ width: 64, display: { xs: 'none', sm: 'table-cell' } }}>
+                  Imagen
+                </TableCell>
+                <TableCell>Nombre</TableCell>
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>SKU</TableCell>
+                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Categoría</TableCell>
+                <TableCell align="right">Precio</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {products.map((product, index) => (
+                <SortableProductRow key={product._id} product={product} index={index} />
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+function SortableProductRow({ product, index }: { product: Product; index: number }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: product._id,
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+
+  return (
+    <TableRow ref={setNodeRef} style={style} hover>
+      <TableCell sx={{ width: 48 }}>
+        <Stack direction="row" alignItems="center" spacing={0.5}>
+          <IconButton
+            size="small"
+            aria-label={`Reordenar ${product.name}`}
+            {...attributes}
+            {...listeners}
+            sx={{ cursor: 'grab', touchAction: 'none', color: 'text.disabled' }}
+          >
+            <GripVertical size={16} aria-hidden />
+          </IconButton>
+          <Box
+            component="span"
+            sx={(theme) => ({
+              ...theme.typography.mono,
+              color: 'text.disabled',
+              fontSize: theme.typography.caption.fontSize,
+            })}
+          >
+            {index + 1}
+          </Box>
+        </Stack>
+      </TableCell>
+      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+        <ProductThumb imageUrl={product.imageUrl} alt={product.name} />
+      </TableCell>
+      <TableCell sx={(theme) => ({ ...theme.typography.subtitle2 })}>{product.name}</TableCell>
+      <TableCell
+        sx={(theme) => ({
+          display: { xs: 'none', sm: 'table-cell' },
+          ...theme.typography.mono,
+          fontSize: theme.typography.body2.fontSize,
+          color: 'text.secondary',
+        })}
+      >
+        {product.sku}
+      </TableCell>
+      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+        <Chip size="small" label={product.category} />
+      </TableCell>
+      <TableCell align="right" sx={(theme) => ({ ...theme.typography.mono })}>
+        {formatCurrency(product.price)}
+      </TableCell>
+    </TableRow>
   );
 }
 

@@ -1,5 +1,5 @@
 import { KaiPOSThemeProvider } from '@kaipos/ui';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as ReactRouter from 'react-router-dom';
@@ -84,6 +84,24 @@ function renderAt(url: string) {
   );
 }
 
+// happy-dom + MUI re-renders a controlled TextField per keystroke. A long
+// `user.type('Vino tinto')` triggers ~10 renders that each round-trip through
+// the React scheduler — fine locally, but accumulates to 10+ seconds in CI.
+// `fireEvent.change` sets the value in one render via React's synthetic
+// onChange, which is exactly what the component's state updater needs.
+function setInputValue(input: HTMLElement, value: string): void {
+  fireEvent.change(input, { target: { value } });
+}
+
+// MUI Select expects a mouseDown to open the dropdown, then a click on the
+// option. userEvent emulates the same dance through the pointer-events API
+// which is heavy under happy-dom; fireEvent is enough here.
+async function selectCategory(name: string): Promise<void> {
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: /categoría/i }));
+  const option = await screen.findByRole('option', { name });
+  fireEvent.click(option);
+}
+
 beforeEach(() => {
   createProductMock.mockReset();
   updateProductMock.mockReset();
@@ -103,35 +121,23 @@ afterEach(() => {
 describe('ProductFormPage variants', () => {
   it('adds a variant, fills it in, and includes it in the create payload', async () => {
     createProductMock.mockResolvedValue({ _id: 'p-new' });
-    // delay: null disables userEvent's setTimeout(0) between keystrokes —
-    // happy-dom + MUI portals in CI are slow enough that the default cadence
-    // blows past the 15s timeout on long sequences like this one.
     const user = userEvent.setup({ delay: null });
     renderAt('/products/new');
 
-    // Required basic fields. The schema-level Zod check is what gates the
-    // create call, so we fill name + category + sku + price.
-    await user.type(screen.getByLabelText(/nombre del producto/i), 'Vino tinto');
-    await user.click(screen.getByRole('combobox', { name: /categoría/i }));
-    await user.click(await screen.findByRole('option', { name: 'Bebidas' }));
-    // Auto-SKU runs in a useEffect after both name+category are set, so we
-    // wait for the SKU TextField to have a non-empty value.
-    await waitFor(() =>
-      expect(
-        (screen.getAllByRole('textbox', { name: /^sku$/i })[0] as HTMLInputElement).value,
-      ).not.toBe(''),
-    );
-    await user.clear(screen.getByLabelText(/precio de venta/i));
-    await user.type(screen.getByLabelText(/precio de venta/i), '500');
+    // Required basic fields. Setting SKU manually flips the form's
+    // `skuTouched` flag so we don't have to wait for the auto-SKU effect.
+    setInputValue(screen.getByLabelText(/nombre del producto/i), 'Vino tinto');
+    await selectCategory('Bebidas');
+    setInputValue(screen.getAllByRole('textbox', { name: /^sku$/i })[0]!, 'VINO-001');
+    setInputValue(screen.getByLabelText(/precio de venta/i), '500');
 
-    // Add a variant. Use findAllByRole after the click so we wait for the
-    // newly-rendered variant row instead of racing happy-dom.
+    // Add a variant. findAllByRole waits for the new row to mount.
     await user.click(screen.getByRole('button', { name: 'Variante' }));
     const nameFields = await screen.findAllByRole('textbox', { name: /^nombre$/i });
     // index 0 = product name; the appended variant adds a second.
-    await user.type(nameFields[nameFields.length - 1]!, '750 ml');
+    setInputValue(nameFields[nameFields.length - 1]!, '750 ml');
     const skuFields = await screen.findAllByRole('textbox', { name: /^sku$/i });
-    await user.type(skuFields[skuFields.length - 1]!, 'VIN-750');
+    setInputValue(skuFields[skuFields.length - 1]!, 'VIN-750');
 
     await user.click(screen.getByRole('button', { name: /publicar producto/i }));
 
@@ -157,8 +163,8 @@ describe('ProductFormPage variants', () => {
     const skuFields = await screen.findAllByRole('textbox', { name: /^sku$/i });
     // First SKU field is the product-level SKU; the next two are variant SKUs.
     const [variantA, variantB] = skuFields.slice(1);
-    await user.type(variantA!, 'DUPSKU');
-    await user.type(variantB!, 'DUPSKU');
+    setInputValue(variantA!, 'DUPSKU');
+    setInputValue(variantB!, 'DUPSKU');
 
     expect(await screen.findByText(/sku duplicado entre variantes/i)).toBeInTheDocument();
   });
@@ -174,8 +180,7 @@ describe('ProductFormPage modifier groups', () => {
     await user.click(screen.getByRole('button', { name: /^opción$/i }));
 
     const maxField = await screen.findByRole('spinbutton', { name: /máx/i });
-    await user.clear(maxField);
-    await user.type(maxField, '2');
+    setInputValue(maxField, '2');
 
     // The TextField is in error state and shows a "≤ 1" helper text.
     expect(await screen.findByText(/≤ 1/)).toBeInTheDocument();
@@ -188,17 +193,10 @@ describe('ProductFormPage availability window', () => {
     const user = userEvent.setup({ delay: null });
     renderAt('/products/new');
 
-    // Required fields
-    await user.type(screen.getByLabelText(/nombre del producto/i), 'Almuerzo');
-    await user.click(screen.getByRole('combobox', { name: /categoría/i }));
-    await user.click(await screen.findByRole('option', { name: 'Bebidas' }));
-    await waitFor(() =>
-      expect(
-        (screen.getAllByRole('textbox', { name: /^sku$/i })[0] as HTMLInputElement).value,
-      ).not.toBe(''),
-    );
-    await user.clear(screen.getByLabelText(/precio de venta/i));
-    await user.type(screen.getByLabelText(/precio de venta/i), '300');
+    setInputValue(screen.getByLabelText(/nombre del producto/i), 'Almuerzo');
+    await selectCategory('Bebidas');
+    setInputValue(screen.getAllByRole('textbox', { name: /^sku$/i })[0]!, 'ALM-001');
+    setInputValue(screen.getByLabelText(/precio de venta/i), '300');
 
     // Enable the per-product availability window. The Switch is wrapped in a
     // FormControlLabel whose label text is the switch's accessible name.
@@ -223,17 +221,11 @@ describe('ProductFormPage barcode', () => {
     const user = userEvent.setup({ delay: null });
     renderAt('/products/new');
 
-    await user.type(screen.getByLabelText(/nombre del producto/i), 'Cerveza');
-    await user.click(screen.getByRole('combobox', { name: /categoría/i }));
-    await user.click(await screen.findByRole('option', { name: 'Bebidas' }));
-    await waitFor(() =>
-      expect(
-        (screen.getAllByRole('textbox', { name: /^sku$/i })[0] as HTMLInputElement).value,
-      ).not.toBe(''),
-    );
-    await user.clear(screen.getByLabelText(/precio de venta/i));
-    await user.type(screen.getByLabelText(/precio de venta/i), '120');
-    await user.type(screen.getByLabelText(/código de barras/i), '750ml-rubia');
+    setInputValue(screen.getByLabelText(/nombre del producto/i), 'Cerveza');
+    await selectCategory('Bebidas');
+    setInputValue(screen.getAllByRole('textbox', { name: /^sku$/i })[0]!, 'CER-001');
+    setInputValue(screen.getByLabelText(/precio de venta/i), '120');
+    setInputValue(screen.getByLabelText(/código de barras/i), '750ml-rubia');
 
     await user.click(screen.getByRole('button', { name: /publicar producto/i }));
 

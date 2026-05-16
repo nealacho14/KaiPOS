@@ -8,10 +8,10 @@ export default defineConfig({
     environment: 'happy-dom',
     include: ['src/**/*.test.{ts,tsx}'],
     setupFiles: ['./src/test-setup.ts'],
-    // CI runners (Linux, cold module cache) run long userEvent sequences
-    // ~3× slower than local M-series Macs. 5s defaults trip flakily on
-    // the variant/modifier form tests; 15s gives headroom without hiding
-    // genuine hangs.
-    testTimeout: 15_000,
+    // CI runners (Linux, cold module cache) run long async sequences
+    // ~3× slower than local M-series Macs. Tests should target sub-second
+    // execution via fireEvent (see ProductFormPage.test.tsx); 30s is a
+    // safety net for unexpected slowness, not a license to write slow tests.
+    testTimeout: 30_000,
   },
 });

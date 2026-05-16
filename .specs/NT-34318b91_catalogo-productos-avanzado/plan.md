@@ -225,52 +225,52 @@
 
 #### API client (`apps/frontend-admin/src/lib/products-api.ts`)
 
-- [ ] Extender `ListProductsParams` con `activeNow?`, `featuredIn?`; serializarlos en `buildListQuery`.
-- [ ] Extender `CreateProductPayload`/`UpdateProductPayload` con los campos nuevos (TypeScript ya los recogerá desde `Product`).
-- [ ] Agregar `reorderProducts(branchId: string, items: Array<{ id: string; sortOrder: number }>): Promise<void>`.
-- [ ] Agregar `setProductFeatured(id: string, { branchId, featured }: { branchId: string; featured: boolean }): Promise<void>`.
-- [ ] Extender `ProductsApiErrorCode` con `VARIANT_SKU_DUPLICATE`, `MAX_SELECTABLE_EXCEEDS_OPTIONS`.
+- [x] Extender `ListProductsParams` con `activeNow?`, `featuredIn?`; serializarlos en `buildListQuery`.
+- [x] Extender `CreateProductPayload`/`UpdateProductPayload` con los campos nuevos (TypeScript ya los recogerá desde `Product`).
+- [x] Agregar `reorderProducts(branchId: string, items: Array<{ id: string; sortOrder: number }>): Promise<void>`.
+- [x] Agregar `setProductFeatured(id: string, { branchId, featured }: { branchId: string; featured: boolean }): Promise<void>`.
+- [x] Extender `ProductsApiErrorCode` con `VARIANT_SKU_DUPLICATE`, `MAX_SELECTABLE_EXCEEDS_OPTIONS`.
 
 #### `ProductFormPage.tsx` (`apps/frontend-admin/src/pages/`)
 
-- [ ] **Variantes**: sección reusando el patrón existente de `@dnd-kit` para modificadores. Cada fila: `name`, `sku`, `priceDelta` (`<NumberField/>` o `TextField type="number"`), `imageUrl` con re-uso de `generateUploadUrl`. Validación inline para SKU duplicado dentro del form.
-- [ ] **`maxSelectable`** en cada `ModifierGroup`: campo numérico (defaults a `options.length`), con tooltip "máx. opciones que un cliente puede elegir".
-- [ ] **`ModifierOption.available`**: collapsible "Disponibilidad por horario" con `daysOfWeek` (checkboxes lun–dom) + `from`/`to` (`TextField type="time"`).
-- [ ] **`availabilityWindow`**: misma UI a nivel de producto (sección "Disponibilidad por horario").
-- [ ] **`barcode`**: `TextField` simple en la sección de identificación junto al SKU.
-- [ ] **Botón "Destacar en esta sucursal"**: toggle al lado del header del producto; llama a `setProductFeatured` con `branchId` activo. Estado optimista + revertir on error.
-- [ ] Helpers visuales: usar `@kaipos/ui` y design tokens; **no** importar `@mui/material` directo; spacing vía MUI scale; tipografía vía `Typography variant`/`theme.typography.X`.
+- [x] **Variantes**: sección reusando el patrón existente de `@dnd-kit` para modificadores. Cada fila: `name`, `sku`, `priceDelta` (`<NumberField/>` o `TextField type="number"`), `imageUrl` con re-uso de `generateUploadUrl`. Validación inline para SKU duplicado dentro del form.
+- [x] **`maxSelectable`** en cada `ModifierGroup`: campo numérico (defaults a `options.length`), con tooltip "máx. opciones que un cliente puede elegir".
+- [x] **`ModifierOption.available`**: collapsible "Disponibilidad por horario" con `daysOfWeek` (checkboxes lun–dom) + `from`/`to` (`TextField type="time"`).
+- [x] **`availabilityWindow`**: misma UI a nivel de producto (sección "Disponibilidad por horario").
+- [x] **`barcode`**: `TextField` simple en la sección de identificación junto al SKU.
+- [x] **Botón "Destacar en esta sucursal"**: toggle al lado del header del producto; llama a `setProductFeatured` con `branchId` activo. Estado optimista + revertir on error.
+- [x] Helpers visuales: usar `@kaipos/ui` y design tokens; **no** importar `@mui/material` directo; spacing vía MUI scale; tipografía vía `Typography variant`/`theme.typography.X`.
 
 #### `ProductsListPage.tsx` (`apps/frontend-admin/src/pages/`)
 
-- [ ] Modo "Reordenar" — toggle button en el header. Cuando está activo:
+- [x] Modo "Reordenar" — toggle button en el header. Cuando está activo:
   - Reemplaza filas con un `DndContext` (`@dnd-kit/sortable`).
   - Deshabilita filtros (categoría/búsqueda/include inactivos) excepto el filtro de categoría (necesario para reordenar dentro de una sola).
   - Botón "Guardar orden" → `reorderProducts(branchId, items)` con estado optimista; rollback on error con `Snackbar`.
   - Botón "Cancelar" descarta cambios locales.
-- [ ] Filtro **"Sólo destacados"** (`Switch`) — cuando ON, pasar `featuredIn=branchId` al API.
-- [ ] Filtro **"Sólo disponibles ahora"** (`Switch`) — pasar `activeNow=true`. Mostrar nota inline si combina con otros filtros.
-- [ ] Columna "Destacado": indicador `Star` (filled/outlined) que toggle vía `setProductFeatured`. Requiere `canWrite`.
-- [ ] Columna "Orden" sólo visible en modo reorder.
-- [ ] Manejar el evento WS `product.reordered` (si lo emitimos en Phase 2) — refetch.
+- [x] Filtro **"Sólo destacados"** (`Switch`) — cuando ON, pasar `featuredIn=branchId` al API.
+- [x] Filtro **"Sólo disponibles ahora"** (`Switch`) — pasar `activeNow=true`. Mostrar nota inline si combina con otros filtros.
+- [x] Columna "Destacado": indicador `Star` (filled/outlined) que toggle vía `setProductFeatured`. Requiere `canWrite`.
+- [x] Columna "Orden" sólo visible en modo reorder.
+- [x] Manejar el evento WS `product.reordered` (si lo emitimos en Phase 2) — refetch.
 
 #### Tests
 
-- [ ] `ProductFormPage.test.tsx` (extender el existente o crear): test del flujo variantes (agregar/eliminar/duplicate SKU error), `maxSelectable` validación, `availabilityWindow` form.
-- [ ] `ProductsListPage.test.tsx` (crear si no existe — mantener cobertura ≥ 90% del paquete UI): test del toggle reorder, drag-and-drop save (mock `reorderProducts`), feature toggle.
-- [ ] Mock del API client con `vi.mock`; no hits reales.
+- [x] `ProductFormPage.test.tsx` (extender el existente o crear): test del flujo variantes (agregar/eliminar/duplicate SKU error), `maxSelectable` validación, `availabilityWindow` form.
+- [x] `ProductsListPage.test.tsx` (crear si no existe — mantener cobertura ≥ 90% del paquete UI): test del toggle reorder, drag-and-drop save (mock `reorderProducts`), feature toggle.
+- [x] Mock del API client con `vi.mock`; no hits reales.
 
 #### Docs
 
-- [ ] Actualizar `apps/frontend-admin/README.md` mencionando el modo reorder y el filtro `activeNow`/`featuredIn`.
+- [x] Actualizar `apps/frontend-admin/README.md` mencionando el modo reorder y el filtro `activeNow`/`featuredIn`.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes (sin violaciones del design-system boundary)
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm test` passes con cobertura ≥ 90% en `@kaipos/ui` y `frontend-admin` (no bajar de los thresholds existentes).
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes (sin violaciones del design-system boundary)
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm test` passes con cobertura ≥ 90% en `@kaipos/ui` y `frontend-admin` (no bajar de los thresholds existentes).
 - [ ] Manual (con `pnpm dev`, login admin):
   - Crear producto con 2 variantes (S/M) con `priceDelta` distintos; guardar y reabrir; el orden y los SKUs se conservan.
   - Configurar `availabilityWindow` 11–15 en un producto; en `ProductsListPage` con "Sólo disponibles ahora", el producto desaparece fuera de ese horario (cambiar hora del sistema o mockear).

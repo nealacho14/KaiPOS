@@ -103,7 +103,10 @@ afterEach(() => {
 describe('ProductFormPage variants', () => {
   it('adds a variant, fills it in, and includes it in the create payload', async () => {
     createProductMock.mockResolvedValue({ _id: 'p-new' });
-    const user = userEvent.setup();
+    // delay: null disables userEvent's setTimeout(0) between keystrokes —
+    // happy-dom + MUI portals in CI are slow enough that the default cadence
+    // blows past the 15s timeout on long sequences like this one.
+    const user = userEvent.setup({ delay: null });
     renderAt('/products/new');
 
     // Required basic fields. The schema-level Zod check is what gates the
@@ -121,12 +124,13 @@ describe('ProductFormPage variants', () => {
     await user.clear(screen.getByLabelText(/precio de venta/i));
     await user.type(screen.getByLabelText(/precio de venta/i), '500');
 
-    // Add a variant
+    // Add a variant. Use findAllByRole after the click so we wait for the
+    // newly-rendered variant row instead of racing happy-dom.
     await user.click(screen.getByRole('button', { name: 'Variante' }));
-    const nameFields = screen.getAllByRole('textbox', { name: /^nombre$/i });
+    const nameFields = await screen.findAllByRole('textbox', { name: /^nombre$/i });
     // index 0 = product name; the appended variant adds a second.
     await user.type(nameFields[nameFields.length - 1]!, '750 ml');
-    const skuFields = screen.getAllByRole('textbox', { name: /^sku$/i });
+    const skuFields = await screen.findAllByRole('textbox', { name: /^sku$/i });
     await user.type(skuFields[skuFields.length - 1]!, 'VIN-750');
 
     await user.click(screen.getByRole('button', { name: /publicar producto/i }));
@@ -140,7 +144,7 @@ describe('ProductFormPage variants', () => {
   });
 
   it('flags duplicate variant SKUs inline', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderAt('/products/new');
 
     // The "+ Variante" add button is rendered before any rows exist. Once we
@@ -149,7 +153,8 @@ describe('ProductFormPage variants', () => {
     await user.click(screen.getByRole('button', { name: 'Variante' }));
     await user.click(screen.getByRole('button', { name: 'Variante' }));
 
-    const skuFields = screen.getAllByRole('textbox', { name: /^sku$/i });
+    // findAllByRole waits for both variant rows to render before we slice.
+    const skuFields = await screen.findAllByRole('textbox', { name: /^sku$/i });
     // First SKU field is the product-level SKU; the next two are variant SKUs.
     const [variantA, variantB] = skuFields.slice(1);
     await user.type(variantA!, 'DUPSKU');
@@ -161,14 +166,14 @@ describe('ProductFormPage variants', () => {
 
 describe('ProductFormPage modifier groups', () => {
   it('flags maxSelectable greater than options.length', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderAt('/products/new');
 
     // Add a modifier group with one option, then bump maxSelectable to 2
     await user.click(screen.getByRole('button', { name: /grupo nuevo/i }));
     await user.click(screen.getByRole('button', { name: /^opción$/i }));
 
-    const maxField = screen.getByRole('spinbutton', { name: /máx/i });
+    const maxField = await screen.findByRole('spinbutton', { name: /máx/i });
     await user.clear(maxField);
     await user.type(maxField, '2');
 
@@ -180,7 +185,7 @@ describe('ProductFormPage modifier groups', () => {
 describe('ProductFormPage availability window', () => {
   it('sends availabilityWindow when enabled', async () => {
     createProductMock.mockResolvedValue({ _id: 'p-new' });
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderAt('/products/new');
 
     // Required fields
@@ -215,7 +220,7 @@ describe('ProductFormPage availability window', () => {
 describe('ProductFormPage barcode', () => {
   it('includes barcode in payload when provided', async () => {
     createProductMock.mockResolvedValue({ _id: 'p-new' });
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderAt('/products/new');
 
     await user.type(screen.getByLabelText(/nombre del producto/i), 'Cerveza');

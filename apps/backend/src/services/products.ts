@@ -100,6 +100,28 @@ function resolveBusinessIdForMutation(
   return actor.businessId;
 }
 
+/**
+ * Resolves the businessId to use for a mutation scoped to a specific branch.
+ * For tenant-scoped roles the actor's own businessId always wins. For
+ * super_admin we look the branch up so the operation targets the correct
+ * business — `reorderProducts` has no businessId in its payload, so without
+ * this helper a super_admin would hit MISSING_TARGET_BUSINESS_ID.
+ */
+async function resolveBusinessIdForBranchMutation(
+  actor: TokenPayload,
+  branchId: string,
+): Promise<string> {
+  if (actor.businessId !== SUPER_ADMIN_BUSINESS_ID) {
+    return actor.businessId;
+  }
+  const branches = await getBranchesCollection();
+  const branch = await branches.findOne({ _id: branchId }, { projection: { businessId: 1 } });
+  if (!branch) {
+    throw new NotFoundError('Branch');
+  }
+  return branch.businessId;
+}
+
 function buildListFilter(actor: TokenPayload, query: ListProductsQuery): Filter<Product> {
   const filter: Filter<Product> = { branchId: query.branchId };
 
@@ -250,11 +272,13 @@ export async function listProducts(
     page: query.page,
     limit: query.limit,
     projection: { modifierGroups: 0 },
-    // When no search is active, sort by the category's sortOrder first, then
-    // the product's sortOrder, then name. This requires a $lookup-style join
-    // on categories — we apply it post-pagination so the count remains cheap
-    // and only the current page incurs the join.
-    sort: query.q ? { createdAt: -1 } : undefined,
+    // When no search is active, lean on the {branchId, category, sortOrder}
+    // index for a stable DB-level pagination order — `_id` is the final
+    // tiebreaker so skip/limit can't skip or duplicate rows across pages.
+    // The post-fetch step below re-sorts the current page by the category's
+    // own sortOrder (which lives in a separate collection) without disturbing
+    // pagination stability.
+    sort: query.q ? { createdAt: -1 } : { category: 1, sortOrder: 1, _id: 1 },
     // Match the case-insensitive collation on the {branchId, name} index
     // when a prefix search is in play (see buildListFilter `q` branch).
     collation: query.q ? { locale: 'es', strength: 2 } : undefined,
@@ -575,7 +599,7 @@ export async function reorderProducts(
   input: ReorderProductsInput,
 ): Promise<{ matched: number }> {
   assertBranchAccess(actor, input.branchId);
-  const businessId = resolveBusinessIdForMutation(actor, undefined);
+  const businessId = await resolveBusinessIdForBranchMutation(actor, input.branchId);
   const products = await getProductsCollection();
 
   const now = new Date();

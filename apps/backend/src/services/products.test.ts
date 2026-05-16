@@ -858,6 +858,51 @@ describe('products service', () => {
 
       expect(result.data.map((p) => p._id)).toEqual(['b', 'd', 'c', 'a']);
     });
+
+    it('uses a stable DB-level sort when q is absent (matches new index)', async () => {
+      const cursor = {
+        collation: vi.fn().mockReturnThis(),
+        sort: vi.fn().mockReturnThis(),
+        skip: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        toArray: () => Promise.resolve([]),
+      };
+      mockProducts.find.mockReturnValue(cursor);
+      mockProducts.countDocuments.mockResolvedValue(0);
+
+      await listProducts(adminPayload, {
+        branchId: 'br-1',
+        includeInactive: false,
+        activeNow: false,
+        page: 1,
+        limit: 50,
+      });
+
+      expect(cursor.sort).toHaveBeenCalledWith({ category: 1, sortOrder: 1, _id: 1 });
+    });
+
+    it('falls back to createdAt sort when q is present', async () => {
+      const cursor = {
+        collation: vi.fn().mockReturnThis(),
+        sort: vi.fn().mockReturnThis(),
+        skip: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        toArray: () => Promise.resolve([]),
+      };
+      mockProducts.find.mockReturnValue(cursor);
+      mockProducts.countDocuments.mockResolvedValue(0);
+
+      await listProducts(adminPayload, {
+        branchId: 'br-1',
+        q: 'arroz',
+        includeInactive: false,
+        activeNow: false,
+        page: 1,
+        limit: 50,
+      });
+
+      expect(cursor.sort).toHaveBeenCalledWith({ createdAt: -1 });
+    });
   });
 
   describe('createProduct — Phase 2 validations', () => {
@@ -964,6 +1009,43 @@ describe('products service', () => {
           items: [{ id: '11111111-1111-4111-a111-111111111111', sortOrder: 0 }],
         }),
       ).rejects.toThrow('Access denied to this branch');
+
+      expect(mockProducts.bulkWrite).not.toHaveBeenCalled();
+    });
+
+    it('super_admin resolves businessId from the branch and reorders', async () => {
+      mockBranches.findOne.mockResolvedValue({ _id: 'br-1', businessId: 'biz-target' });
+      mockProducts.bulkWrite.mockResolvedValue({ matchedCount: 1 });
+
+      const result = await reorderProducts(superAdminPayload, {
+        branchId: 'br-1',
+        items: [{ id: '11111111-1111-4111-a111-111111111111', sortOrder: 0 }],
+      });
+
+      expect(result.matched).toBe(1);
+      expect(mockBranches.findOne).toHaveBeenCalledWith(
+        { _id: 'br-1' },
+        { projection: { businessId: 1 } },
+      );
+      const ops = mockProducts.bulkWrite.mock.calls[0][0] as Array<{
+        updateOne: { filter: object };
+      }>;
+      expect(ops[0].updateOne.filter).toMatchObject({ businessId: 'biz-target' });
+      expect(mockPublishToChannel).toHaveBeenCalledWith(
+        'branch:biz-target:br-1',
+        expect.objectContaining({ type: 'product.reordered' }),
+      );
+    });
+
+    it('super_admin → 404 when the branch does not exist', async () => {
+      mockBranches.findOne.mockResolvedValue(null);
+
+      await expect(
+        reorderProducts(superAdminPayload, {
+          branchId: 'br-missing',
+          items: [{ id: '11111111-1111-4111-a111-111111111111', sortOrder: 0 }],
+        }),
+      ).rejects.toMatchObject({ statusCode: 404 });
 
       expect(mockProducts.bulkWrite).not.toHaveBeenCalled();
     });

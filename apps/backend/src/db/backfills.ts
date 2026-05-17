@@ -63,7 +63,60 @@ export async function backfillBranchTimezone(db: Db): Promise<void> {
   );
 }
 
+/**
+ * Sets `modifierGroups[].maxSelectable = options.length` on any product where
+ * a group is missing the field. Legacy docs created before `maxSelectable`
+ * became required pass the `moderate`/`off` validator level but break under
+ * `strict` and under partial-update writes that re-serialize the array.
+ *
+ * Idempotent — re-running is a no-op once every group has the field.
+ */
+export async function backfillProductModifierMaxSelectable(db: Db): Promise<void> {
+  const products = db.collection('products');
+
+  const missing = await products.countDocuments({
+    'modifierGroups.maxSelectable': { $exists: false },
+    modifierGroups: { $exists: true, $not: { $size: 0 } },
+  });
+  if (missing === 0) {
+    logger.info('  products: all modifierGroups already have maxSelectable — nothing to backfill');
+    return;
+  }
+
+  // Use a pipeline-style update so we can compute `options.length` per group
+  // in a single round-trip. `$map` walks every group and only overwrites
+  // `maxSelectable` when it's missing — groups that already have the field
+  // (numeric, including 0) keep their stored value.
+  const result = await products.updateMany({ 'modifierGroups.maxSelectable': { $exists: false } }, [
+    {
+      $set: {
+        modifierGroups: {
+          $map: {
+            input: '$modifierGroups',
+            as: 'g',
+            in: {
+              $mergeObjects: [
+                '$$g',
+                {
+                  maxSelectable: {
+                    $ifNull: ['$$g.maxSelectable', { $size: { $ifNull: ['$$g.options', []] } }],
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
+  ]);
+  logger.info(
+    { matched: result.matchedCount, modified: result.modifiedCount },
+    `  products: backfilled modifierGroups.maxSelectable on ${result.modifiedCount} doc(s)`,
+  );
+}
+
 export async function runAllBackfills(db: Db): Promise<void> {
   await backfillProductSortOrder(db);
   await backfillBranchTimezone(db);
+  await backfillProductModifierMaxSelectable(db);
 }

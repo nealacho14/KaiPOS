@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import type { AvailabilityWindow, ModifierOption } from '@kaipos/shared/types';
-import { isWithinAvailabilityWindow, isModifierOptionAvailable } from './availability.js';
+import {
+  buildActiveNowMongoFilter,
+  getCurrentLocalDateTime,
+  isWithinAvailabilityWindow,
+  isModifierOptionAvailable,
+} from './availability.js';
 
 // 2026-05-08 is a Friday (UTC). Use it as a reference instant and shift the
 // hours to test "now" against windows in various timezones.
@@ -179,5 +184,47 @@ describe('isModifierOptionAvailable', () => {
     expect(isModifierOptionAvailable(option, 'America/Santo_Domingo', utc(2026, 5, 9, 16))).toBe(
       false,
     );
+  });
+});
+
+describe('buildActiveNowMongoFilter', () => {
+  // The filter is a $expr/$or with 4 branches that mirror
+  // isWithinAvailabilityWindow. We assert the shape rather than evaluate it —
+  // semantic equivalence is exercised by integration coverage hitting Mongo.
+  it('produces a $expr/$or with four branches', () => {
+    const local = { dayOfWeek: 5, hour: 12, minute: 0 };
+    const filter = buildActiveNowMongoFilter(local);
+    expect(filter.$expr).toBeTruthy();
+    const branches = (filter.$expr as { $or: unknown[] }).$or;
+    expect(branches).toHaveLength(4);
+  });
+
+  it('encodes the current HH:mm string', () => {
+    const filter = buildActiveNowMongoFilter({ dayOfWeek: 5, hour: 9, minute: 5 });
+    const json = JSON.stringify(filter);
+    expect(json).toContain('"09:05"');
+  });
+
+  it("the non-crossing branch references today's dayOfWeek", () => {
+    const filter = buildActiveNowMongoFilter({ dayOfWeek: 3, hour: 14, minute: 30 });
+    const branches = (filter.$expr as { $or: Array<Record<string, unknown>> }).$or;
+    const today = JSON.stringify(branches[1]);
+    // Today (3) appears in the $in expression for daysOfWeek
+    expect(today).toContain('"$in":[3,');
+  });
+
+  it('the late-morning branch references the previous day', () => {
+    // dayOfWeek=1 (Mon) → previous day = 0 (Sun)
+    const filter = buildActiveNowMongoFilter({ dayOfWeek: 1, hour: 1, minute: 0 });
+    const branches = (filter.$expr as { $or: Array<Record<string, unknown>> }).$or;
+    const morningCrossing = JSON.stringify(branches[3]);
+    expect(morningCrossing).toContain('"$in":[0,');
+  });
+});
+
+describe('getCurrentLocalDateTime', () => {
+  it('returns Friday 12:00 for 2026-05-08 16:00Z in America/Santo_Domingo', () => {
+    const result = getCurrentLocalDateTime('America/Santo_Domingo', utc(2026, 5, 8, 16));
+    expect(result).toEqual({ dayOfWeek: 5, hour: 12, minute: 0 });
   });
 });

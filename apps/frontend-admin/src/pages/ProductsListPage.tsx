@@ -198,13 +198,29 @@ export function ProductsListPage() {
         // discard the in-progress draft. The save handler will refetch after
         // a successful flush.
         if (!reorderMode) setReloadKey((n) => n + 1);
+      } else if (message.type === 'product.featured') {
+        // `product.featured` is decoupled from `product.updated` so we can
+        // patch the local featured Set without a full refetch — only the
+        // per-branch preference changed, not the product doc. We still
+        // refetch when the user is filtering by `onlyFeatured`, because a
+        // row may now enter or leave the visible list.
+        const payload = message.payload as { productId?: string; featured?: boolean } | undefined;
+        if (payload?.productId && typeof payload.featured === 'boolean') {
+          setFeaturedIds((prev) => {
+            const next = new Set(prev);
+            if (payload.featured) next.add(payload.productId!);
+            else next.delete(payload.productId!);
+            return next;
+          });
+        }
+        if (onlyFeatured && !reorderMode) setReloadKey((n) => n + 1);
       } else if (message.type === 'product.low-stock') {
         const payload = message.payload as { name?: string } | undefined;
         const name = payload?.name ?? 'Un producto';
         setLowStockToast(`${name} está bajo de stock`);
       }
     });
-  }, [branchChannel, reorderMode]);
+  }, [branchChannel, reorderMode, onlyFeatured]);
 
   // Reset to first page whenever the filter/sucursal changes — otherwise the
   // request asks for `page=3` of a result set that may now have one page.

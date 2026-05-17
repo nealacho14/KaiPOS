@@ -1,5 +1,5 @@
 import type { Filter } from 'mongodb';
-import type { Product, ProductPreference, TokenPayload } from '@kaipos/shared/types';
+import type { Product, TokenPayload } from '@kaipos/shared/types';
 import { channelFor } from '@kaipos/shared/types';
 import { SUPER_ADMIN_BUSINESS_ID } from '@kaipos/shared/permissions';
 import { PutObjectCommand, S3Client, type PutObjectCommandInput } from '@aws-sdk/client-s3';
@@ -8,14 +8,13 @@ import {
   getBranchesCollection,
   getCategoriesCollection,
   getKitchenStationsCollection,
-  getProductPreferencesCollection,
   getProductsCollection,
 } from '../db/collections.js';
 import { paginate, type PaginatedResult } from '../lib/paginate.js';
 import { AppError, ForbiddenError, NotFoundError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
 import { publishToChannel } from '../lib/ws-publish.js';
-import { isWithinAvailabilityWindow } from '../lib/availability.js';
+import { buildActiveNowMongoFilter, getCurrentLocalDateTime } from '../lib/availability.js';
 import { canAccessBranch, assertBranchAccess } from '../middleware/branch-access.js';
 import type {
   CreateProductInput,
@@ -243,54 +242,71 @@ export async function listProducts(
   query: ListProductsQuery,
 ): Promise<PaginatedResult<Product>> {
   const products = await getProductsCollection();
-  let filter = buildListFilter(actor, query);
+  const baseFilter = buildListFilter(actor, query);
 
-  // `featuredIn` joins manually against `productPreferences` so we can keep
-  // the products query on its own indexes. The featured set per branch is
-  // expected to be small (handful to dozens). If that ever grows past a few
-  // hundred we should switch to an aggregation `$lookup`, but at that point
-  // the UX for "featured" likely needs rethinking anyway.
-  if (query.featuredIn) {
-    const prefs = await getProductPreferencesCollection();
-    const businessId =
-      actor.businessId === SUPER_ADMIN_BUSINESS_ID
-        ? (query.businessId ?? undefined)
-        : actor.businessId;
-    const prefFilter: Filter<ProductPreference> = {
-      branchId: query.featuredIn,
-      featured: true,
-    };
-    if (businessId) prefFilter.businessId = businessId;
-    const featured = await prefs.find(prefFilter, { projection: { productId: 1 } }).toArray();
-    const ids = featured.map((p) => p.productId);
-    if (ids.length === 0) {
-      return { data: [], total: 0, page: query.page, limit: query.limit, totalPages: 0 };
-    }
-    filter = { ...filter, _id: { $in: ids } };
+  // Push `activeNow` into the Mongo query so the paginator's `total` reflects
+  // the post-filter count. The previous JS post-fetch filter produced a
+  // misleading total (pre-filter), so a request for "5 of 5" might actually
+  // return 2 visible rows after filtering. Mirrors `isWithinAvailabilityWindow`.
+  let filter: Filter<Product> = baseFilter;
+  if (query.activeNow) {
+    const timezone = await getBranchTimezone(query.branchId);
+    const local = getCurrentLocalDateTime(timezone);
+    filter = { $and: [baseFilter, buildActiveNowMongoFilter(local) as Filter<Product>] };
   }
 
-  const result = await paginate({
-    collection: products,
-    filter,
-    page: query.page,
-    limit: query.limit,
-    projection: { modifierGroups: 0 },
-    // When no search is active, lean on the {branchId, category, sortOrder}
-    // index for a stable DB-level pagination order — `_id` is the final
-    // tiebreaker so skip/limit can't skip or duplicate rows across pages.
-    // The post-fetch step below re-sorts the current page by the category's
-    // own sortOrder (which lives in a separate collection) without disturbing
-    // pagination stability.
-    sort: query.q ? { createdAt: -1 } : { category: 1, sortOrder: 1, _id: 1 },
-    // Match the case-insensitive collation on the {branchId, name} index
-    // when a prefix search is in play (see buildListFilter `q` branch).
-    collation: query.q ? { locale: 'es', strength: 2 } : undefined,
-  });
+  // `featuredIn` joins against `productPreferences`. The previous version
+  // issued two round trips (find preferences → find products with $in). One
+  // aggregation with `$lookup` collapses to a single round trip and lets the
+  // server stream the join, which scales better as the featured set grows.
+  // The `__featured` array is non-empty when a matching preference exists;
+  // we use that as the join predicate and project the helper field away.
+  const isFeaturedQuery = Boolean(query.featuredIn);
+  const businessIdForPrefs =
+    actor.businessId === SUPER_ADMIN_BUSINESS_ID
+      ? (query.businessId ?? undefined)
+      : actor.businessId;
 
-  let data = result.data;
+  let data: Product[];
+  let total: number;
+  if (isFeaturedQuery) {
+    const aggResult = await listFeaturedAggregation(
+      products,
+      filter,
+      query,
+      businessIdForPrefs ?? null,
+    );
+    data = aggResult.data;
+    total = aggResult.total;
+  } else {
+    const result = await paginate({
+      collection: products,
+      filter,
+      page: query.page,
+      limit: query.limit,
+      projection: { modifierGroups: 0 },
+      // When no search is active, lean on the {branchId, category, sortOrder}
+      // index for a stable DB-level pagination order — `_id` is the final
+      // tiebreaker so skip/limit can't skip or duplicate rows across pages.
+      // The post-fetch step below re-sorts the current page by the category's
+      // own sortOrder (which lives in a separate collection) without disturbing
+      // pagination stability.
+      sort: query.q ? { createdAt: -1 } : { category: 1, sortOrder: 1, _id: 1 },
+      // Match the case-insensitive collation on the {branchId, name} index
+      // when a prefix search is in play (see buildListFilter `q` branch).
+      collation: query.q ? { locale: 'es', strength: 2 } : undefined,
+    });
+    data = result.data;
+    total = result.total;
+  }
 
-  // Post-fetch ordering when no q: stable sort by name to provide a deterministic
-  // baseline. Category sortOrder is enriched below with a single batch lookup.
+  // Post-fetch ordering when no q: enrich with category.sortOrder (which lives
+  // in a separate collection) without disturbing pagination stability. With
+  // the unique `{businessId, name}` index on `categories`, this lookup is
+  // O(uniqueCategoriesOnPage) and index-backed; not worth pushing into a
+  // pipeline `$lookup` at current scale (≤ a few hundred categories per biz).
+  // Revisit when `product.category` becomes an FK by `_id` (categories
+  // first-class) and the lookup can use the categories `_id` index instead.
   if (!query.q && data.length > 0) {
     const categoryNames = Array.from(new Set(data.map((p) => p.category)));
     const businessIds = Array.from(new Set(data.map((p) => p.businessId)));
@@ -317,19 +333,68 @@ export async function listProducts(
     });
   }
 
-  // `activeNow` filter runs post-pagination — the total/totalPages reported
-  // is the pre-filter count. UX-wise the caller should label this clearly
-  // (e.g. "X of Y results match the current schedule").
-  if (query.activeNow) {
-    const timezone = await getBranchTimezone(query.branchId);
-    const now = new Date();
-    data = data.filter((p) => {
-      if (!p.availabilityWindow) return true;
-      return isWithinAvailabilityWindow(p.availabilityWindow, timezone, now);
-    });
-  }
+  return {
+    data,
+    total,
+    page: query.page,
+    limit: query.limit,
+    totalPages: Math.ceil(total / query.limit),
+  };
+}
 
-  return { ...result, data };
+interface AggregationFacetResult {
+  data: Product[];
+  meta: Array<{ total: number }>;
+}
+
+async function listFeaturedAggregation(
+  products: Awaited<ReturnType<typeof getProductsCollection>>,
+  matchFilter: Filter<Product>,
+  query: ListProductsQuery,
+  businessIdForPrefs: string | null,
+): Promise<{ data: Product[]; total: number }> {
+  const lookupMatch: Record<string, unknown> = {
+    $and: [
+      { $eq: ['$productId', '$$productId'] },
+      { $eq: ['$businessId', '$$biz'] },
+      { $eq: ['$branchId', query.featuredIn] },
+      { $eq: ['$featured', true] },
+    ],
+  };
+
+  const pipeline: Array<Record<string, unknown>> = [
+    { $match: matchFilter },
+    {
+      $lookup: {
+        from: 'productPreferences',
+        let: { productId: '$_id', biz: '$businessId' },
+        pipeline: [{ $match: { $expr: lookupMatch } }, { $limit: 1 }, { $project: { _id: 1 } }],
+        as: '__featured',
+      },
+    },
+    { $match: { '__featured.0': { $exists: true } } },
+    { $project: { modifierGroups: 0, __featured: 0 } },
+    { $sort: query.q ? { createdAt: -1 } : { category: 1, sortOrder: 1, _id: 1 } },
+    {
+      $facet: {
+        data: [{ $skip: (query.page - 1) * query.limit }, { $limit: query.limit }],
+        meta: [{ $count: 'total' }],
+      },
+    },
+  ];
+
+  // The `businessIdForPrefs` argument is captured by reference in `lookupMatch`
+  // only via `$$biz` (the let binding). We use it here to log/assert if needed
+  // by callers without polluting the pipeline.
+  void businessIdForPrefs;
+
+  const cursor = products.aggregate<AggregationFacetResult>(pipeline, {
+    collation: query.q ? { locale: 'es', strength: 2 } : undefined,
+  });
+  const [first] = await cursor.toArray();
+  const data = (first?.data ?? []) as Product[];
+  const total = first?.meta?.[0]?.total ?? 0;
+  return { data, total };
 }
 
 export async function getProductById(actor: TokenPayload, id: string): Promise<Product> {

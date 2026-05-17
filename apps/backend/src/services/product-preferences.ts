@@ -88,8 +88,11 @@ export async function setFeatured(
     });
 
     try {
+      // Distinct from `product.updated` so the UI can refresh just the
+      // "featured" tab/state without invalidating the full product card.
+      // The full doc didn't change here — only the per-branch preference did.
       await publishToChannel(channelFor.branch(product.businessId, input.branchId), {
-        type: 'product.updated',
+        type: 'product.featured',
         payload: {
           productId,
           branchId: input.branchId,

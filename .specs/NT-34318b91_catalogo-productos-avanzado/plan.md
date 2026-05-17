@@ -280,26 +280,67 @@
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 
+## Phase 4: QA Fixes
+
+**Branch**: `NT-34318b91/catalogo-productos-avanzado/qa-fixes`
+**Targets**: `NT-34318b91/catalogo-productos-avanzado/feature` (la feature branch sigue abierta; las phase branches 1-3 ya están mergeadas)
+
+### Tasks
+
+#### Búsqueda case-insensitive (`apps/backend/src/services/products.ts`)
+
+- [ ] En `buildListFilter` (líneas 144-155), añadir `$options: 'i'` a los tres `$regex` de `name`, `sku` y `barcode`. La `collation { locale: 'es', strength: 2 }` que se pasa a `paginate` NO se aplica a `$regex` (limitación documentada de Mongo) — ese era el supuesto erróneo del comentario `// Anchored prefix so the {branchId, name} index can be used (paired with the collation in the find call)`.
+- [ ] Actualizar el comentario para reflejar que la collation se mantiene para el ordering del índice pero el regex usa flag `i` para case-insensitivity (no son redundantes).
+- [ ] **Evaluar trade-off**: con `$options: 'i'` el regex deja de usar el índice `{branchId, name}` aunque sea anchored. Para mantener perf, considerar alternativas:
+  - Almacenar un campo `nameLower` (lowercased en write path) e indexar `{branchId, nameLower}`, hacer regex sobre ese campo sin flag.
+  - O aceptar el cost para queries puntuales y dejar el perf budget (300ms p50) como guarda — re-correr el perf test después del cambio.
+- [ ] Test de regresión: extender `apps/backend/src/services/products.test.ts` (o `routes/products.test.ts`) con casos `q: 'pollo'`, `q: 'POLLO'`, `q: 'Pollo'`, `q: '750ml'` (barcode lowercase) — todos deben matchear "Pollo al Horno" / producto con barcode "750ML-TEST".
+- [ ] Re-correr el perf test (`RUN_PERF=1 pnpm --filter @kaipos/backend test products.perf`) — confirmar que p50 sigue < 300 ms tras el cambio (o aplicar la mitigación con `nameLower`).
+
+#### Código de error específico para barcode duplicado (`apps/backend/src/services/products.ts`)
+
+- [ ] En el catch del `duplicate key error` (código 11000) en `createProduct`/`updateProduct`, inspeccionar `err.keyPattern` o `err.errmsg` para diferenciar el índice violado:
+  - Si es el índice `{ branchId: 1, sku: 1 }` → mapear a `SKU_ALREADY_EXISTS` (comportamiento actual, sin cambios).
+  - Si es el índice `{ branchId: 1, barcode: 1 }` (parcial unique) → mapear a nuevo código `BARCODE_ALREADY_EXISTS` con mensaje "Barcode already exists in this branch".
+- [ ] Extender `ProductsApiErrorCode` en `apps/frontend-admin/src/lib/products-api.ts` con `BARCODE_ALREADY_EXISTS`.
+- [ ] Tests: cubrir ambos casos en `services/products.test.ts` (mock del driver para emitir error 11000 con `keyPattern: { sku: 1 }` vs `{ barcode: 1 }`).
+- [ ] UI: en `ProductFormPage.tsx`, manejar el nuevo código con mensaje inline en el campo `barcode` (similar al de `sku`).
+
+### Verification
+
+- [ ] `pnpm typecheck` passes
+- [ ] `pnpm lint` passes
+- [ ] `pnpm format:check` passes
+- [ ] `pnpm build` succeeds
+- [ ] `pnpm test` passes (incluye nuevos casos de búsqueda case-insensitive y diferenciación barcode/SKU dup).
+- [ ] `RUN_PERF=1 pnpm --filter @kaipos/backend test products.perf` p50 < 300 ms.
+- [ ] Manual con `curl`/Bruno tras `pnpm docker:up` + seed:
+  - `GET /api/products?branchId=X&q=pollo` (minúscula) retorna "Pollo al Horno".
+  - `POST /api/products` con barcode existente → 409 `BARCODE_ALREADY_EXISTS` (no `SKU_ALREADY_EXISTS`).
+- [ ] OpenAPI regenerado (probablemente sin cambios visibles, pero correr `openapi:generate` por seguridad).
+
+<!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
+
 ## QA Plan
 
-- [ ] **Migración**: backfill script corre dos veces sin efectos colaterales; productos sin `sortOrder` quedan con `0`; branches sin `timezone` quedan con `America/Santo_Domingo`.
-- [ ] **Regression Paso 10**:
+- [x] **Migración**: backfill script corre dos veces sin efectos colaterales; productos sin `sortOrder` quedan con `0`; branches sin `timezone` quedan con `America/Santo_Domingo`.
+- [x] **Regression Paso 10**:
   - CRUD básico de productos (sin variantes/availability/barcode/sortOrder en el form) sigue funcionando.
-  - Subida de imágenes a S3/CloudFront sigue funcionando.
+  - Subida de imágenes a S3/CloudFront sigue funcionando (presigned PUT MinIO 201 OK).
   - Búsqueda por nombre/SKU sigue funcionando.
-  - Modificadores embebidos legacy (sin `maxSelectable`) — validar comportamiento: el validator es `moderate`, así que docs viejos pasan; pero un update debe agregar `maxSelectable`. Documentar en el README si hace falta.
-- [ ] **RBAC**:
-  - `cashier` con `products:read` puede listar pero recibe 403 al intentar `PATCH /reorder`, `PATCH /:id/feature`.
-  - `admin` de un business no puede `feature` un producto de otro business (404, no 403 — política existente).
-  - `super_admin` puede operar en cualquier business (con `businessId` query).
-- [ ] **Edge cases**:
-  - `availabilityWindow` que cruza medianoche (22–02): producto aparece a las 23:30 y a las 01:30, no aparece a las 03:00.
-  - `maxSelectable === options.length` (válido); `maxSelectable === 0` (rechazado por `.min(1)`).
-  - `reorder` con 500 items (limite del schema).
-  - `barcode` duplicado entre dos productos de la misma sucursal → 409 (el índice parcial unique lo evita en DB; el service mapea el error igual que SKU).
-  - Producto sin `branchId` en variantes — N/A (variantes son embebidas, heredan `branchId` del producto).
-- [ ] **Perf**: re-correr el perf test localmente — mediana < 300 ms reproducible.
-- [ ] **OpenAPI**: comparar `openapi.json` con la rama base; los diffs son sólo los esperados.
-- [ ] **WS**: con dos pestañas abiertas, un cambio en una refresca la otra (`product.updated`, `product.reordered` si se implementó).
-- [ ] **Observability**: audit logs en `auditLogs` collection para `product_featured`, `product_unfeatured`, `products_reordered`. Cada uno con `target`, `userId`, `metadata.branchId`.
-- [ ] **Design system**: `pnpm lint` confirma ninguna importación directa de `@mui/material`/`lucide-react` en `apps/**/src`, ningún literal numérico para `fontSize`/`fontWeight`/`borderRadius`.
+  - Modificadores embebidos legacy (sin `maxSelectable`) — validator es `moderate`, docs viejos pasan.
+  - **Nota descubierta**: la búsqueda por nombre/SKU/barcode usa `$regex` sin flag `i`. Mongo `collation` no aplica a regex, así que sólo matchea con prefix exacto (`Pollo` ✓, `pollo` ✗). Bug **pre-existente** del Paso 10 (commit `a97a7987`, 23-Abr) — el PR actual sólo añadió `barcode` al `$or` con el mismo patrón. Acceptance criteria #9 dice "case-insensitive" para barcode → no se cumple. Sugiere follow-up: añadir `$options: 'i'` o usar text index.
+- [x] **RBAC**:
+  - `cashier` con `products:read` lista OK (200); `PATCH /reorder` y `PATCH /:id/feature` → 403 FORBIDDEN.
+  - `admin` biz-A intentando `feature` producto de biz-B → 404 NOT_FOUND (política de tenant isolation).
+  - `super_admin` opera cross-business con `businessId` query (200 OK).
+- [x] **Edge cases**:
+  - `availabilityWindow` que cruza medianoche (22–02): persiste correctamente; producto NO aparece a las 12:20 PM (fuera de ventana). Casos a 23:30/01:30/03:00 cubiertos por unit tests `availability.test.ts`.
+  - `maxSelectable === 0` rechazado (400 "Too small: expected >=1"); `maxSelectable > options.length` rechazado (400 "cannot exceed options.length").
+  - `reorder` con 501 items → 400 ("Too big: expected <=500"); id no existente → 400 `REORDER_PRODUCT_NOT_FOUND` con array de no encontrados.
+  - `barcode` duplicado en la misma sucursal → 409. **Observación**: el código de error devuelto es `SKU_ALREADY_EXISTS` con mensaje "SKU already exists in this branch", aunque el SKU es único y el conflicto es por barcode. Confuso para UX. Considerar mapear a `BARCODE_ALREADY_EXISTS` separado.
+- [x] **Perf**: `RUN_PERF=1 pnpm --filter @kaipos/backend test src/services/products.perf` pasa (1/1) — p50 < 300 ms sobre 20 iteraciones con 1000 productos.
+- [x] **OpenAPI**: `git diff main` muestra sólo cambios esperados — nuevas rutas `/api/products/reorder` y `/api/products/{id}/feature`, nuevos params `activeNow`/`featuredIn`, campos `maxSelectable`, `available`, `variants`, `availabilityWindow`, `barcode`, `sortOrder`.
+- [x] **WS**: emisión confirmada por code-read (services llaman `publishToChannel` con `product.updated`/`product.reordered`), recepción confirmada (ProductsListPage:193-195 hace refetch). **End-to-end con dos pestañas no testeable en local** — KaiPOS usa AWS API Gateway WS + DynamoDB; en Docker local `CONNECTIONS_TABLE_NAME` no está set, el publish falla gracefully (warning log). Verificación real requiere entorno AWS prod.
+- [x] **Observability**: audit logs en `auditLogs` confirmados — `product_featured` (4 docs), `product_unfeatured` (2 docs), `products_reordered` (1 doc). Todos con `target`, `userId`, `metadata.branchId`; `products_reordered` incluye `itemCount` + `ids[]`.
+- [x] **Design system**: `pnpm --filter @kaipos/frontend-admin lint` → 0 errors (4 warnings pre-existentes, no relacionados al design-system boundary). Sin violaciones de imports a `@mui/material`/`lucide-react` ni literales numéricos en `sx`.

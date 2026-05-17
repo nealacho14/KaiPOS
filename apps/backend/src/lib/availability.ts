@@ -1,9 +1,21 @@
 import type { AvailabilityWindow, ModifierOption } from '@kaipos/shared/types';
 
-interface LocalDateTime {
+export interface LocalDateTime {
   dayOfWeek: number;
   hour: number;
   minute: number;
+}
+
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : `${n}`;
+}
+
+export function formatHHmm(local: LocalDateTime): string {
+  return `${pad2(local.hour)}:${pad2(local.minute)}`;
+}
+
+export function getCurrentLocalDateTime(timezone: string, now: Date = new Date()): LocalDateTime {
+  return getLocalDateTime(timezone, now);
 }
 
 // `Intl.DateTimeFormat` is the only reliable way to extract local hour/minute
@@ -127,4 +139,55 @@ export function isModifierOptionAvailable(
   }
 
   return true;
+}
+
+/**
+ * Builds a Mongo $expr filter that selects products currently "active" for
+ * the given local clock. Mirrors `isWithinAvailabilityWindow` so the JS and
+ * DB code paths agree — the difference is this version runs *inside* the
+ * query so paginator totals stay accurate (the JS version filtered after
+ * pagination, inflating `total`).
+ *
+ * The four branches in the `$or`:
+ *   1. `availabilityWindow` missing — always active.
+ *   2. Non-midnight-crossing window with today in `daysOfWeek` and now ∈ [from, to).
+ *   3. Midnight-crossing window starting today, now ≥ from (evening half).
+ *   4. Midnight-crossing window started yesterday, now < to (morning half).
+ *
+ * `from` and `to` are stored as `"HH:mm"` strings; string comparison is
+ * lexicographically correct for that format and avoids an extra parse step
+ * server-side.
+ */
+export function buildActiveNowMongoFilter(local: LocalDateTime): Record<string, unknown> {
+  const hhmm = formatHHmm(local);
+  const previousDay = (local.dayOfWeek + 6) % 7;
+  return {
+    $expr: {
+      $or: [
+        { $eq: [{ $type: '$availabilityWindow' }, 'missing'] },
+        {
+          $and: [
+            { $in: [local.dayOfWeek, { $ifNull: ['$availabilityWindow.daysOfWeek', []] }] },
+            { $lt: ['$availabilityWindow.from', '$availabilityWindow.to'] },
+            { $lte: ['$availabilityWindow.from', hhmm] },
+            { $gt: ['$availabilityWindow.to', hhmm] },
+          ],
+        },
+        {
+          $and: [
+            { $in: [local.dayOfWeek, { $ifNull: ['$availabilityWindow.daysOfWeek', []] }] },
+            { $gte: ['$availabilityWindow.from', '$availabilityWindow.to'] },
+            { $gte: [hhmm, '$availabilityWindow.from'] },
+          ],
+        },
+        {
+          $and: [
+            { $in: [previousDay, { $ifNull: ['$availabilityWindow.daysOfWeek', []] }] },
+            { $gte: ['$availabilityWindow.from', '$availabilityWindow.to'] },
+            { $lt: [hhmm, '$availabilityWindow.to'] },
+          ],
+        },
+      ],
+    },
+  };
 }

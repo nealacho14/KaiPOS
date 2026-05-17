@@ -109,7 +109,14 @@ describe('product-preferences service — setFeatured', () => {
     );
     expect(mockPublishToChannel).toHaveBeenCalledWith(
       'branch:biz-1:br-1',
-      expect.objectContaining({ type: 'product.updated' }),
+      expect.objectContaining({
+        type: 'product.featured',
+        payload: expect.objectContaining({
+          productId: 'p-1',
+          branchId: 'br-1',
+          featured: true,
+        }),
+      }),
     );
   });
 

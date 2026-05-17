@@ -28,6 +28,7 @@ const {
     updateOne: vi.fn(),
     bulkWrite: vi.fn(),
     countDocuments: vi.fn(),
+    aggregate: vi.fn(),
   },
   mockKitchenStations: {
     find: vi.fn(),
@@ -838,12 +839,12 @@ describe('products service', () => {
       );
     });
 
-    it('featuredIn returns only featured products for that branch', async () => {
+    it('featuredIn uses an aggregation pipeline with a productPreferences $lookup', async () => {
       const featuredProduct = makeProduct({ _id: 'p-feat-1' });
-      mockProductPreferences.find.mockReturnValue({
-        toArray: () => Promise.resolve([{ productId: 'p-feat-1' }]),
+      mockProducts.aggregate.mockReturnValue({
+        toArray: () => Promise.resolve([{ data: [featuredProduct], meta: [{ total: 1 }] }]),
       });
-      mockFindReturns([featuredProduct]);
+      mockCategories.find.mockReturnValue({ toArray: () => Promise.resolve([]) });
 
       const result = await listProducts(adminPayload, {
         branchId: 'br-1',
@@ -854,19 +855,24 @@ describe('products service', () => {
         limit: 50,
       });
 
-      expect(mockProductPreferences.find).toHaveBeenCalledWith(
-        { businessId: 'biz-1', branchId: 'br-1', featured: true },
-        { projection: { productId: 1 } },
-      );
-      expect(mockProducts.find).toHaveBeenCalledWith(
-        expect.objectContaining({ _id: { $in: ['p-feat-1'] } }),
-        expect.anything(),
-      );
+      expect(mockProducts.aggregate).toHaveBeenCalledTimes(1);
+      const [pipeline] = mockProducts.aggregate.mock.calls[0]!;
+      expect(pipeline[0]).toEqual({
+        $match: expect.objectContaining({ branchId: 'br-1', businessId: 'biz-1', isActive: true }),
+      });
+      const lookupStage = pipeline.find((s: Record<string, unknown>) => '$lookup' in s);
+      expect(lookupStage).toBeTruthy();
+      expect(lookupStage.$lookup.from).toBe('productPreferences');
       expect(result.data.map((p) => p._id)).toEqual(['p-feat-1']);
+      expect(result.total).toBe(1);
+      expect(mockProductPreferences.find).not.toHaveBeenCalled();
     });
 
-    it('featuredIn with zero featured items short-circuits to empty page', async () => {
-      mockProductPreferences.find.mockReturnValue({ toArray: () => Promise.resolve([]) });
+    it('featuredIn with zero matches returns an empty page from the aggregation', async () => {
+      mockProducts.aggregate.mockReturnValue({
+        toArray: () => Promise.resolve([{ data: [], meta: [] }]),
+      });
+      mockCategories.find.mockReturnValue({ toArray: () => Promise.resolve([]) });
 
       const result = await listProducts(adminPayload, {
         branchId: 'br-1',
@@ -880,27 +886,18 @@ describe('products service', () => {
       expect(result.data).toEqual([]);
       expect(result.total).toBe(0);
       expect(mockProducts.find).not.toHaveBeenCalled();
+      expect(mockProductPreferences.find).not.toHaveBeenCalled();
     });
 
-    it('activeNow filters products outside the branch timezone window', async () => {
-      const inWindow = makeProduct({
-        _id: 'p-open',
-        availabilityWindow: { daysOfWeek: [5], from: '11:00', to: '15:00' },
-      });
-      const outOfWindow = makeProduct({
-        _id: 'p-closed',
-        availabilityWindow: { daysOfWeek: [5], from: '18:00', to: '23:00' },
-      });
-      const alwaysOpen = makeProduct({ _id: 'p-no-window' });
-      mockFindReturns([inWindow, outOfWindow, alwaysOpen]);
+    it('activeNow pushes the availability window into the Mongo filter (paginator total is post-filter)', async () => {
+      mockFindReturns([]);
       mockBranches.findOne.mockResolvedValue({ _id: 'br-1', timezone: 'America/Santo_Domingo' });
 
-      // 2026-05-08 16:00Z = 12:00 in DR (Friday) → only `inWindow` and
-      // `alwaysOpen` should pass.
+      // 2026-05-08 16:00Z = 12:00 in DR (Friday).
       vi.useFakeTimers();
       vi.setSystemTime(new Date(Date.UTC(2026, 4, 8, 16)));
 
-      const result = await listProducts(adminPayload, {
+      await listProducts(adminPayload, {
         branchId: 'br-1',
         includeInactive: false,
         activeNow: true,
@@ -910,10 +907,19 @@ describe('products service', () => {
 
       vi.useRealTimers();
 
-      const ids = result.data.map((p) => p._id);
-      expect(ids).toContain('p-open');
-      expect(ids).toContain('p-no-window');
-      expect(ids).not.toContain('p-closed');
+      expect(mockProducts.find).toHaveBeenCalledTimes(1);
+      const [filterArg] = mockProducts.find.mock.calls[0]!;
+      expect(filterArg).toEqual(
+        expect.objectContaining({
+          $and: expect.arrayContaining([
+            expect.objectContaining({ branchId: 'br-1', businessId: 'biz-1', isActive: true }),
+            expect.objectContaining({ $expr: expect.objectContaining({ $or: expect.any(Array) }) }),
+          ]),
+        }),
+      );
+      // The same combined filter is used for the count call so paginator total
+      // reflects the post-filter set.
+      expect(mockProducts.countDocuments).toHaveBeenCalledWith(filterArg, undefined);
     });
 
     it('default sort (no q) orders by category.sortOrder, then product.sortOrder, then name', async () => {

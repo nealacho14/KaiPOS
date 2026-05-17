@@ -47,6 +47,7 @@ export interface UploadUrlResult {
 
 export type ProductsApiErrorCode =
   | 'SKU_ALREADY_EXISTS'
+  | 'BARCODE_ALREADY_EXISTS'
   | 'VALIDATION_ERROR'
   | 'ASSETS_NOT_CONFIGURED'
   | 'NOT_FOUND'

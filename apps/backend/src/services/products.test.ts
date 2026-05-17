@@ -219,7 +219,7 @@ describe('products service', () => {
       );
     });
 
-    it('applies anchored prefix q across name, sku, and barcode', async () => {
+    it('applies anchored prefix q across name, sku, and barcode (case-insensitive)', async () => {
       mockFindReturns([]);
 
       await listProducts(adminPayload, {
@@ -234,9 +234,33 @@ describe('products service', () => {
       expect(mockProducts.find).toHaveBeenCalledWith(
         expect.objectContaining({
           $or: [
-            { name: { $regex: '^arroz' } },
-            { sku: { $regex: '^arroz' } },
-            { barcode: { $regex: '^arroz' } },
+            { name: { $regex: '^arroz', $options: 'i' } },
+            { sku: { $regex: '^arroz', $options: 'i' } },
+            { barcode: { $regex: '^arroz', $options: 'i' } },
+          ],
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('case-insensitive search: uppercase query still uses $options: i', async () => {
+      mockFindReturns([]);
+
+      await listProducts(adminPayload, {
+        branchId: 'br-1',
+        q: 'POLLO',
+        includeInactive: false,
+        activeNow: false,
+        page: 1,
+        limit: 50,
+      });
+
+      expect(mockProducts.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          $or: [
+            { name: { $regex: '^POLLO', $options: 'i' } },
+            { sku: { $regex: '^POLLO', $options: 'i' } },
+            { barcode: { $regex: '^POLLO', $options: 'i' } },
           ],
         }),
         expect.anything(),
@@ -389,11 +413,50 @@ describe('products service', () => {
     it('maps Mongo duplicate key error (race) to 409 SKU_ALREADY_EXISTS', async () => {
       mockProducts.findOne.mockResolvedValue(null);
       mockKitchenStationFindReturns([]);
-      mockProducts.insertOne.mockRejectedValue(Object.assign(new Error('E11000'), { code: 11000 }));
+      mockProducts.insertOne.mockRejectedValue(
+        Object.assign(new Error('E11000'), {
+          code: 11000,
+          keyPattern: { branchId: 1, sku: 1 },
+        }),
+      );
 
       await expect(createProduct(adminPayload, validCreateInput)).rejects.toMatchObject({
         statusCode: 409,
         code: 'SKU_ALREADY_EXISTS',
+        details: [expect.objectContaining({ field: 'sku' })],
+      });
+    });
+
+    it('maps Mongo duplicate barcode error to 409 BARCODE_ALREADY_EXISTS', async () => {
+      mockProducts.findOne.mockResolvedValue(null);
+      mockKitchenStationFindReturns([]);
+      mockProducts.insertOne.mockRejectedValue(
+        Object.assign(new Error('E11000'), {
+          code: 11000,
+          keyPattern: { branchId: 1, barcode: 1 },
+        }),
+      );
+
+      await expect(createProduct(adminPayload, validCreateInput)).rejects.toMatchObject({
+        statusCode: 409,
+        code: 'BARCODE_ALREADY_EXISTS',
+        details: [expect.objectContaining({ field: 'barcode' })],
+      });
+    });
+
+    it('falls back to errmsg parsing when keyPattern is missing (legacy driver)', async () => {
+      mockProducts.findOne.mockResolvedValue(null);
+      mockKitchenStationFindReturns([]);
+      mockProducts.insertOne.mockRejectedValue(
+        Object.assign(new Error('E11000'), {
+          code: 11000,
+          errmsg: 'E11000 duplicate key error collection: products index: branchId_1_barcode_1',
+        }),
+      );
+
+      await expect(createProduct(adminPayload, validCreateInput)).rejects.toMatchObject({
+        statusCode: 409,
+        code: 'BARCODE_ALREADY_EXISTS',
       });
     });
 
@@ -506,6 +569,27 @@ describe('products service', () => {
       const result = await updateProduct(adminPayload, 'p-1', { sku: 'NEW-001' }, ctx);
 
       expect(result.sku).toBe('NEW-001');
+    });
+
+    it('maps duplicate barcode on update to 409 BARCODE_ALREADY_EXISTS', async () => {
+      // Only the first findOne fires before updateOne throws — using
+      // `mockResolvedValue` (not Once) avoids leaking a queued value into
+      // the next test, since `vi.clearAllMocks()` doesn't drain Once queues.
+      mockProducts.findOne.mockResolvedValue(makeProduct({ sku: 'OLD-001' }));
+      mockProducts.updateOne.mockRejectedValue(
+        Object.assign(new Error('E11000'), {
+          code: 11000,
+          keyPattern: { branchId: 1, barcode: 1 },
+        }),
+      );
+
+      await expect(
+        updateProduct(adminPayload, 'p-1', { barcode: '750ML-NEW' }, ctx),
+      ).rejects.toMatchObject({
+        statusCode: 409,
+        code: 'BARCODE_ALREADY_EXISTS',
+        details: [expect.objectContaining({ field: 'barcode' })],
+      });
     });
 
     it('manager in branch A cannot update a product in branch B (cross-branch)', async () => {
@@ -745,9 +829,9 @@ describe('products service', () => {
       expect(mockProducts.find).toHaveBeenCalledWith(
         expect.objectContaining({
           $or: [
-            { name: { $regex: '^750' } },
-            { sku: { $regex: '^750' } },
-            { barcode: { $regex: '^750' } },
+            { name: { $regex: '^750', $options: 'i' } },
+            { sku: { $regex: '^750', $options: 'i' } },
+            { barcode: { $regex: '^750', $options: 'i' } },
           ],
         }),
         expect.anything(),

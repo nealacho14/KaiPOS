@@ -618,6 +618,9 @@ export function ProductFormPage() {
       if (mapped.code === 'SKU_ALREADY_EXISTS') {
         setFieldErrors({ sku: 'Este SKU ya existe en esta sucursal.' });
         setSubmitError('Corrige el SKU duplicado para continuar.');
+      } else if (mapped.code === 'BARCODE_ALREADY_EXISTS') {
+        setFieldErrors({ barcode: 'Este barcode ya existe en esta sucursal.' });
+        setSubmitError('Corrige el barcode duplicado para continuar.');
       } else if (mapped.status === 403) {
         setSubmitError('No tienes permiso para publicar productos en esta sucursal.');
       } else if (mapped.code === 'VALIDATION_ERROR' && mapped.details) {

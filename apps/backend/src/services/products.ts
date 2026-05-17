@@ -143,14 +143,17 @@ function buildListFilter(actor: TokenPayload, query: ListProductsQuery): Filter<
 
   if (query.q) {
     const escaped = query.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // Anchored prefix so the `{branchId, name}` index can be used (paired
-    // with the collation in the find call). SKU and barcode share the same
-    // prefix-only semantics — partial-suffix search isn't a use case we
-    // support.
+    // Anchored prefix so the regex stays bounded. The `$options: 'i'` flag
+    // is required for case-insensitive matching — Mongo's `collation` (set
+    // on the find call) does NOT apply to `$regex`, so without `i` queries
+    // like `pollo` would miss `Pollo al Horno`. The collation is kept
+    // because it still affects ORDER BY name (Spanish locale, strength 2),
+    // even though the regex itself becomes index-ineligible with `i`.
+    // SKU and barcode share the same prefix-only semantics.
     filter.$or = [
-      { name: { $regex: `^${escaped}` } },
-      { sku: { $regex: `^${escaped}` } },
-      { barcode: { $regex: `^${escaped}` } },
+      { name: { $regex: `^${escaped}`, $options: 'i' } },
+      { sku: { $regex: `^${escaped}`, $options: 'i' } },
+      { barcode: { $regex: `^${escaped}`, $options: 'i' } },
     ];
   }
 
@@ -412,14 +415,8 @@ export async function createProduct(
   try {
     await products.insertOne(product);
   } catch (err) {
-    if (isDuplicateKeyError(err)) {
-      throw new AppError(
-        'A product with this SKU already exists in this branch',
-        409,
-        'SKU_ALREADY_EXISTS',
-        [{ field: 'sku', message: 'SKU already exists in this branch' }],
-      );
-    }
+    const mapped = duplicateKeyToAppError(err);
+    if (mapped) throw mapped;
     throw err;
   }
 
@@ -514,14 +511,8 @@ export async function updateProduct(
   try {
     await products.updateOne({ _id: existing._id }, { $set: update });
   } catch (err) {
-    if (isDuplicateKeyError(err)) {
-      throw new AppError(
-        'A product with this SKU already exists in this branch',
-        409,
-        'SKU_ALREADY_EXISTS',
-        [{ field: 'sku', message: 'SKU already exists in this branch' }],
-      );
-    }
+    const mapped = duplicateKeyToAppError(err);
+    if (mapped) throw mapped;
     throw err;
   }
 
@@ -747,4 +738,36 @@ function isDuplicateKeyError(err: unknown): boolean {
     'code' in err &&
     (err as { code: unknown }).code === 11000
   );
+}
+
+/**
+ * Maps a Mongo duplicate-key (11000) error to the AppError that matches the
+ * violated unique index. We inspect `keyPattern` first (preferred — set by the
+ * driver) and fall back to scanning `errmsg` for the field name, since the
+ * legacy driver occasionally omits `keyPattern`. The two unique indexes on
+ * `products` per branch are `{branchId,sku}` and the partial-unique
+ * `{branchId,barcode}`; any other duplicate-key cause re-throws unchanged.
+ */
+function duplicateKeyToAppError(err: unknown): AppError | null {
+  if (!isDuplicateKeyError(err)) return null;
+  const e = err as { keyPattern?: Record<string, unknown>; errmsg?: string; message?: string };
+  const fields = e.keyPattern ? Object.keys(e.keyPattern) : [];
+  const text = (e.errmsg ?? e.message ?? '').toLowerCase();
+  if (fields.includes('barcode') || /barcode/.test(text)) {
+    return new AppError(
+      'A product with this barcode already exists in this branch',
+      409,
+      'BARCODE_ALREADY_EXISTS',
+      [{ field: 'barcode', message: 'Barcode already exists in this branch' }],
+    );
+  }
+  if (fields.includes('sku') || /sku/.test(text)) {
+    return new AppError(
+      'A product with this SKU already exists in this branch',
+      409,
+      'SKU_ALREADY_EXISTS',
+      [{ field: 'sku', message: 'SKU already exists in this branch' }],
+    );
+  }
+  return null;
 }

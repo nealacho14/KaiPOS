@@ -293,7 +293,7 @@
 - [x] Actualizar el comentario para reflejar que la collation se mantiene para el ordering del índice pero el regex usa flag `i` para case-insensitivity (no son redundantes).
 - [x] **Evaluar trade-off**: con `$options: 'i'` el regex deja de usar el índice `{branchId, name}` aunque sea anchored. Decisión: aceptar el coste para queries puntuales y dejar el perf budget (300 ms p50) como guarda; la alternativa `nameLower` queda anotada como follow-up si la perf real se degrada.
 - [x] Test de regresión: extender `apps/backend/src/services/products.test.ts` con casos lowercase y uppercase — los `$or` regex ahora incluyen `$options: 'i'` para `name`, `sku` y `barcode`.
-- [ ] Re-correr el perf test (`RUN_PERF=1 pnpm --filter @kaipos/backend test products.perf`) — confirmar que p50 sigue < 300 ms tras el cambio (o aplicar la mitigación con `nameLower`). _Requiere Docker Mongo corriendo localmente; pendiente de validación manual._
+- [x] Re-correr el perf test (`RUN_PERF=1 pnpm --filter @kaipos/backend test products.perf`) — confirmado: p50 << 300 ms (20 iteraciones completaron en ~49 ms total, ~2.5 ms/query) sobre 1 000 productos seedeados en Docker Mongo. El `$options: 'i'` no degrada perf medible localmente.
 
 #### Código de error específico para barcode duplicado (`apps/backend/src/services/products.ts`)
 
@@ -311,10 +311,10 @@
 - [x] `pnpm format:check` passes
 - [x] `pnpm build` succeeds
 - [x] `pnpm test` passes (incluye nuevos casos de búsqueda case-insensitive y diferenciación barcode/SKU dup).
-- [ ] `RUN_PERF=1 pnpm --filter @kaipos/backend test products.perf` p50 < 300 ms. _Pendiente — requiere Docker Mongo local._
-- [ ] Manual con `curl`/Bruno tras `pnpm docker:up` + seed:
-  - `GET /api/products?branchId=X&q=pollo` (minúscula) retorna "Pollo al Horno".
-  - `POST /api/products` con barcode existente → 409 `BARCODE_ALREADY_EXISTS` (no `SKU_ALREADY_EXISTS`).
+- [x] `RUN_PERF=1 pnpm --filter @kaipos/backend test products.perf` p50 < 300 ms — confirmado (~2.5 ms/query, 20 iteraciones, 1 000 productos seedeados).
+- [x] Manual tras `pnpm docker:up` + seed:
+  - Playwright UI: `q=pollo` (minúscula) retorna "Pollo al Horno" ✓; `q=pla` retorna los 4 productos con SKU `PLA-*` (case-insensitive name + sku confirmado).
+  - curl `POST /api/products` con barcode existente (distinto SKU) → 409 `BARCODE_ALREADY_EXISTS` con `field: "barcode"` ✓; con SKU existente (distinto barcode) → 409 `SKU_ALREADY_EXISTS` con `field: "sku"` ✓ (regresión SKU intacta).
 - [x] OpenAPI regenerado (sin cambios visibles — el comportamiento cambió, no la firma).
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->

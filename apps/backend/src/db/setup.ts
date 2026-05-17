@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { type Db } from 'mongodb';
 import { AUDIT_ACTIONS } from '@kaipos/shared';
 import { logger } from '../lib/logger.js';
@@ -50,13 +51,22 @@ const collections: CollectionSetup[] = [
     validator: {
       $jsonSchema: {
         bsonType: 'object',
-        required: ['businessId', 'name', 'isActive', 'createdAt', 'updatedAt', 'createdBy'],
+        required: [
+          'businessId',
+          'name',
+          'timezone',
+          'isActive',
+          'createdAt',
+          'updatedAt',
+          'createdBy',
+        ],
         properties: {
           _id: { bsonType: 'string' },
           businessId: { bsonType: 'string' },
           name: { bsonType: 'string' },
           address: { bsonType: 'string' },
           phone: { bsonType: 'string' },
+          timezone: { bsonType: 'string' },
           isActive: { bsonType: 'bool' },
           createdAt: { bsonType: 'date' },
           updatedAt: { bsonType: 'date' },
@@ -170,6 +180,7 @@ const collections: CollectionSetup[] = [
           'dietaryTags',
           'modifierGroups',
           'kitchenStationIds',
+          'sortOrder',
           'isActive',
           'createdAt',
           'updatedAt',
@@ -235,11 +246,14 @@ const collections: CollectionSetup[] = [
             bsonType: 'array',
             items: {
               bsonType: 'object',
-              required: ['id', 'name', 'required', 'options'],
+              required: ['id', 'name', 'required', 'maxSelectable', 'options'],
               properties: {
                 id: { bsonType: 'string' },
                 name: { bsonType: 'string' },
                 required: { bsonType: 'bool' },
+                // number (not int) for the same driver-serialization reason
+                // documented above on `stock` / `lowStockThreshold`.
+                maxSelectable: { bsonType: 'number' },
                 options: {
                   bsonType: 'array',
                   items: {
@@ -249,6 +263,17 @@ const collections: CollectionSetup[] = [
                       id: { bsonType: 'string' },
                       label: { bsonType: 'string' },
                       priceDelta: { bsonType: 'number' },
+                      available: {
+                        bsonType: 'object',
+                        properties: {
+                          daysOfWeek: {
+                            bsonType: 'array',
+                            items: { bsonType: 'number' },
+                          },
+                          from: { bsonType: 'string' },
+                          to: { bsonType: 'string' },
+                        },
+                      },
                     },
                   },
                 },
@@ -259,6 +284,34 @@ const collections: CollectionSetup[] = [
             bsonType: 'array',
             items: { bsonType: 'string' },
           },
+          variants: {
+            bsonType: 'array',
+            items: {
+              bsonType: 'object',
+              required: ['id', 'name', 'sku', 'priceDelta'],
+              properties: {
+                id: { bsonType: 'string' },
+                name: { bsonType: 'string' },
+                sku: { bsonType: 'string' },
+                priceDelta: { bsonType: 'number' },
+                imageUrl: { bsonType: 'string' },
+              },
+            },
+          },
+          availabilityWindow: {
+            bsonType: 'object',
+            required: ['daysOfWeek', 'from', 'to'],
+            properties: {
+              daysOfWeek: {
+                bsonType: 'array',
+                items: { bsonType: 'number' },
+              },
+              from: { bsonType: 'string' },
+              to: { bsonType: 'string' },
+            },
+          },
+          sortOrder: { bsonType: 'number' },
+          barcode: { bsonType: 'string' },
           isActive: { bsonType: 'bool' },
           createdAt: { bsonType: 'date' },
           updatedAt: { bsonType: 'date' },
@@ -278,6 +331,7 @@ const collections: CollectionSetup[] = [
     indexes: [
       { key: { branchId: 1, sku: 1 }, options: { unique: true } },
       { key: { branchId: 1, category: 1, isActive: 1 } },
+      { key: { branchId: 1, category: 1, sortOrder: 1 } },
       // Case-insensitive collation lets the products `name` prefix search use
       // this index (anchored regex /^foo/ with the same collation reads from
       // an index; without the collation Mongo would do a collection scan
@@ -285,6 +339,13 @@ const collections: CollectionSetup[] = [
       {
         key: { branchId: 1, name: 1 },
         options: { collation: { locale: 'es', strength: 2 } },
+      },
+      {
+        key: { branchId: 1, barcode: 1 },
+        options: {
+          unique: true,
+          partialFilterExpression: { barcode: { $type: 'string' } },
+        },
       },
       { key: { businessId: 1, branchId: 1 } },
     ],
@@ -402,6 +463,38 @@ const collections: CollectionSetup[] = [
     ],
   },
 
+  // ---- productPreferences ----
+  // Per-(business, branch, product) preferences that don't belong on the
+  // product document itself. Today: `featured` toggle per sucursal. Kept
+  // separate from `products` so a future super_admin aggregate across
+  // branches doesn't have to denormalize.
+  {
+    name: 'productPreferences',
+    validator: {
+      $jsonSchema: {
+        bsonType: 'object',
+        required: ['businessId', 'branchId', 'productId', 'featured', 'updatedAt', 'updatedBy'],
+        properties: {
+          _id: { bsonType: 'string' },
+          businessId: { bsonType: 'string' },
+          branchId: { bsonType: 'string' },
+          productId: { bsonType: 'string' },
+          featured: { bsonType: 'bool' },
+          sortOrderOverride: { bsonType: 'number' },
+          updatedAt: { bsonType: 'date' },
+          updatedBy: { bsonType: 'string' },
+        },
+      },
+    },
+    indexes: [
+      {
+        key: { businessId: 1, branchId: 1, productId: 1 },
+        options: { unique: true },
+      },
+      { key: { businessId: 1, branchId: 1, featured: 1 } },
+    ],
+  },
+
   // ---- auditLogs ----
   {
     name: 'auditLogs',
@@ -457,7 +550,7 @@ const collections: CollectionSetup[] = [
 // Setup: create/update collections with validators and indexes
 // ---------------------------------------------------------------------------
 
-async function setupCollections(db: Db): Promise<void> {
+export async function setupCollections(db: Db): Promise<void> {
   const existing = new Set(
     await db
       .listCollections({}, { nameOnly: true })
@@ -561,7 +654,11 @@ async function main(): Promise<void> {
   await closeConnection();
 }
 
-main().catch((err) => {
-  logger.error({ err }, 'Setup failed');
-  process.exit(1);
-});
+// Only auto-run as a CLI; importing this file (e.g. from the Atlas
+// orchestrator) must not trigger a connection.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    logger.error({ err }, 'Setup failed');
+    process.exit(1);
+  });
+}

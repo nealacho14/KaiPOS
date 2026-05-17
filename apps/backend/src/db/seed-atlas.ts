@@ -1,0 +1,64 @@
+import { logger } from '../lib/logger.js';
+import { closeConnection, getDb } from './client.js';
+import { runAllBackfills } from './backfills.js';
+import { setupCollections } from './setup.js';
+import { seedData } from './seed.js';
+
+// Atlas-targeted orchestrator. Single entry point for any Mongo data update
+// that needs to land in the prod Atlas cluster after a deploy.
+//
+// Steps, in order:
+//   1) Data backfills (src/db/backfills.ts) — must run BEFORE setup whenever
+//      a new field has been promoted to `required` in the validator, so the
+//      legacy docs become valid.
+//   2) Collection validators + indexes (src/db/setup.ts).
+//   3) Demo seed (src/db/seed.ts) — idempotent: skips if the seed business
+//      `la-cocina-de-kai` already exists.
+//
+// Every step is idempotent; re-running is safe. Add future migrations either
+// as a new function in `backfills.ts` (and call it from step 1) or by
+// extending the seed/setup definitions directly.
+//
+// Invocation (from a workstation with AWS creds for the KaiPOS account):
+//
+//   AWS_PROFILE=personal MONGO_SECRET_ARN=arn:aws:secretsmanager:...:kaipos/prod/mongo-uri \
+//     pnpm --filter @kaipos/backend db:seed-atlas
+//
+// The script refuses to run without `MONGO_SECRET_ARN` because that env var
+// is the only path `src/db/client.ts` accepts for an Atlas (`mongodb+srv://`)
+// connection — keeping local-only commands from accidentally talking to prod.
+
+function assertAtlasTarget(): void {
+  if (!process.env.MONGO_SECRET_ARN) {
+    throw new Error(
+      'db:seed-atlas requires MONGO_SECRET_ARN to be set (the ARN of the Atlas URI secret). ' +
+        'For local/Docker Mongo use `db:setup` + `db:seed` instead.',
+    );
+  }
+}
+
+async function main(): Promise<void> {
+  logger.info('KaiPOS Atlas Seed Orchestrator');
+  logger.info('==============================\n');
+
+  assertAtlasTarget();
+
+  const db = await getDb();
+
+  logger.info('Step 1/3: data backfills');
+  await runAllBackfills(db);
+
+  logger.info('\nStep 2/3: collections, validators, indexes');
+  await setupCollections(db);
+
+  logger.info('\nStep 3/3: demo seed data (idempotent)');
+  await seedData(db);
+
+  logger.info('\nDone!');
+  await closeConnection();
+}
+
+main().catch((err) => {
+  logger.error({ err }, 'Atlas seed failed');
+  process.exit(1);
+});

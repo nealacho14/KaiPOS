@@ -11,6 +11,8 @@
     "db:setup": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/setup.ts",
     "db:seed": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/seed.ts",
     "db:seed-cypress": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/seed-cypress.ts",
+    "db:seed-atlas": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/seed-atlas.ts",
+    "db:backfill:sortorder": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/backfill-product-sort-order.ts",
     "openapi:generate": "tsx src/openapi/generate.ts && prettier --write --log-level=warn openapi.json"
   },
   "dependencies": {

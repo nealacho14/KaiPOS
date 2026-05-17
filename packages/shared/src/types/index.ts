@@ -16,6 +16,7 @@ export interface Branch {
   name: string;
   address?: string;
   phone?: string;
+  timezone: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -67,17 +68,39 @@ export interface ProductAvailability {
   kiosk: boolean;
 }
 
+export interface ModifierOptionAvailability {
+  daysOfWeek?: number[];
+  from?: string;
+  to?: string;
+}
+
 export interface ModifierOption {
   id: string;
   label: string;
   priceDelta: number;
+  available?: ModifierOptionAvailability;
 }
 
 export interface ModifierGroup {
   id: string;
   name: string;
   required: boolean;
+  maxSelectable: number;
   options: ModifierOption[];
+}
+
+export interface ProductVariant {
+  id: string;
+  name: string;
+  sku: string;
+  priceDelta: number;
+  imageUrl?: string;
+}
+
+export interface AvailabilityWindow {
+  daysOfWeek: number[];
+  from: string;
+  to: string;
 }
 
 export interface Product {
@@ -102,10 +125,25 @@ export interface Product {
   dietaryTags: DietaryTag[];
   modifierGroups: ModifierGroup[];
   kitchenStationIds: string[];
+  variants?: ProductVariant[];
+  availabilityWindow?: AvailabilityWindow;
+  sortOrder: number;
+  barcode?: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
   createdBy: string;
+}
+
+export interface ProductPreference {
+  _id: string;
+  businessId: string;
+  branchId: string;
+  productId: string;
+  featured: boolean;
+  sortOrderOverride?: number;
+  updatedAt: Date;
+  updatedBy: string;
 }
 
 export interface AppliedModifier {
@@ -262,6 +300,9 @@ export const AUDIT_ACTIONS = [
   'product_created',
   'product_updated',
   'product_deleted',
+  'product_featured',
+  'product_unfeatured',
+  'products_reordered',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

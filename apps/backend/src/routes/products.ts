@@ -6,16 +6,21 @@ import { requirePermission } from '../middleware/authorize.js';
 import { requireBranchAccess } from '../middleware/branch-access.js';
 import {
   createProductSchema,
+  featureProductSchema,
   listProductsQuerySchema,
   productIdParamSchema,
+  reorderProductsSchema,
   updateProductSchema,
   uploadUrlSchema,
   type CreateProductInput,
+  type FeatureProductInput,
   type ListProductsQuery,
+  type ReorderProductsInput,
   type UpdateProductInput,
   type UploadUrlInput,
 } from '../schemas/products.js';
 import * as productsService from '../services/products.js';
+import * as productPreferencesService from '../services/product-preferences.js';
 import { toPaginatedResponse } from '../lib/paginate.js';
 
 const products = new Hono<AppEnv>();
@@ -38,12 +43,28 @@ products.get(
   requireAuth(),
   requirePermission('products:read'),
   validate({ query: listProductsQuerySchema }),
-  requireBranchAccess('branchId'),
+  requireBranchAccess('branchId', 'query'),
   async (c) => {
     const user = c.get('user')!;
     const parsed = listProductsQuerySchema.parse(c.req.query()) as ListProductsQuery;
     const result = await productsService.listProducts(user, parsed);
     return c.json(toPaginatedResponse(result));
+  },
+);
+
+// Specific paths must be registered before `/:id` so they don't get matched
+// as a product id.
+products.patch(
+  '/api/products/reorder',
+  requireAuth(),
+  requirePermission('products:write'),
+  validate({ body: reorderProductsSchema }),
+  requireBranchAccess('branchId', 'body'),
+  async (c) => {
+    const user = c.get('user')!;
+    const body = reorderProductsSchema.parse(await c.req.json()) as ReorderProductsInput;
+    const result = await productsService.reorderProducts(user, body);
+    return c.json({ success: true, data: result });
   },
 );
 
@@ -70,6 +91,21 @@ products.post(
     const body = createProductSchema.parse(await c.req.json()) as CreateProductInput;
     const result = await productsService.createProduct(user, body);
     return c.json({ success: true, data: result }, 201);
+  },
+);
+
+products.patch(
+  '/api/products/:id/feature',
+  requireAuth(),
+  requirePermission('products:write'),
+  validate({ params: productIdParamSchema, body: featureProductSchema }),
+  requireBranchAccess('branchId', 'body'),
+  async (c) => {
+    const user = c.get('user')!;
+    const id = c.req.param('id');
+    const body = featureProductSchema.parse(await c.req.json()) as FeatureProductInput;
+    const result = await productPreferencesService.setFeatured(user, id, body);
+    return c.json({ success: true, data: result });
   },
 );
 

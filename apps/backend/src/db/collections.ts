@@ -5,6 +5,7 @@ import type {
   Category,
   KitchenStation,
   Product,
+  ProductPreference,
   Order,
   User,
   RefreshToken,
@@ -37,6 +38,11 @@ export async function getKitchenStationsCollection(): Promise<Collection<Kitchen
 export async function getProductsCollection(): Promise<Collection<Product>> {
   const db = await getDb();
   return db.collection<Product>('products');
+}
+
+export async function getProductPreferencesCollection(): Promise<Collection<ProductPreference>> {
+  const db = await getDb();
+  return db.collection<ProductPreference>('productPreferences');
 }
 
 export async function getOrdersCollection(): Promise<Collection<Order>> {

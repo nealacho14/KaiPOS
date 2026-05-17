@@ -1,4 +1,4 @@
-import type { Product } from '@kaipos/shared';
+import type { Product, ProductPreference } from '@kaipos/shared';
 import { api, ApiError, apiJson, apiJsonPaginated, type PaginatedResult } from './api.js';
 
 // ---------------------------------------------------------------------------
@@ -13,6 +13,8 @@ export interface ListProductsParams {
   businessId?: string;
   page?: number;
   limit?: number;
+  activeNow?: boolean;
+  featuredIn?: string;
 }
 
 // `createdBy` is stamped on the server from the authenticated actor, never
@@ -45,10 +47,14 @@ export interface UploadUrlResult {
 
 export type ProductsApiErrorCode =
   | 'SKU_ALREADY_EXISTS'
+  | 'BARCODE_ALREADY_EXISTS'
   | 'VALIDATION_ERROR'
   | 'ASSETS_NOT_CONFIGURED'
   | 'NOT_FOUND'
   | 'FORBIDDEN'
+  | 'VARIANT_SKU_DUPLICATE'
+  | 'MAX_SELECTABLE_EXCEEDS_OPTIONS'
+  | 'REORDER_PRODUCT_NOT_FOUND'
   | 'UNKNOWN_ERROR';
 
 export interface ProductsApiError {
@@ -96,6 +102,8 @@ function buildListQuery(params: ListProductsParams): string {
   if (params.businessId) qs.set('businessId', params.businessId);
   if (params.page !== undefined) qs.set('page', String(params.page));
   if (params.limit !== undefined) qs.set('limit', String(params.limit));
+  if (params.activeNow) qs.set('activeNow', 'true');
+  if (params.featuredIn) qs.set('featuredIn', params.featuredIn);
   return qs.toString();
 }
 
@@ -146,6 +154,37 @@ export async function deleteProduct(id: string): Promise<void> {
 export function generateUploadUrl(input: UploadUrlPayload): Promise<UploadUrlResult> {
   return apiJson<UploadUrlResult>('/api/products/upload-url', {
     method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+}
+
+export interface ReorderProductsItem {
+  id: string;
+  sortOrder: number;
+}
+
+export interface ReorderProductsResult {
+  matched: number;
+}
+
+export function reorderProducts(
+  branchId: string,
+  items: ReorderProductsItem[],
+): Promise<ReorderProductsResult> {
+  return apiJson<ReorderProductsResult>('/api/products/reorder', {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ branchId, items }),
+  });
+}
+
+export function setProductFeatured(
+  id: string,
+  input: { branchId: string; featured: boolean },
+): Promise<ProductPreference> {
+  return apiJson<ProductPreference>(`/api/products/${id}/feature`, {
+    method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(input),
   });

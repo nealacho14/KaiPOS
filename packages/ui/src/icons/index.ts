@@ -19,6 +19,7 @@ export {
   Package,
   Plus,
   Radio,
+  Star,
   Trash2,
   Upload,
   Users as UsersIcon,

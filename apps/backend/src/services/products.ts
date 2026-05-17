@@ -1,18 +1,26 @@
 import type { Filter } from 'mongodb';
-import type { Product, TokenPayload } from '@kaipos/shared/types';
+import type { Product, ProductPreference, TokenPayload } from '@kaipos/shared/types';
 import { channelFor } from '@kaipos/shared/types';
 import { SUPER_ADMIN_BUSINESS_ID } from '@kaipos/shared/permissions';
 import { PutObjectCommand, S3Client, type PutObjectCommandInput } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { getProductsCollection, getKitchenStationsCollection } from '../db/collections.js';
+import {
+  getBranchesCollection,
+  getCategoriesCollection,
+  getKitchenStationsCollection,
+  getProductPreferencesCollection,
+  getProductsCollection,
+} from '../db/collections.js';
 import { paginate, type PaginatedResult } from '../lib/paginate.js';
 import { AppError, ForbiddenError, NotFoundError } from '../lib/errors.js';
 import { createLogger } from '../lib/logger.js';
 import { publishToChannel } from '../lib/ws-publish.js';
+import { isWithinAvailabilityWindow } from '../lib/availability.js';
 import { canAccessBranch, assertBranchAccess } from '../middleware/branch-access.js';
 import type {
   CreateProductInput,
   ListProductsQuery,
+  ReorderProductsInput,
   UpdateProductInput,
   UploadUrlInput,
 } from '../schemas/products.js';
@@ -27,6 +35,40 @@ const CONTENT_TYPE_TO_EXT: Record<UploadUrlInput['contentType'], string> = {
   'image/png': 'png',
   'image/webp': 'webp',
 };
+
+const DEFAULT_TIMEZONE = 'America/Santo_Domingo';
+const TIMEZONE_CACHE_TTL_MS = 60_000;
+
+interface CachedTimezone {
+  value: string;
+  expiresAt: number;
+}
+
+const branchTimezoneCache = new Map<string, CachedTimezone>();
+
+/**
+ * Resolves a branch's timezone with a short in-memory TTL cache. Used by
+ * `listProducts` when `activeNow=true` filters a page of products against
+ * the branch local clock — without the cache, every page hit would round-trip
+ * to Mongo just to read the same field. Falls back to `America/Santo_Domingo`
+ * when the branch is missing, matching the seed/backfill default.
+ */
+export async function getBranchTimezone(branchId: string): Promise<string> {
+  const cached = branchTimezoneCache.get(branchId);
+  const nowMs = Date.now();
+  if (cached && cached.expiresAt > nowMs) {
+    return cached.value;
+  }
+
+  const branches = await getBranchesCollection();
+  const branch = await branches.findOne(
+    { _id: branchId },
+    { projection: { timezone: 1 } as const },
+  );
+  const timezone = branch?.timezone ?? DEFAULT_TIMEZONE;
+  branchTimezoneCache.set(branchId, { value: timezone, expiresAt: nowMs + TIMEZONE_CACHE_TTL_MS });
+  return timezone;
+}
 
 let s3ClientSingleton: S3Client | null = null;
 
@@ -58,6 +100,28 @@ function resolveBusinessIdForMutation(
   return actor.businessId;
 }
 
+/**
+ * Resolves the businessId to use for a mutation scoped to a specific branch.
+ * For tenant-scoped roles the actor's own businessId always wins. For
+ * super_admin we look the branch up so the operation targets the correct
+ * business — `reorderProducts` has no businessId in its payload, so without
+ * this helper a super_admin would hit MISSING_TARGET_BUSINESS_ID.
+ */
+async function resolveBusinessIdForBranchMutation(
+  actor: TokenPayload,
+  branchId: string,
+): Promise<string> {
+  if (actor.businessId !== SUPER_ADMIN_BUSINESS_ID) {
+    return actor.businessId;
+  }
+  const branches = await getBranchesCollection();
+  const branch = await branches.findOne({ _id: branchId }, { projection: { businessId: 1 } });
+  if (!branch) {
+    throw new NotFoundError('Branch');
+  }
+  return branch.businessId;
+}
+
 function buildListFilter(actor: TokenPayload, query: ListProductsQuery): Filter<Product> {
   const filter: Filter<Product> = { branchId: query.branchId };
 
@@ -79,13 +143,58 @@ function buildListFilter(actor: TokenPayload, query: ListProductsQuery): Filter<
 
   if (query.q) {
     const escaped = query.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // Anchored prefix so the `{branchId, name}` index can be used (paired
-    // with the collation in the find call). SKU is matched the same way for
-    // consistency — partial-suffix search isn't a use case we support.
-    filter.$or = [{ name: { $regex: `^${escaped}` } }, { sku: { $regex: `^${escaped}` } }];
+    // Anchored prefix so the regex stays bounded. The `$options: 'i'` flag
+    // is required for case-insensitive matching — Mongo's `collation` (set
+    // on the find call) does NOT apply to `$regex`, so without `i` queries
+    // like `pollo` would miss `Pollo al Horno`. The collation is kept
+    // because it still affects ORDER BY name (Spanish locale, strength 2),
+    // even though the regex itself becomes index-ineligible with `i`.
+    // SKU and barcode share the same prefix-only semantics.
+    filter.$or = [
+      { name: { $regex: `^${escaped}`, $options: 'i' } },
+      { sku: { $regex: `^${escaped}`, $options: 'i' } },
+      { barcode: { $regex: `^${escaped}`, $options: 'i' } },
+    ];
   }
 
   return filter;
+}
+
+function assertVariantsUniqueSkus(input: { variants?: { sku: string }[] }): void {
+  if (!input.variants || input.variants.length === 0) return;
+  const seen = new Set<string>();
+  for (const variant of input.variants) {
+    if (seen.has(variant.sku)) {
+      throw new AppError(
+        'Variant SKUs must be unique within a product',
+        400,
+        'VARIANT_SKU_DUPLICATE',
+        [{ field: 'variants.sku', message: 'Duplicate variant SKU' }],
+      );
+    }
+    seen.add(variant.sku);
+  }
+}
+
+function assertModifierMaxSelectable(input: {
+  modifierGroups?: { maxSelectable?: number; options: unknown[] }[];
+}): void {
+  if (!input.modifierGroups) return;
+  for (const group of input.modifierGroups) {
+    if (typeof group.maxSelectable === 'number' && group.maxSelectable > group.options.length) {
+      throw new AppError(
+        'maxSelectable cannot exceed the number of options',
+        400,
+        'MAX_SELECTABLE_EXCEEDS_OPTIONS',
+        [
+          {
+            field: 'modifierGroups.maxSelectable',
+            message: 'maxSelectable exceeds options.length',
+          },
+        ],
+      );
+    }
+  }
 }
 
 async function assertKitchenStationIds(
@@ -134,20 +243,93 @@ export async function listProducts(
   query: ListProductsQuery,
 ): Promise<PaginatedResult<Product>> {
   const products = await getProductsCollection();
-  const filter = buildListFilter(actor, query);
-  return paginate({
+  let filter = buildListFilter(actor, query);
+
+  // `featuredIn` joins manually against `productPreferences` so we can keep
+  // the products query on its own indexes. The featured set per branch is
+  // expected to be small (handful to dozens). If that ever grows past a few
+  // hundred we should switch to an aggregation `$lookup`, but at that point
+  // the UX for "featured" likely needs rethinking anyway.
+  if (query.featuredIn) {
+    const prefs = await getProductPreferencesCollection();
+    const businessId =
+      actor.businessId === SUPER_ADMIN_BUSINESS_ID
+        ? (query.businessId ?? undefined)
+        : actor.businessId;
+    const prefFilter: Filter<ProductPreference> = {
+      branchId: query.featuredIn,
+      featured: true,
+    };
+    if (businessId) prefFilter.businessId = businessId;
+    const featured = await prefs.find(prefFilter, { projection: { productId: 1 } }).toArray();
+    const ids = featured.map((p) => p.productId);
+    if (ids.length === 0) {
+      return { data: [], total: 0, page: query.page, limit: query.limit, totalPages: 0 };
+    }
+    filter = { ...filter, _id: { $in: ids } };
+  }
+
+  const result = await paginate({
     collection: products,
     filter,
     page: query.page,
     limit: query.limit,
     projection: { modifierGroups: 0 },
-    // Newest first so a freshly created product shows up on page 1 — this
-    // also stabilises the order across pages.
-    sort: { createdAt: -1 },
+    // When no search is active, lean on the {branchId, category, sortOrder}
+    // index for a stable DB-level pagination order — `_id` is the final
+    // tiebreaker so skip/limit can't skip or duplicate rows across pages.
+    // The post-fetch step below re-sorts the current page by the category's
+    // own sortOrder (which lives in a separate collection) without disturbing
+    // pagination stability.
+    sort: query.q ? { createdAt: -1 } : { category: 1, sortOrder: 1, _id: 1 },
     // Match the case-insensitive collation on the {branchId, name} index
     // when a prefix search is in play (see buildListFilter `q` branch).
     collation: query.q ? { locale: 'es', strength: 2 } : undefined,
   });
+
+  let data = result.data;
+
+  // Post-fetch ordering when no q: stable sort by name to provide a deterministic
+  // baseline. Category sortOrder is enriched below with a single batch lookup.
+  if (!query.q && data.length > 0) {
+    const categoryNames = Array.from(new Set(data.map((p) => p.category)));
+    const businessIds = Array.from(new Set(data.map((p) => p.businessId)));
+    const categories = await getCategoriesCollection();
+    const catDocs = await categories
+      .find(
+        {
+          name: { $in: categoryNames },
+          businessId: businessIds.length === 1 ? businessIds[0] : { $in: businessIds },
+        },
+        { projection: { name: 1, sortOrder: 1, businessId: 1 } },
+      )
+      .toArray();
+    const catSort = new Map<string, number>();
+    for (const c of catDocs) {
+      catSort.set(`${c.businessId}::${c.name}`, c.sortOrder ?? 0);
+    }
+    data = [...data].sort((a, b) => {
+      const aCat = catSort.get(`${a.businessId}::${a.category}`) ?? 0;
+      const bCat = catSort.get(`${b.businessId}::${b.category}`) ?? 0;
+      if (aCat !== bCat) return aCat - bCat;
+      if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+      return a.name.localeCompare(b.name, 'es');
+    });
+  }
+
+  // `activeNow` filter runs post-pagination — the total/totalPages reported
+  // is the pre-filter count. UX-wise the caller should label this clearly
+  // (e.g. "X of Y results match the current schedule").
+  if (query.activeNow) {
+    const timezone = await getBranchTimezone(query.branchId);
+    const now = new Date();
+    data = data.filter((p) => {
+      if (!p.availabilityWindow) return true;
+      return isWithinAvailabilityWindow(p.availabilityWindow, timezone, now);
+    });
+  }
+
+  return { ...result, data };
 }
 
 export async function getProductById(actor: TokenPayload, id: string): Promise<Product> {
@@ -175,6 +357,9 @@ export async function createProduct(
   assertBranchAccess(actor, input.branchId);
 
   const businessId = resolveBusinessIdForMutation(actor, undefined);
+
+  assertVariantsUniqueSkus(input);
+  assertModifierMaxSelectable(input);
 
   await assertKitchenStationIds(businessId, input.branchId, input.kitchenStationIds);
 
@@ -215,6 +400,12 @@ export async function createProduct(
     dietaryTags: input.dietaryTags,
     modifierGroups: input.modifierGroups,
     kitchenStationIds: input.kitchenStationIds,
+    ...(input.variants !== undefined ? { variants: input.variants } : {}),
+    ...(input.availabilityWindow !== undefined
+      ? { availabilityWindow: input.availabilityWindow }
+      : {}),
+    sortOrder: input.sortOrder,
+    ...(input.barcode !== undefined ? { barcode: input.barcode } : {}),
     isActive: true,
     createdAt: now,
     updatedAt: now,
@@ -224,14 +415,8 @@ export async function createProduct(
   try {
     await products.insertOne(product);
   } catch (err) {
-    if (isDuplicateKeyError(err)) {
-      throw new AppError(
-        'A product with this SKU already exists in this branch',
-        409,
-        'SKU_ALREADY_EXISTS',
-        [{ field: 'sku', message: 'SKU already exists in this branch' }],
-      );
-    }
+    const mapped = duplicateKeyToAppError(err);
+    if (mapped) throw mapped;
     throw err;
   }
 
@@ -275,6 +460,9 @@ export async function updateProduct(
     throw new ForbiddenError('Access denied to this branch');
   }
 
+  assertVariantsUniqueSkus(patch);
+  assertModifierMaxSelectable(patch);
+
   if (patch.kitchenStationIds !== undefined) {
     await assertKitchenStationIds(existing.businessId, existing.branchId, patch.kitchenStationIds);
   }
@@ -314,19 +502,17 @@ export async function updateProduct(
   if (patch.dietaryTags !== undefined) update.dietaryTags = patch.dietaryTags;
   if (patch.modifierGroups !== undefined) update.modifierGroups = patch.modifierGroups;
   if (patch.kitchenStationIds !== undefined) update.kitchenStationIds = patch.kitchenStationIds;
+  if (patch.variants !== undefined) update.variants = patch.variants;
+  if (patch.availabilityWindow !== undefined) update.availabilityWindow = patch.availabilityWindow;
+  if (patch.sortOrder !== undefined) update.sortOrder = patch.sortOrder;
+  if (patch.barcode !== undefined) update.barcode = patch.barcode;
   if (patch.isActive !== undefined) update.isActive = patch.isActive;
 
   try {
     await products.updateOne({ _id: existing._id }, { $set: update });
   } catch (err) {
-    if (isDuplicateKeyError(err)) {
-      throw new AppError(
-        'A product with this SKU already exists in this branch',
-        409,
-        'SKU_ALREADY_EXISTS',
-        [{ field: 'sku', message: 'SKU already exists in this branch' }],
-      );
-    }
+    const mapped = duplicateKeyToAppError(err);
+    if (mapped) throw mapped;
     throw err;
   }
 
@@ -397,6 +583,68 @@ export async function deleteProduct(
   });
 
   await fanOutProductEvent(existing, 'product.deleted', { name: existing.name });
+}
+
+export async function reorderProducts(
+  actor: TokenPayload,
+  input: ReorderProductsInput,
+): Promise<{ matched: number }> {
+  assertBranchAccess(actor, input.branchId);
+  const businessId = await resolveBusinessIdForBranchMutation(actor, input.branchId);
+  const products = await getProductsCollection();
+
+  const now = new Date();
+  const ops = input.items.map((item) => ({
+    updateOne: {
+      filter: { _id: item.id, branchId: input.branchId, businessId },
+      update: { $set: { sortOrder: item.sortOrder, updatedAt: now } },
+    },
+  }));
+
+  // `ordered: false` so a missing id in the middle doesn't block subsequent
+  // updates. Mongo standalone in Docker doesn't support multi-doc transactions
+  // — partial failures here leave the visible sortOrder inconsistent until the
+  // caller retries. The route layer treats matchedCount < items.length as an
+  // explicit 400 to make that obvious.
+  const result = await products.bulkWrite(ops, { ordered: false });
+  const matched = result.matchedCount ?? 0;
+
+  if (matched !== input.items.length) {
+    const ids = input.items.map((it) => it.id);
+    const found = await products
+      .find({ _id: { $in: ids }, branchId: input.branchId, businessId }, { projection: { _id: 1 } })
+      .toArray();
+    const foundIds = new Set(found.map((d) => d._id));
+    const missing = ids.filter((id) => !foundIds.has(id));
+    throw new AppError(
+      'One or more products were not found in this branch',
+      400,
+      'REORDER_PRODUCT_NOT_FOUND',
+      missing.map((id) => ({ field: 'items.id', message: `Product ${id} not found` })),
+    );
+  }
+
+  logAuditEvent({
+    action: 'products_reordered',
+    target: input.branchId,
+    userId: actor.userId,
+    businessId,
+    metadata: { itemCount: input.items.length, ids: input.items.map((it) => it.id) },
+  });
+
+  try {
+    await publishToChannel(channelFor.branch(businessId, input.branchId), {
+      type: 'product.reordered',
+      payload: {
+        branchId: input.branchId,
+        itemCount: input.items.length,
+      },
+    });
+  } catch (err) {
+    log.warn({ err, branchId: input.branchId }, 'Reorder persisted but WS publish failed');
+  }
+
+  return { matched };
 }
 
 function isLowStock(product: Product): boolean {
@@ -490,4 +738,36 @@ function isDuplicateKeyError(err: unknown): boolean {
     'code' in err &&
     (err as { code: unknown }).code === 11000
   );
+}
+
+/**
+ * Maps a Mongo duplicate-key (11000) error to the AppError that matches the
+ * violated unique index. We inspect `keyPattern` first (preferred — set by the
+ * driver) and fall back to scanning `errmsg` for the field name, since the
+ * legacy driver occasionally omits `keyPattern`. The two unique indexes on
+ * `products` per branch are `{branchId,sku}` and the partial-unique
+ * `{branchId,barcode}`; any other duplicate-key cause re-throws unchanged.
+ */
+function duplicateKeyToAppError(err: unknown): AppError | null {
+  if (!isDuplicateKeyError(err)) return null;
+  const e = err as { keyPattern?: Record<string, unknown>; errmsg?: string; message?: string };
+  const fields = e.keyPattern ? Object.keys(e.keyPattern) : [];
+  const text = (e.errmsg ?? e.message ?? '').toLowerCase();
+  if (fields.includes('barcode') || /barcode/.test(text)) {
+    return new AppError(
+      'A product with this barcode already exists in this branch',
+      409,
+      'BARCODE_ALREADY_EXISTS',
+      [{ field: 'barcode', message: 'Barcode already exists in this branch' }],
+    );
+  }
+  if (fields.includes('sku') || /sku/.test(text)) {
+    return new AppError(
+      'A product with this SKU already exists in this branch',
+      409,
+      'SKU_ALREADY_EXISTS',
+      [{ field: 'sku', message: 'SKU already exists in this branch' }],
+    );
+  }
+  return null;
 }

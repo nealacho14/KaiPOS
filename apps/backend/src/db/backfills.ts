@@ -74,10 +74,19 @@ export async function backfillBranchTimezone(db: Db): Promise<void> {
 export async function backfillProductModifierMaxSelectable(db: Db): Promise<void> {
   const products = db.collection('products');
 
-  const missing = await products.countDocuments({
+  // Match products that (a) have a non-empty `modifierGroups` array AND (b)
+  // at least one group is missing `maxSelectable`. Both clauses appear on
+  // BOTH the count and the updateMany filters — without the array guard,
+  // `'modifierGroups.maxSelectable': { $exists: false }` would also match
+  // docs where `modifierGroups` is missing entirely, and the pipeline `$map`
+  // over a missing field resolves to `null`, which then writes
+  // `modifierGroups: null` and fails the validator's `bsonType: 'array'`.
+  const filter = {
     'modifierGroups.maxSelectable': { $exists: false },
     modifierGroups: { $exists: true, $not: { $size: 0 } },
-  });
+  } as const;
+
+  const missing = await products.countDocuments(filter);
   if (missing === 0) {
     logger.info('  products: all modifierGroups already have maxSelectable — nothing to backfill');
     return;
@@ -87,7 +96,7 @@ export async function backfillProductModifierMaxSelectable(db: Db): Promise<void
   // in a single round-trip. `$map` walks every group and only overwrites
   // `maxSelectable` when it's missing — groups that already have the field
   // (numeric, including 0) keep their stored value.
-  const result = await products.updateMany({ 'modifierGroups.maxSelectable': { $exists: false } }, [
+  const result = await products.updateMany(filter, [
     {
       $set: {
         modifierGroups: {

@@ -529,8 +529,7 @@ export function ProductsListPage() {
           </Stack>
           {onlyActiveNow && (
             <Alert severity="info" sx={{ mb: 2 }}>
-              El conteo total es pre-filtro de horario. La lista muestra solo los disponibles ahora
-              según la zona horaria de la sucursal.
+              Mostrando solo los productos disponibles ahora según la zona horaria de la sucursal.
             </Alert>
           )}
           {reorderMode && (

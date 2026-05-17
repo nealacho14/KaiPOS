@@ -52,7 +52,13 @@ describe('backfillProductModifierMaxSelectable', () => {
     });
 
     const [filter, pipeline] = products.updateMany.mock.calls[0]!;
-    expect(filter).toEqual({ 'modifierGroups.maxSelectable': { $exists: false } });
+    // updateMany filter must mirror the countDocuments guard — without the
+    // array-shape clause, the pipeline `$map` over a missing `modifierGroups`
+    // resolves to null and corrupts the doc against the validator.
+    expect(filter).toEqual({
+      'modifierGroups.maxSelectable': { $exists: false },
+      modifierGroups: { $exists: true, $not: { $size: 0 } },
+    });
     expect(Array.isArray(pipeline)).toBe(true);
     const stage = pipeline[0];
     expect(stage).toHaveProperty('$set.modifierGroups.$map');

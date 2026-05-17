@@ -262,20 +262,11 @@ export async function listProducts(
   // The `__featured` array is non-empty when a matching preference exists;
   // we use that as the join predicate and project the helper field away.
   const isFeaturedQuery = Boolean(query.featuredIn);
-  const businessIdForPrefs =
-    actor.businessId === SUPER_ADMIN_BUSINESS_ID
-      ? (query.businessId ?? undefined)
-      : actor.businessId;
 
   let data: Product[];
   let total: number;
   if (isFeaturedQuery) {
-    const aggResult = await listFeaturedAggregation(
-      products,
-      filter,
-      query,
-      businessIdForPrefs ?? null,
-    );
+    const aggResult = await listFeaturedAggregation(products, filter, query);
     data = aggResult.data;
     total = aggResult.total;
   } else {
@@ -351,8 +342,12 @@ async function listFeaturedAggregation(
   products: Awaited<ReturnType<typeof getProductsCollection>>,
   matchFilter: Filter<Product>,
   query: ListProductsQuery,
-  businessIdForPrefs: string | null,
 ): Promise<{ data: Product[]; total: number }> {
+  // The `$$biz` let binding pulls `businessId` off each product document, so
+  // every product joins only against its own business's preferences — no
+  // explicit `businessIdForPrefs` argument is needed. The upstream `$match`
+  // (built by `buildListFilter`) has already scoped the candidate set to the
+  // requested branch (and to the actor's business for non-super_admin).
   const lookupMatch: Record<string, unknown> = {
     $and: [
       { $eq: ['$productId', '$$productId'] },
@@ -382,11 +377,6 @@ async function listFeaturedAggregation(
       },
     },
   ];
-
-  // The `businessIdForPrefs` argument is captured by reference in `lookupMatch`
-  // only via `$$biz` (the let binding). We use it here to log/assert if needed
-  // by callers without polluting the pipeline.
-  void businessIdForPrefs;
 
   const cursor = products.aggregate<AggregationFacetResult>(pipeline, {
     collation: query.q ? { locale: 'es', strength: 2 } : undefined,

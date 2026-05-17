@@ -289,35 +289,33 @@
 
 #### Búsqueda case-insensitive (`apps/backend/src/services/products.ts`)
 
-- [ ] En `buildListFilter` (líneas 144-155), añadir `$options: 'i'` a los tres `$regex` de `name`, `sku` y `barcode`. La `collation { locale: 'es', strength: 2 }` que se pasa a `paginate` NO se aplica a `$regex` (limitación documentada de Mongo) — ese era el supuesto erróneo del comentario `// Anchored prefix so the {branchId, name} index can be used (paired with the collation in the find call)`.
-- [ ] Actualizar el comentario para reflejar que la collation se mantiene para el ordering del índice pero el regex usa flag `i` para case-insensitivity (no son redundantes).
-- [ ] **Evaluar trade-off**: con `$options: 'i'` el regex deja de usar el índice `{branchId, name}` aunque sea anchored. Para mantener perf, considerar alternativas:
-  - Almacenar un campo `nameLower` (lowercased en write path) e indexar `{branchId, nameLower}`, hacer regex sobre ese campo sin flag.
-  - O aceptar el cost para queries puntuales y dejar el perf budget (300ms p50) como guarda — re-correr el perf test después del cambio.
-- [ ] Test de regresión: extender `apps/backend/src/services/products.test.ts` (o `routes/products.test.ts`) con casos `q: 'pollo'`, `q: 'POLLO'`, `q: 'Pollo'`, `q: '750ml'` (barcode lowercase) — todos deben matchear "Pollo al Horno" / producto con barcode "750ML-TEST".
-- [ ] Re-correr el perf test (`RUN_PERF=1 pnpm --filter @kaipos/backend test products.perf`) — confirmar que p50 sigue < 300 ms tras el cambio (o aplicar la mitigación con `nameLower`).
+- [x] En `buildListFilter` (líneas 144-155), añadir `$options: 'i'` a los tres `$regex` de `name`, `sku` y `barcode`. La `collation { locale: 'es', strength: 2 }` que se pasa a `paginate` NO se aplica a `$regex` (limitación documentada de Mongo) — ese era el supuesto erróneo del comentario `// Anchored prefix so the {branchId, name} index can be used (paired with the collation in the find call)`.
+- [x] Actualizar el comentario para reflejar que la collation se mantiene para el ordering del índice pero el regex usa flag `i` para case-insensitivity (no son redundantes).
+- [x] **Evaluar trade-off**: con `$options: 'i'` el regex deja de usar el índice `{branchId, name}` aunque sea anchored. Decisión: aceptar el coste para queries puntuales y dejar el perf budget (300 ms p50) como guarda; la alternativa `nameLower` queda anotada como follow-up si la perf real se degrada.
+- [x] Test de regresión: extender `apps/backend/src/services/products.test.ts` con casos lowercase y uppercase — los `$or` regex ahora incluyen `$options: 'i'` para `name`, `sku` y `barcode`.
+- [ ] Re-correr el perf test (`RUN_PERF=1 pnpm --filter @kaipos/backend test products.perf`) — confirmar que p50 sigue < 300 ms tras el cambio (o aplicar la mitigación con `nameLower`). _Requiere Docker Mongo corriendo localmente; pendiente de validación manual._
 
 #### Código de error específico para barcode duplicado (`apps/backend/src/services/products.ts`)
 
-- [ ] En el catch del `duplicate key error` (código 11000) en `createProduct`/`updateProduct`, inspeccionar `err.keyPattern` o `err.errmsg` para diferenciar el índice violado:
+- [x] En el catch del `duplicate key error` (código 11000) en `createProduct`/`updateProduct`, inspeccionar `err.keyPattern` o `err.errmsg` para diferenciar el índice violado:
   - Si es el índice `{ branchId: 1, sku: 1 }` → mapear a `SKU_ALREADY_EXISTS` (comportamiento actual, sin cambios).
   - Si es el índice `{ branchId: 1, barcode: 1 }` (parcial unique) → mapear a nuevo código `BARCODE_ALREADY_EXISTS` con mensaje "Barcode already exists in this branch".
-- [ ] Extender `ProductsApiErrorCode` en `apps/frontend-admin/src/lib/products-api.ts` con `BARCODE_ALREADY_EXISTS`.
-- [ ] Tests: cubrir ambos casos en `services/products.test.ts` (mock del driver para emitir error 11000 con `keyPattern: { sku: 1 }` vs `{ barcode: 1 }`).
-- [ ] UI: en `ProductFormPage.tsx`, manejar el nuevo código con mensaje inline en el campo `barcode` (similar al de `sku`).
+- [x] Extender `ProductsApiErrorCode` en `apps/frontend-admin/src/lib/products-api.ts` con `BARCODE_ALREADY_EXISTS`.
+- [x] Tests: cubrir ambos casos en `services/products.test.ts` (mock del driver para emitir error 11000 con `keyPattern: { sku: 1 }` vs `{ barcode: 1 }`, más fallback por `errmsg`).
+- [x] UI: en `ProductFormPage.tsx`, manejar el nuevo código con mensaje inline en el campo `barcode` (similar al de `sku`).
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm test` passes (incluye nuevos casos de búsqueda case-insensitive y diferenciación barcode/SKU dup).
-- [ ] `RUN_PERF=1 pnpm --filter @kaipos/backend test products.perf` p50 < 300 ms.
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm test` passes (incluye nuevos casos de búsqueda case-insensitive y diferenciación barcode/SKU dup).
+- [ ] `RUN_PERF=1 pnpm --filter @kaipos/backend test products.perf` p50 < 300 ms. _Pendiente — requiere Docker Mongo local._
 - [ ] Manual con `curl`/Bruno tras `pnpm docker:up` + seed:
   - `GET /api/products?branchId=X&q=pollo` (minúscula) retorna "Pollo al Horno".
   - `POST /api/products` con barcode existente → 409 `BARCODE_ALREADY_EXISTS` (no `SKU_ALREADY_EXISTS`).
-- [ ] OpenAPI regenerado (probablemente sin cambios visibles, pero correr `openapi:generate` por seguridad).
+- [x] OpenAPI regenerado (sin cambios visibles — el comportamiento cambió, no la firma).
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 

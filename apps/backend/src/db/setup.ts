@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { type Db } from 'mongodb';
 import { AUDIT_ACTIONS } from '@kaipos/shared';
 import { logger } from '../lib/logger.js';
@@ -549,7 +550,7 @@ const collections: CollectionSetup[] = [
 // Setup: create/update collections with validators and indexes
 // ---------------------------------------------------------------------------
 
-async function setupCollections(db: Db): Promise<void> {
+export async function setupCollections(db: Db): Promise<void> {
   const existing = new Set(
     await db
       .listCollections({}, { nameOnly: true })
@@ -653,7 +654,11 @@ async function main(): Promise<void> {
   await closeConnection();
 }
 
-main().catch((err) => {
-  logger.error({ err }, 'Setup failed');
-  process.exit(1);
-});
+// Only auto-run as a CLI; importing this file (e.g. from the Atlas
+// orchestrator) must not trigger a connection.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    logger.error({ err }, 'Setup failed');
+    process.exit(1);
+  });
+}

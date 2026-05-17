@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { type Db } from 'mongodb';
 import { logger } from '../lib/logger.js';
 import { hashPassword } from '../lib/password.js';
@@ -40,7 +41,7 @@ function assertLocalMongo(): void {
 // Seed data (idempotent: skipped if the seed business already exists)
 // ---------------------------------------------------------------------------
 
-async function seedData(db: Db): Promise<void> {
+export async function seedData(db: Db): Promise<void> {
   const businessesCol = db.collection('businesses');
 
   const existingBusiness = await businessesCol.findOne({ slug: 'la-cocina-de-kai' });
@@ -385,7 +386,11 @@ async function main(): Promise<void> {
   await closeConnection();
 }
 
-main().catch((err) => {
-  logger.error({ err }, 'Seed failed');
-  process.exit(1);
-});
+// Only auto-run as a CLI; importing this file (e.g. from the Atlas
+// orchestrator) must not trigger the local-only guard or a connection.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    logger.error({ err }, 'Seed failed');
+    process.exit(1);
+  });
+}

@@ -62,6 +62,26 @@ function mockFetch(user: SafeUser, includeBusiness = true) {
         { status: 200, headers: { 'content-type': 'application/json' } },
       );
     }
+    if (url.startsWith('/api/categories')) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: [],
+          pagination: { totalPages: 1, page: 1, limit: 100, totalCount: 0 },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    }
+    if (url.startsWith('/api/products')) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: [],
+          pagination: { totalPages: 1, page: 1, limit: 100, totalCount: 0 },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    }
     return new Response(JSON.stringify({ success: true, data: [] }), {
       status: 200,
       headers: { 'content-type': 'application/json' },
@@ -106,7 +126,7 @@ afterEach(() => {
 });
 
 describe('PosLayout', () => {
-  it('renders the POS header and the home page when the user has products:read', async () => {
+  it('renders the POS header and the catalog shell when the user has products:read', async () => {
     const admin = makeUser('admin');
     mockFetch(admin);
     setSession({ accessToken: 'a', refreshToken: 'r', user: admin });
@@ -114,10 +134,12 @@ describe('PosLayout', () => {
     renderShell();
 
     await waitFor(() => {
-      expect(screen.getByText(/catálogo en construcción/i)).toBeInTheDocument();
+      expect(screen.getByTestId('catalog-search-input')).toBeInTheDocument();
     });
     expect(screen.getByRole('banner')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /abrir menú de usuario/i })).toBeInTheDocument();
+    // Cart panel placeholder is mounted in the layout.
+    expect(screen.getByTestId('cart-panel')).toBeInTheDocument();
   });
 
   it('redirects super_admin without selected business to /select-business', async () => {

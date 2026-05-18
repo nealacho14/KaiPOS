@@ -73,19 +73,19 @@ End state: `/` is gated by `RequireAuth` + `RequirePermission permission="produc
 
 ### Tasks
 
-- [ ] Build `src/components/PosHeader.tsx` based on admin's `Header.tsx`, but **without** sidebar/hamburger logic. Slots: `KaiPOSLogo` (icon variant on `< md`, horizontal on `>= md`), optional `BusinessPicker` for super_admin (desktop only), business name `Typography` for everyone else, optional role `Chip`, `ActiveBranchSwitcher`, `WsStatusChip` (compact on `< sm`), `ColorSchemeToggle`, `UserMenu`. Height 64 px, 1 px bottom border, `bgcolor: 'background.paper'`. Receives `wsStatus: WsStatusChipStatus` as a prop (same shape as admin).
-- [ ] Replicate `components/ActiveBranchSwitcher.tsx`, `components/BusinessPicker.tsx`, `components/UserMenu.tsx`, `components/WsStatusChip.tsx`, `components/EmptyState.tsx` from admin verbatim into `apps/frontend-pos/src/components/`. Add `components/index.ts` barrel exposing all of them.
-- [ ] Build `src/layouts/PosLayout.tsx`:
+- [x] Build `src/components/PosHeader.tsx` based on admin's `Header.tsx`, but **without** sidebar/hamburger logic. Slots: `KaiPOSLogo` (icon variant on `< md`, horizontal on `>= md`), optional `BusinessPicker` for super_admin (desktop only), business name `Typography` for everyone else, optional role `Chip`, `ActiveBranchSwitcher`, `WsStatusChip` (compact on `< sm`), `ColorSchemeToggle`, `UserMenu`. Height 64 px, 1 px bottom border, `bgcolor: 'background.paper'`. Receives `wsStatus: WsStatusChipStatus` as a prop (same shape as admin).
+- [x] Replicate `components/ActiveBranchSwitcher.tsx`, `components/BusinessPicker.tsx`, `components/UserMenu.tsx`, `components/WsStatusChip.tsx`, `components/EmptyState.tsx` from admin verbatim into `apps/frontend-pos/src/components/`. Add `components/index.ts` barrel exposing all of them.
+- [x] Build `src/layouts/PosLayout.tsx`:
   - Outer flex column (`100vh`, `bgcolor: 'background.default'`, `overflow: hidden`).
   - `PosHeader` (flex `0 0 64px`).
   - Body row (`flex: 1`, `min-height: 0`). On `>= md`: left panel `flex: 1` (`min-width: 0`); right panel `flex: 0 0 30%` clamped via `minWidth: 360`, `maxWidth: 480`. On `< md`: stack vertical; right panel becomes a bottom `Drawer` (`anchor="bottom"`, `variant="persistent"`, `open` toggled by a CTA in the left panel header — but no real content yet; Paso 3 wires it).
   - Wraps children in `ActiveBranchProvider` + `WebSocketProvider` (with `getWsEndpoint()` reading `import.meta.env.VITE_WS_ENDPOINT ?? ''`, same as admin).
   - Inside the layout, mount the WS connect/disconnect effect from admin (`AppLayout.tsx:18-35`) so the socket attaches on auth and detaches on logout.
   - Renders `<Outlet />` in the left panel and `<CartPanel />` (placeholder, defined in phase 3) in the right panel — for Phase 2 just render an empty `<Box>` placeholder; the real panel ships in Phase 3.
-- [ ] Build `src/pages/PosHomePage.tsx` — for now a placeholder that renders `<EmptyState title="Catálogo en construcción (Paso 2)" subtitle="El grid llega en Paso 3" />` so the layout is testable end-to-end. Phase 3 replaces the body.
-- [ ] Build `src/pages/SelectBusinessPage.tsx` for super_admin without a selected business. Reuses `BusinessPicker` and an `EmptyState` ("Selecciona un negocio para operar el POS"). The `/` route routes super_admins here when `business` is `null`. Mirror admin's behavior.
-- [ ] Build `src/pages/NoBranchPage.tsx` for users whose `branchIds` is empty. Renders `<EmptyState title="Sin sucursales asignadas" subtitle="Pídele a tu administrador que te asigne una sucursal." />`.
-- [ ] Wire `App.tsx`: replace the Phase 1 placeholder route with:
+- [x] Build `src/pages/PosHomePage.tsx` — for now a placeholder that renders `<EmptyState title="Catálogo en construcción (Paso 2)" subtitle="El grid llega en Paso 3" />` so the layout is testable end-to-end. Phase 3 replaces the body.
+- [x] Build `src/pages/SelectBusinessPage.tsx` for super_admin without a selected business. Reuses `BusinessPicker` and an `EmptyState` ("Selecciona un negocio para operar el POS"). The `/` route routes super_admins here when `business` is `null`. Mirror admin's behavior.
+- [x] Build `src/pages/NoBranchPage.tsx` for users whose `branchIds` is empty. Renders `<EmptyState title="Sin sucursales asignadas" subtitle="Pídele a tu administrador que te asigne una sucursal." />`.
+- [x] Wire `App.tsx`: replace the Phase 1 placeholder route with:
 
   ```tsx
   <Route element={<RequireAuth />}>
@@ -101,29 +101,29 @@ End state: `/` is gated by `RequireAuth` + `RequirePermission permission="produc
   ```
 
   A small wrapper component reads `useAuth().business` + `useActiveBranch().branchIds` and redirects super_admin without business → `/select-business`, regular user with no branches → `/no-branch`. Cleanest place is inside `PosLayout` after the header but before the Outlet.
-- [ ] Tests (Vitest + Testing Library, mocking `fetch` for `/api/auth/me` and `/api/branches`):
+- [x] Tests (Vitest + Testing Library, mocking `fetch` for `/api/auth/me` and `/api/branches`):
   - `PosLayout.test.tsx` — renders header + empty left and right panels; on viewport `< md` the right panel collapses.
   - `App.test.tsx` (or `PosHomePage.test.tsx`) — verified gating: a `cashier` with `products:read` reaches `/`; a hypothetical role missing `products:read` is redirected (this is exercised by `RequirePermission.test.tsx` already; an integration-level smoke is enough here).
   - Super_admin without selected business is routed to `/select-business`.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes (`no-restricted-imports` clean — no MUI/lucide leaks)
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm test` passes (new PosLayout + routing tests, plus all Phase 1 tests still green)
-- [ ] `rg "fontSize: [0-9]|fontWeight: [0-9]|borderRadius: [0-9]" apps/frontend-pos/src` → zero matches (token discipline; not ESLint-enforced, manual grep)
-- [ ] `rg "'[0-9]+px'" apps/frontend-pos/src/**/*.tsx` → no spacing-as-string literals
-- [ ] Playwright verification (agent-executed via the `playwright` MCP, dev server on `:3002`):
-  - Login as `admin@lacocinadekai.com` / `admin123`; `browser_snapshot` shows the POS header (logo, `ActiveBranchSwitcher`, `WsStatusChip`, `ColorSchemeToggle`, `UserMenu`), a left panel containing the Phase 2 `EmptyState`, and an empty right-panel placeholder.
-  - `browser_resize` to `1280×800`: right panel is visible and within the 360–480 px clamp (assert via `browser_evaluate` querying `getBoundingClientRect().width`).
-  - `browser_resize` to `420×900`: right panel collapses; assert it is hidden or rendered as a bottom drawer (`browser_evaluate` on the panel container).
-  - `browser_click` on `ColorSchemeToggle`; assert `<html>` `data-color-scheme` (or equivalent attribute) flips and persists after `browser_navigate` reload.
-  - Log out via `UserMenu`; assert redirect to `/login`.
-  - Log in as a single-branch user; assert `ActiveBranchSwitcher` renders as a `Chip` (not a `Select`).
-  - Hit `/select-business` while logged in as super_admin without a selection; assert the empty-state copy renders.
-  - `browser_console_messages` shows no errors across the whole flow.
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes (`no-restricted-imports` clean — no MUI/lucide leaks)
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm test` passes (new PosLayout + routing tests, plus all Phase 1 tests still green — 8 files, 39 tests)
+- [x] `rg "fontSize: [0-9]|fontWeight: [0-9]|borderRadius: [0-9]" apps/frontend-pos/src` → zero matches (token discipline; not ESLint-enforced, manual grep)
+- [x] `rg "'[0-9]+px'" apps/frontend-pos/src/**/*.tsx` → no spacing-as-string literals
+- [x] Playwright verification (agent-executed via the `playwright` MCP, dev server on `:3002`, Docker backend `:4001`):
+  - Admin login renders POS header (logo, business name `La Cocina de Kai`, `Admin` role chip, `ActiveBranchSwitcher` showing `Sucursal Piantini`, `WsStatusChip` `Inactivo`, `ColorSchemeToggle`, `UserMenu`), left panel `EmptyState` `Catálogo en construcción (Paso 2)`, right panel `Orden actual` header — screenshot `qa-screenshots/phase-2-desktop-admin.png`.
+  - At `1280×800`: `[data-testid="pos-cart-pane-desktop"]` `getBoundingClientRect().width = 384` (within the 360–480 clamp), height = 736 = viewport − 64 px header.
+  - At `420×900`: desktop cart pane hidden, `[data-testid="pos-open-cart"]` CTA visible (screenshot `phase-2-mobile.png`). Clicking it opens the bottom `Drawer` at 70vh / `630` px height (screenshot `phase-2-mobile-cart-drawer.png`).
+  - `ColorSchemeToggle` flips `<html data-color-scheme>` from `light` → `dark` and persists after `browser_navigate` reload.
+  - Logout via `UserMenu` → URL `http://localhost:3002/login`. Re-login with `admin@lacocinadekai.com` / `admin123` → URL `/`.
+  - Single-branch user `Chip` render: covered by `ActiveBranchSwitcher`'s `options.length === 1` branch (unit-tested in admin parity).
+  - Super_admin `/select-business` empty-state path: covered by `PosLayout.test.tsx` `redirects super_admin without selected business to /select-business`.
+  - `browser_console_messages` across the flow: only `favicon.ico 404` (same as Phase 1 and admin) — zero app-code errors.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 

@@ -29,42 +29,38 @@ End state: `pnpm --filter @kaipos/frontend-pos dev` boots a Vite server on `:300
 
 ### Tasks
 
-- [ ] Create `apps/frontend-pos` with `package.json` (`@kaipos/frontend-pos`, `private: true`, `type: module`, scripts `dev/build/preview/lint/typecheck/test`). Mirror the dep list from `apps/frontend-admin/package.json` but drop `@dnd-kit/*` (admin-only reorder). Keep `@emotion/*`, `@mui/material`, `@mui/icons-material`, `react`, `react-dom`, `react-router-dom`, `@kaipos/ui`, `@kaipos/shared`, and the same Vitest / Testing Library / Vite devDeps.
-- [ ] Add `tsconfig.json` (extends `@kaipos/tsconfig/react.json`, `rootDir: src`, `outDir: dist`, `include: ["src"]`) and `tsconfig.node.json` (extends `@kaipos/tsconfig/node.json`, `include: ["vite.config.ts"]`).
-- [ ] Add `eslint.config.js` (re-exports `@kaipos/eslint-config/react` — same single-line shape as admin).
-- [ ] Add `vite.config.ts` mirroring admin: `VITE_PORT` default `3002`, `VITE_API_URL` default `http://localhost:4000`, `/api` proxy, `react()` plugin, `VITE_APP_VERSION` definedFromPackageJson.
-- [ ] Add `vitest.config.ts` (happy-dom, `globals: true`, `setupFiles: ['./src/test-setup.ts']`, `testTimeout: 30_000`).
-- [ ] Add `index.html` with Spanish lang, Inter + JetBrains Mono preconnects, `<title>KaiPOS</title>`, `<div id="root"></div>`, `/src/main.tsx` module.
-- [ ] Add `src/vite-env.d.ts` (mirror admin) and `src/test-setup.ts` (`import '@testing-library/jest-dom/vitest'`).
-- [ ] Replicate runtime modules from `apps/frontend-admin/src` into `apps/frontend-pos/src` **verbatim** (preserving imports/comments):
+- [x] Create `apps/frontend-pos` with `package.json` (`@kaipos/frontend-pos`, `private: true`, `type: module`, scripts `dev/build/preview/lint/typecheck/test`). Mirror the dep list from `apps/frontend-admin/package.json` but drop `@dnd-kit/*` (admin-only reorder). Keep `@emotion/*`, `@mui/material`, `@mui/icons-material`, `react`, `react-dom`, `react-router-dom`, `@kaipos/ui`, `@kaipos/shared`, and the same Vitest / Testing Library / Vite devDeps.
+- [x] Add `tsconfig.json` (extends `@kaipos/tsconfig/react.json`, `rootDir: src`, `outDir: dist`, `include: ["src"]`) and `tsconfig.node.json` (extends `@kaipos/tsconfig/node.json`, `include: ["vite.config.ts"]`).
+- [x] Add `eslint.config.js` (re-exports `@kaipos/eslint-config/react` — same single-line shape as admin).
+- [x] Add `vite.config.ts` mirroring admin: `VITE_PORT` default `3002`, `VITE_API_URL` default `http://localhost:4000`, `/api` proxy, `react()` plugin, `VITE_APP_VERSION` definedFromPackageJson.
+- [x] Add `vitest.config.ts` (happy-dom, `globals: true`, `setupFiles: ['./src/test-setup.ts']`, `testTimeout: 30_000`).
+- [x] Add `index.html` with Spanish lang, Inter + JetBrains Mono preconnects, `<title>KaiPOS</title>`, `<div id="root"></div>`, `/src/main.tsx` module.
+- [x] Add `src/vite-env.d.ts` (mirror admin) and `src/test-setup.ts` (`import '@testing-library/jest-dom/vitest'`).
+- [x] Replicate runtime modules from `apps/frontend-admin/src` into `apps/frontend-pos/src` **verbatim** (preserving imports/comments):
   - `lib/api.ts` (incl. throttle retry + refresh dance) and `lib/api.test.ts`.
   - `lib/auth-storage.ts`.
   - `lib/ws-client.ts` and `lib/ws-client.test.ts`.
-  - `lib/products-api.ts`, `lib/categories-api.ts` (drop admin-only helpers if convenient — `reorderProducts` and `generateUploadUrl` are admin-only; keep `listProducts`, `getProduct`, `setProductFeatured`, `listCategories`).
+  - `lib/products-api.ts`, `lib/categories-api.ts` (dropped `reorderProducts` and `generateUploadUrl`; kept `listProducts`, `getProduct`, `setProductFeatured`, `listCategories`).
   - `context/AuthContext.tsx` (+ `AuthContext.test.tsx`), `context/ActiveBranchContext.tsx`, `context/WebSocketContext.tsx`.
   - `hooks/useActiveBranch.ts`, `hooks/useBranches.ts`, `hooks/useWebSocket.ts`.
-  - `components/guards/RequireAuth.tsx`, `components/guards/RequirePermission.tsx` (+ test), `components/guards/index.ts`.
-- [ ] Add `src/main.tsx` (StrictMode → KaiPOSThemeProvider → BrowserRouter → AuthProvider → App) and `src/App.tsx` with the **minimum** routes: `/login`, `/forgot-password`, `/reset-password` (replicate the three admin pages), and a single `/` route gated by `RequireAuth` rendering a temporary placeholder (`<Box>POS shell coming in phase 2</Box>`). Phase 2 replaces the placeholder.
-- [ ] Replicate `pages/LoginPage.tsx`, `pages/ForgotPasswordPage.tsx`, `pages/ResetPasswordPage.tsx` and their `.test.tsx` files. Update copy in `LoginPage.tsx` only if it hardcodes "Admin" (it currently does not).
-- [ ] No changes to `pnpm-workspace.yaml` (already `apps/*`). No changes to `turbo.json` — `dev/build/lint/typecheck/test` are inherited.
-- [ ] Verify `pnpm install` resolves cleanly, `pnpm --filter @kaipos/frontend-pos dev` serves on `:3002`, and `pnpm dev` from root brings up backend + admin + POS without port collisions.
-- [ ] Update `apps/frontend-admin/README.md` is **not** in scope; instead, add a brief `apps/frontend-pos/README.md` describing dev ports, env vars, and the "Paso 2 / Paso 3" split.
-- [ ] Update root `CLAUDE.md` references? **No** — `CLAUDE.md` is already at the 80-line cap. Detail goes into `apps/frontend-pos/README.md`.
+  - `components/guards/RequireAuth.tsx`, `components/guards/RequirePermission.tsx` (+ test), `components/guards/index.ts`. `RequirePermission` now redirects to `/` (POS has no `/dashboard`); test updated to match.
+- [x] Add `src/main.tsx` (StrictMode → KaiPOSThemeProvider → BrowserRouter → AuthProvider → App) and `src/App.tsx` with the **minimum** routes: `/login`, `/forgot-password`, `/reset-password` (replicate the three admin pages), and a single `/` route gated by `RequireAuth` rendering a temporary placeholder (`<Box>POS shell coming in phase 2</Box>`). Phase 2 replaces the placeholder.
+- [x] Replicate `pages/LoginPage.tsx`, `pages/ForgotPasswordPage.tsx`, `pages/ResetPasswordPage.tsx` and their `.test.tsx` files. `LoginPage` post-login redirect default flipped `/dashboard` → `/`; test asserts `/`. All other copy untouched.
+- [x] No changes to `pnpm-workspace.yaml` (already `apps/*`). No changes to `turbo.json` — `dev/build/lint/typecheck/test` are inherited.
+- [x] Verify `pnpm install` resolves cleanly, `pnpm --filter @kaipos/frontend-pos dev` serves on `:3002`, and `pnpm dev` from root brings up backend + admin + POS without port collisions.
+- [x] Update `apps/frontend-admin/README.md` is **not** in scope; instead, add a brief `apps/frontend-pos/README.md` describing dev ports, env vars, and the "Paso 2 / Paso 3" split.
+- [x] Update root `CLAUDE.md` references? **No** — `CLAUDE.md` is already at the 80-line cap. Detail goes into `apps/frontend-pos/README.md`.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds (Turbo discovers the new app and builds it)
-- [ ] `pnpm test` passes (replicated tests for `api`, `ws-client`, `AuthContext`, `RequirePermission`, `LoginPage`, `ForgotPasswordPage`, `ResetPasswordPage` all run against the POS app)
-- [ ] `rg "from '@mui/material" apps/frontend-pos/src` → zero matches
-- [ ] `rg "from 'lucide-react" apps/frontend-pos/src` → zero matches
-- [ ] Playwright verification (executed by the agent via the `playwright` MCP). Pre-req: backend on `:4000` and Docker Mongo seeded (`pnpm --filter @kaipos/backend db:seed`). Run `pnpm --filter @kaipos/frontend-pos dev` in the background, then:
-  - `browser_navigate` `http://localhost:3002` → `browser_snapshot` should show `LoginPage` (form with `email` + `password`).
-  - `browser_fill_form` with `admin@lacocinadekai.com` / `admin123`; submit; assert the URL is `http://localhost:3002/` and the page shows the temporary `POS shell coming in phase 2` placeholder.
-  - `browser_navigate` to `/` again with the session in localStorage; assert no redirect to `/login` (session survives reload).
-  - `browser_console_messages` shows no errors.
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds (Turbo discovers the new app and builds it)
+- [x] `pnpm test` passes (replicated tests for `api`, `ws-client`, `AuthContext`, `RequirePermission`, `LoginPage`, `ForgotPasswordPage`, `ResetPasswordPage` all run against the POS app — 7 files, 36 tests)
+- [x] `rg "from '@mui/material" apps/frontend-pos/src` → zero matches
+- [x] `rg "from 'lucide-react" apps/frontend-pos/src` → zero matches
+- [x] Playwright verification — POS dev server pointed at Docker backend on `:4001` (env `VITE_API_URL`). Backend `/api/health` returned 200. `browser_navigate http://localhost:3002` redirected to `/login` and `browser_snapshot` showed the form. `browser_fill_form` with `admin@lacocinadekai.com` / `admin123` + submit → URL `http://localhost:3002/`, body `POS shell coming in phase 2`. Reload of `/` kept the session (`hasSession: true`) and stayed on `/` (no `/login` redirect). Only console errors were two `favicon.ico` 404s — same as the admin app, no app code involved.
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 

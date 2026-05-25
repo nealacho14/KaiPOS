@@ -88,6 +88,7 @@ beforeEach(() => {
     _id: 'biz-1',
     name: 'Acme',
     slug: 'acme',
+    currency: 'DOP',
   });
 });
 
@@ -102,6 +103,7 @@ describe('auth service', () => {
         _id: 'biz-1',
         name: 'Acme',
         slug: 'acme',
+        currency: 'DOP',
       });
 
       const result = await login('admin@test.com', 'admin123');
@@ -110,7 +112,12 @@ describe('auth service', () => {
       expect(result.refreshToken).toBe('mock-refresh-token');
       expect(result.user.email).toBe('admin@test.com');
       expect(result.user).not.toHaveProperty('passwordHash');
-      expect(result.business).toEqual({ _id: 'biz-1', name: 'Acme', slug: 'acme' });
+      expect(result.business).toEqual({
+        _id: 'biz-1',
+        name: 'Acme',
+        slug: 'acme',
+        currency: 'DOP',
+      });
     });
 
     it('returns business=null for super_admin', async () => {

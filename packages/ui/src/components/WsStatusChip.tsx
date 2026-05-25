@@ -1,7 +1,9 @@
-import { Box, Chip } from '@kaipos/ui';
-import type { WSClientStatus } from '../lib/ws-client.js';
+import { Box, Chip } from './index.js';
 
-export type WsStatusChipStatus = WSClientStatus | 'idle';
+// Mirrors the union used by the app-level WS clients. Kept inline so this
+// component can ship from `@kaipos/ui` without dragging an app-runtime import
+// in. Keep in sync with `WSClientStatus` in the app runtime.
+export type WsStatusChipStatus = 'open' | 'connecting' | 'reconnecting' | 'closed' | 'idle';
 
 interface WsStatusConfig {
   label: string;

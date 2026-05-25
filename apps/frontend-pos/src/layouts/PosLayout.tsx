@@ -1,9 +1,17 @@
-import { Box, Drawer, IconButton, Stack, Typography, useMediaQuery, useTheme } from '@kaipos/ui';
+import {
+  Box,
+  Drawer,
+  IconButton,
+  Stack,
+  Typography,
+  type WsStatusChipStatus,
+  useMediaQuery,
+  useTheme,
+} from '@kaipos/ui';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { CartPanel } from '../components/CartPanel.js';
 import { PosHeader } from '../components/PosHeader.js';
-import type { WsStatusChipStatus } from '../components/WsStatusChip.js';
 import { ActiveBranchProvider } from '../context/ActiveBranchContext.js';
 import { useAuth } from '../context/AuthContext.js';
 import { CartProvider } from '../context/CartContext.js';
@@ -12,8 +20,9 @@ import { useActiveBranch } from '../hooks/useActiveBranch.js';
 import { getSession } from '../lib/auth-storage.js';
 import { CatalogProvider } from '../state/CatalogProvider.js';
 
-// `business.currency` is not yet plumbed through the auth payload — fall back
-// to MXN until the follow-up lands.
+// Used as a last-resort fallback when the active session has no business
+// (super_admin) and money formatting still needs a currency. Real tenants
+// carry `business.currency` (ISO 4217) plumbed through the auth payload.
 const FALLBACK_CURRENCY = 'MXN';
 
 function getWsEndpoint(): string {
@@ -52,7 +61,7 @@ function GatingRedirect({ children }: { children: ReactNode }) {
 function PosLayoutShell() {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
-  const { status } = useAuth();
+  const { status, business } = useAuth();
   const ws = useWebSocketContext();
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
 
@@ -87,7 +96,7 @@ function PosLayoutShell() {
         borderColor: { md: 'divider' },
       }}
     >
-      <CartPanel currency={FALLBACK_CURRENCY} />
+      <CartPanel currency={business?.currency ?? FALLBACK_CURRENCY} />
     </Box>
   );
 

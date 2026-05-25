@@ -1,5 +1,5 @@
 import type { Product } from '@kaipos/shared';
-import { Alert, Box, Snackbar, Stack } from '@kaipos/ui';
+import { Alert, Box, EmptyState, Snackbar, Stack } from '@kaipos/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActiveNowToggle } from '../components/ActiveNowToggle.js';
 import {
@@ -9,7 +9,6 @@ import {
   type CategoryTabValue,
 } from '../components/CategoryTabs.js';
 import { CatalogSearch } from '../components/CatalogSearch.js';
-import { EmptyState } from '../components/EmptyState.js';
 import { ProductGrid } from '../components/ProductGrid.js';
 import { useAuth } from '../context/AuthContext.js';
 import { useCart } from '../context/CartContext.js';
@@ -25,13 +24,13 @@ interface SnackbarState {
   severity: 'info' | 'warning' | 'success';
 }
 
-// `business.currency` is not yet plumbed through the auth payload — fall back
-// to MXN until the follow-up lands. Tracked in
-// `.specs/NT-34318b91_paso-2-pos-layout/follow-up.md`.
+// Fallback used only when the active session has no business (super_admin) or
+// the tenant document somehow lacks a currency. Real tenants ship
+// `business.currency` (ISO 4217) on the auth payload.
 const FALLBACK_CURRENCY = 'MXN';
 
 export function PosHomePage() {
-  const { user } = useAuth();
+  const { user, business } = useAuth();
   const { branchId } = useActiveBranch();
   const { addItem } = useCart();
 
@@ -153,7 +152,7 @@ export function PosHomePage() {
     return <EmptyState title="Selecciona una sucursal para ver el catálogo" />;
   }
 
-  const currency = FALLBACK_CURRENCY;
+  const currency = business?.currency ?? FALLBACK_CURRENCY;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' }}>

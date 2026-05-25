@@ -176,6 +176,7 @@ async function seedBusinesses(db: Db): Promise<void> {
         address: 'Cypress Test Address',
         phone: '809-555-9999',
         email: `info-${biz.slug}@cypress.test`,
+        currency: 'DOP',
         isActive: true,
       } as { _id: string },
       {},

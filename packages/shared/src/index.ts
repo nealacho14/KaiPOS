@@ -29,6 +29,7 @@ export type {
   LoginRequest,
   LoginResponse,
   MeResponse,
+  AuthBusiness,
   RefreshRequest,
   RefreshResponse,
   ForgotPasswordRequest,

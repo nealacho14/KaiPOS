@@ -1,6 +1,5 @@
-import { Box, Button, Card, Divider, Stack, Typography } from '@kaipos/ui';
+import { Box, Button, Card, Divider, EmptyState, Stack, Typography } from '@kaipos/ui';
 import { useCart } from '../context/CartContext.js';
-import { EmptyState } from './EmptyState.js';
 
 export interface CartPanelProps {
   currency: string;

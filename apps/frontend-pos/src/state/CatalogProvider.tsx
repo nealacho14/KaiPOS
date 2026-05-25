@@ -139,7 +139,14 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
 
       try {
         const first = await listProducts(toParams(query, 1));
-        if (activeKeyRef.current !== key) return;
+        // Abandoned mid-flight (user switched query). Drop the placeholder
+        // `loading` entry so a revisit re-enters `ensureLoaded` and refetches
+        // — otherwise the cache stays stuck on `loading` forever and
+        // `ensureLoaded` short-circuits subsequent calls for the same key.
+        if (activeKeyRef.current !== key) {
+          setEntry(key, () => EMPTY_ENTRY);
+          return;
+        }
 
         const totalPages = Math.max(1, first.pagination.totalPages ?? 1);
         setEntry(key, () => ({
@@ -159,6 +166,9 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
           });
         }
         const results = await fetchInPool(tasks, MAX_CONCURRENT_PAGES);
+        // Abandoned after page 1 already rendered. Page 1 stays in the cache
+        // as `partial`; revisits refetch via the retry control rather than
+        // automatically, which matches the user's last-seen state.
         if (activeKeyRef.current !== key) return;
 
         const failures = results.filter((r) => !r.ok);
@@ -174,9 +184,14 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
           status: failures.length === 0 ? 'ready' : 'partial',
         }));
       } catch (error) {
-        if (activeKeyRef.current !== key) return;
         const message = error instanceof Error ? error.message : 'Error desconocido';
         logger.error('catalog.fetch failed', { key, message });
+        // Even if the key was abandoned, drop back to `idle` so a revisit
+        // refetches instead of seeing a stale `loading` entry.
+        if (activeKeyRef.current !== key) {
+          setEntry(key, () => EMPTY_ENTRY);
+          return;
+        }
         setEntry(key, (prev) => ({ ...prev, status: 'error', error: message }));
       }
     },

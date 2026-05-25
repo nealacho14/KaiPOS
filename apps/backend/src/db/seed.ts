@@ -68,6 +68,7 @@ export async function seedData(db: Db): Promise<void> {
     address: 'Av. Winston Churchill 1099, Santo Domingo',
     phone: '809-555-0100',
     email: 'info@lacocinadekai.com',
+    currency: 'DOP',
     isActive: true,
     createdAt: now,
     updatedAt: now,

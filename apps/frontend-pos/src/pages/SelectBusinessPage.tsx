@@ -1,6 +1,5 @@
-import { Box, Stack } from '@kaipos/ui';
+import { Box, EmptyState, Stack } from '@kaipos/ui';
 import { BusinessPicker } from '../components/BusinessPicker.js';
-import { EmptyState } from '../components/EmptyState.js';
 
 export function SelectBusinessPage() {
   return (

@@ -149,22 +149,25 @@ Exports: `httpApi: HttpApi` (consumed by `FrontendStack` to build the
 
 ### 4. `kaipos-prod-frontend` — `infra/lib/frontend-stack.ts`
 
-S3 + CloudFront serving the React SPA, with a second behavior that proxies
-`/api/*` to the API Gateway.
+S3 + CloudFront serving **both** React SPAs (admin at `/`, POS at `/pos/*`)
+plus a third behavior that proxies `/api/*` to the API Gateway.
 
-S3 bucket (`kaipos-frontend-prod`):
+S3 buckets:
 
-- `BlockPublicAccess.BLOCK_ALL`, SSE-S3, `enforceSSL`, `RETAIN`.
-- Access via a CloudFront Origin Access Identity (OAI) — the bucket is
-  not reachable directly; only CloudFront can read it.
+- `kaipos-frontend-prod` — admin assets.
+- `kaipos-frontend-pos-prod` — POS assets (deployed at the bucket root; the
+  `/pos` prefix is stripped at the CloudFront edge before reaching S3).
+- Both: `BlockPublicAccess.BLOCK_ALL`, SSE-S3, `enforceSSL`, `RETAIN`.
+- Each bucket has its own CloudFront Origin Access Identity (OAI) — the
+  buckets are not reachable directly; only CloudFront can read them.
 
 CloudFront distribution:
 
 - **Price class**: `PRICE_CLASS_100` (US, Canada, Europe) — cheapest tier
   that covers the expected audience.
-- **Default behavior** → S3 bucket via OAI, cache policy
-  `CACHING_OPTIMIZED`, HTTPS only, SPA fallback (404 → `/index.html`
-  with HTTP 200) for client-side routing.
+- **Default behavior** → admin S3 bucket via OAI, cache policy
+  `CACHING_OPTIMIZED`, HTTPS only, SPA fallback (`spa-router.js` rewrites
+  no-extension URIs to `/index.html`) for client-side routing.
 - **`/api/*` behavior** → `HttpOrigin` targeting
   `<apiId>.execute-api.us-east-1.amazonaws.com`:
   - `CACHING_DISABLED` (APIs aren't cacheable).
@@ -172,9 +175,16 @@ CloudFront distribution:
     everything except `Host`, which API Gateway rejects if it doesn't
     match its own domain).
   - `ALLOW_ALL` methods (GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD).
-- **Frontend deployment**: `BucketDeployment` uploads
-  `apps/frontend-admin/dist/` into the S3 bucket at deploy time and
-  automatically invalidates CloudFront (`/*`).
+- **`/pos/*` behavior** → POS S3 bucket via its own OAI, cache policy
+  `CACHING_OPTIMIZED`, HTTPS only. Attaches `spa-router-pos.js`, a
+  CloudFront Function that (1) strips the `/pos` prefix from the URI
+  before forwarding to S3 and (2) rewrites no-extension URIs to
+  `/index.html` for SPA deep-linking. The POS app is built with Vite
+  `base: '/pos/'` so all of its asset URLs are prefixed accordingly.
+- **Frontend deployments**: two `BucketDeployment` constructs upload
+  `apps/frontend-admin/dist/` and `apps/frontend-pos/dist/` into their
+  respective buckets and automatically invalidate `/*` and `/pos/*`
+  respectively.
 
 The `CloudFront → API Gateway` wiring is the reason the SPA can use
 relative `fetch("/api/health")` in both dev (Vite proxy) and prod

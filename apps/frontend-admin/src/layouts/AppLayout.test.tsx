@@ -4,9 +4,13 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { RequireAuth } from '../components/guards/index.js';
-import { AuthProvider } from '../context/AuthContext.js';
-import { clearSession, getSession, setSession } from '../lib/auth-storage.js';
+import {
+  AuthProvider,
+  clearSession,
+  getSession,
+  RequireAuth,
+  setSession,
+} from '@kaipos/app-runtime';
 import { AppLayout } from './AppLayout.js';
 
 type SafeUser = Omit<User, 'passwordHash'>;

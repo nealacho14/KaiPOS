@@ -1,5 +1,5 @@
+import { BusinessPicker } from '@kaipos/app-runtime';
 import { Box, EmptyState, Stack } from '@kaipos/ui';
-import { BusinessPicker } from '../components/BusinessPicker.js';
 
 export function SelectBusinessPage() {
   return (

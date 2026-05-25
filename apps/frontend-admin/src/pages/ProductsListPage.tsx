@@ -57,12 +57,15 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  ApiError,
+  type Pagination,
+  useActiveBranch,
+  useAuth,
+  useBranches,
+  useWebSocketContext,
+} from '@kaipos/app-runtime';
 import { PageHeader, PaginationFooter } from '../components/index.js';
-import { useAuth } from '../context/AuthContext.js';
-import { useWebSocketContext } from '../context/WebSocketContext.js';
-import { useActiveBranch } from '../hooks/useActiveBranch.js';
-import { useBranches } from '../hooks/useBranches.js';
-import { ApiError, type Pagination } from '../lib/api.js';
 import {
   deleteProduct,
   listProducts,

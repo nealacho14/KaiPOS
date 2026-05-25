@@ -1,5 +1,5 @@
 import type { Category } from '@kaipos/shared';
-import { ApiError, apiJsonPaginated, type PaginatedResult } from './api.js';
+import { ApiError, apiJsonPaginated, type PaginatedResult } from '@kaipos/app-runtime';
 
 export type CategoriesApiErrorCode =
   | 'DUPLICATE_CATEGORY_NAME'

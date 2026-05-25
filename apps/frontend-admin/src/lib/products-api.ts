@@ -1,5 +1,11 @@
 import type { Product, ProductPreference } from '@kaipos/shared';
-import { api, ApiError, apiJson, apiJsonPaginated, type PaginatedResult } from './api.js';
+import {
+  api,
+  ApiError,
+  apiJson,
+  apiJsonPaginated,
+  type PaginatedResult,
+} from '@kaipos/app-runtime';
 
 // ---------------------------------------------------------------------------
 // Request / response shapes

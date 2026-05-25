@@ -10,14 +10,17 @@ import {
 } from '@kaipos/ui';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import {
+  ActiveBranchProvider,
+  getSession,
+  useActiveBranch,
+  useAuth,
+  useWebSocketContext,
+  WebSocketProvider,
+} from '@kaipos/app-runtime';
 import { CartPanel } from '../components/CartPanel.js';
 import { PosHeader } from '../components/PosHeader.js';
-import { ActiveBranchProvider } from '../context/ActiveBranchContext.js';
-import { useAuth } from '../context/AuthContext.js';
 import { CartProvider } from '../context/CartContext.js';
-import { WebSocketProvider, useWebSocketContext } from '../context/WebSocketContext.js';
-import { useActiveBranch } from '../hooks/useActiveBranch.js';
-import { getSession } from '../lib/auth-storage.js';
 import { CatalogProvider } from '../state/CatalogProvider.js';
 
 // Used as a last-resort fallback when the active session has no business

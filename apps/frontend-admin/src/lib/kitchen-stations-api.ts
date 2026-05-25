@@ -1,5 +1,5 @@
 import type { KitchenStation } from '@kaipos/shared';
-import { apiJsonPaginated, type PaginatedResult } from './api.js';
+import { apiJsonPaginated, type PaginatedResult } from '@kaipos/app-runtime';
 
 export interface ListKitchenStationsParams {
   branchId: string;

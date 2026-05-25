@@ -18,10 +18,8 @@ import {
   WsStatusChip,
 } from '@kaipos/ui';
 import { useCallback, useEffect, useState } from 'react';
+import { api, getSession, useWebSocketContext } from '@kaipos/app-runtime';
 import { PageHeader } from '../components/index.js';
-import { useWebSocketContext } from '../context/WebSocketContext.js';
-import { api } from '../lib/api.js';
-import { getSession } from '../lib/auth-storage.js';
 
 const MAX_MESSAGES = 50;
 

@@ -3,9 +3,13 @@ import { KaiPOSThemeProvider } from '@kaipos/ui';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { RequireAuth, RequirePermission } from '../components/guards/index.js';
-import { AuthProvider } from '../context/AuthContext.js';
-import { clearSession, setSession } from '../lib/auth-storage.js';
+import {
+  AuthProvider,
+  clearSession,
+  RequireAuth,
+  RequirePermission,
+  setSession,
+} from '@kaipos/app-runtime';
 import { PosLayout } from '../layouts/PosLayout.js';
 import { PosHomePage } from './PosHomePage.js';
 
@@ -145,7 +149,7 @@ function renderApp() {
             <Route path="/login" element={<div>login page</div>} />
             <Route element={<RequireAuth />}>
               <Route element={<PosLayout />}>
-                <Route element={<RequirePermission permission="products:read" />}>
+                <Route element={<RequirePermission permission="products:read" fallbackPath="/" />}>
                   <Route path="/" element={<PosHomePage />} />
                 </Route>
               </Route>

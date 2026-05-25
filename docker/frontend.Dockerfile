@@ -11,6 +11,8 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc ./
 COPY apps/frontend-admin/package.json apps/frontend-admin/
 COPY packages/shared/package.json packages/shared/
 COPY packages/ui/package.json packages/ui/
+COPY packages/app-runtime/package.json packages/app-runtime/
+COPY packages/auth-pages/package.json packages/auth-pages/
 COPY packages/tsconfig/package.json packages/tsconfig/
 COPY packages/eslint-config/package.json packages/eslint-config/
 
@@ -21,6 +23,8 @@ RUN pnpm install --frozen-lockfile
 COPY apps/frontend-admin/ apps/frontend-admin/
 COPY packages/shared/ packages/shared/
 COPY packages/ui/ packages/ui/
+COPY packages/app-runtime/ packages/app-runtime/
+COPY packages/auth-pages/ packages/auth-pages/
 COPY packages/tsconfig/ packages/tsconfig/
 COPY packages/eslint-config/ packages/eslint-config/
 

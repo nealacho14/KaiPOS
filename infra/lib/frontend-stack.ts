@@ -19,6 +19,7 @@ export class FrontendStack extends cdk.Stack {
 
     const { config, httpApi } = props;
 
+    // Admin bucket — served as the default behavior at `/`.
     const bucket = new s3.Bucket(this, 'FrontendBucket', {
       bucketName: `kaipos-frontend-${config.stage}`,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -30,6 +31,21 @@ export class FrontendStack extends cdk.Stack {
 
     const oai = new cloudfront.OriginAccessIdentity(this, 'OAI');
     bucket.grantRead(oai);
+
+    // POS bucket — served at `/pos/*` via its own behavior + CloudFront
+    // Function. Kept as a second bucket (not a prefix on the admin bucket)
+    // so the two apps can be deployed independently without the
+    // `BucketDeployment` prune step wiping the other app's assets.
+    const posBucket = new s3.Bucket(this, 'FrontendPosBucket', {
+      bucketName: `kaipos-frontend-pos-${config.stage}`,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      removalPolicy: config.removalPolicy,
+      autoDeleteObjects: config.autoDeleteObjects,
+    });
+    const posOai = new cloudfront.OriginAccessIdentity(this, 'PosOAI');
+    posBucket.grantRead(posOai);
 
     // The API Gateway URL is `https://<apiId>.execute-api.<region>.amazonaws.com/`.
     // CloudFront needs only the host, without scheme or path.
@@ -46,6 +62,16 @@ export class FrontendStack extends cdk.Stack {
     const spaRouter = new cloudfront.Function(this, 'SpaRouter', {
       code: cloudfront.FunctionCode.fromFile({
         filePath: path.join(import.meta.dirname, 'spa-router.js'),
+      }),
+      runtime: cloudfront.FunctionRuntime.JS_2_0,
+    });
+
+    // POS-specific SPA router: strips the `/pos` prefix before forwarding to
+    // the POS bucket (whose assets live at the root, not under `pos/`) and
+    // adds the same SPA `/index.html` fallback for client-side routing.
+    const posSpaRouter = new cloudfront.Function(this, 'PosSpaRouter', {
+      code: cloudfront.FunctionCode.fromFile({
+        filePath: path.join(import.meta.dirname, 'spa-router-pos.js'),
       }),
       runtime: cloudfront.FunctionRuntime.JS_2_0,
     });
@@ -79,6 +105,19 @@ export class FrontendStack extends cdk.Stack {
           cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
           originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
         },
+        // POS app at `/pos/*`. The CloudFront Function strips the prefix
+        // before reaching S3 and rewrites no-extension URIs to /index.html.
+        '/pos/*': {
+          origin: new origins.S3Origin(posBucket, { originAccessIdentity: posOai }),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+          functionAssociations: [
+            {
+              function: posSpaRouter,
+              eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+            },
+          ],
+        },
       },
       defaultRootObject: 'index.html',
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
@@ -91,9 +130,21 @@ export class FrontendStack extends cdk.Stack {
       distributionPaths: ['/*'],
     });
 
+    new s3deploy.BucketDeployment(this, 'DeployFrontendPos', {
+      sources: [s3deploy.Source.asset('../apps/frontend-pos/dist')],
+      destinationBucket: posBucket,
+      distribution,
+      distributionPaths: ['/pos/*'],
+    });
+
     new cdk.CfnOutput(this, 'DistributionUrl', {
       value: `https://${distribution.distributionDomainName}`,
-      description: 'CloudFront distribution URL (frontend + /api proxy)',
+      description: 'CloudFront distribution URL (admin frontend + /api proxy)',
+    });
+
+    new cdk.CfnOutput(this, 'PosUrl', {
+      value: `https://${distribution.distributionDomainName}/pos/`,
+      description: 'POS frontend served under /pos/* on the same distribution',
     });
   }
 }

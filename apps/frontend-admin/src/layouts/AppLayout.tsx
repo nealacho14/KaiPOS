@@ -1,11 +1,14 @@
 import { Box, useMediaQuery, useTheme, type WsStatusChipStatus } from '@kaipos/ui';
 import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
+import {
+  ActiveBranchProvider,
+  getSession,
+  useAuth,
+  useWebSocketContext,
+  WebSocketProvider,
+} from '@kaipos/app-runtime';
 import { Header, Sidebar, SIDEBAR_WIDTH } from '../components/index.js';
-import { ActiveBranchProvider } from '../context/ActiveBranchContext.js';
-import { useAuth } from '../context/AuthContext.js';
-import { WebSocketProvider, useWebSocketContext } from '../context/WebSocketContext.js';
-import { getSession } from '../lib/auth-storage.js';
 
 function getWsEndpoint(): string {
   return import.meta.env.VITE_WS_ENDPOINT ?? '';

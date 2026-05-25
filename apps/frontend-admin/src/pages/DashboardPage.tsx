@@ -1,8 +1,7 @@
 import type { UserRole } from '@kaipos/shared';
 import { Box, Card, CardContent, Chip, Stack, Typography, WsStatusChip } from '@kaipos/ui';
+import { useAuth, useWebSocketContext } from '@kaipos/app-runtime';
 import { PageHeader } from '../components/index.js';
-import { useAuth } from '../context/AuthContext.js';
-import { useWebSocketContext } from '../context/WebSocketContext.js';
 
 const ROLE_LABEL: Record<UserRole, string> = {
   super_admin: 'Super Admin',

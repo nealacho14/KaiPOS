@@ -68,10 +68,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ApiError, useActiveBranch, useAuth } from '@kaipos/app-runtime';
 import { PageHeader } from '../components/index.js';
-import { useAuth } from '../context/AuthContext.js';
-import { useActiveBranch } from '../hooks/useActiveBranch.js';
-import { ApiError } from '../lib/api.js';
 import { listKitchenStations } from '../lib/kitchen-stations-api.js';
 import {
   createProduct,

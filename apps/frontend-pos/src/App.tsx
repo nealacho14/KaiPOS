@@ -1,9 +1,12 @@
-import { Box } from '@kaipos/ui';
-import { Route, Routes } from 'react-router-dom';
-import { RequireAuth } from './components/guards/index.js';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { RequireAuth, RequirePermission } from './components/guards/index.js';
+import { PosLayout } from './layouts/PosLayout.js';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js';
 import { LoginPage } from './pages/LoginPage.js';
+import { NoBranchPage } from './pages/NoBranchPage.js';
+import { PosHomePage } from './pages/PosHomePage.js';
 import { ResetPasswordPage } from './pages/ResetPasswordPage.js';
+import { SelectBusinessPage } from './pages/SelectBusinessPage.js';
 
 export function App() {
   return (
@@ -13,7 +16,14 @@ export function App() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       <Route element={<RequireAuth />}>
-        <Route path="/" element={<Box sx={{ p: 4 }}>POS shell coming in phase 2</Box>} />
+        <Route element={<PosLayout />}>
+          <Route element={<RequirePermission permission="products:read" />}>
+            <Route path="/" element={<PosHomePage />} />
+          </Route>
+          <Route path="/no-branch" element={<NoBranchPage />} />
+          <Route path="/select-business" element={<SelectBusinessPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
       </Route>
     </Routes>
   );

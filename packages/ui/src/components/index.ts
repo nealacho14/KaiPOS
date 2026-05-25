@@ -27,6 +27,7 @@ export {
 } from '@mui/material/FormControlLabel';
 export { default as FormHelperText } from '@mui/material/FormHelperText';
 export { default as IconButton, type IconButtonProps } from '@mui/material/IconButton';
+export { default as InputAdornment } from '@mui/material/InputAdornment';
 export { default as InputLabel } from '@mui/material/InputLabel';
 export { default as LinearProgress } from '@mui/material/LinearProgress';
 export { default as Link, type LinkProps } from '@mui/material/Link';
@@ -73,6 +74,11 @@ export {
   type LogoSize,
   type LogoVariant,
 } from './KaiPOSLogo.js';
+export {
+  PosProductCard,
+  type PosProductCardChip,
+  type PosProductCardProps,
+} from './PosProductCard.js';
 
 // Icons live in `@kaipos/ui/icons`; the root export re-exports them in
 // `src/index.ts` so existing `import { Plus } from '@kaipos/ui'` keeps working.

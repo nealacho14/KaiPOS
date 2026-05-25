@@ -1,13 +1,20 @@
 import { Box, Drawer, IconButton, Stack, Typography, useMediaQuery, useTheme } from '@kaipos/ui';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { CartPanel } from '../components/CartPanel.js';
 import { PosHeader } from '../components/PosHeader.js';
 import type { WsStatusChipStatus } from '../components/WsStatusChip.js';
 import { ActiveBranchProvider } from '../context/ActiveBranchContext.js';
 import { useAuth } from '../context/AuthContext.js';
+import { CartProvider } from '../context/CartContext.js';
 import { WebSocketProvider, useWebSocketContext } from '../context/WebSocketContext.js';
 import { useActiveBranch } from '../hooks/useActiveBranch.js';
 import { getSession } from '../lib/auth-storage.js';
+import { CatalogProvider } from '../state/CatalogProvider.js';
+
+// `business.currency` is not yet plumbed through the auth payload — fall back
+// to MXN until the follow-up lands.
+const FALLBACK_CURRENCY = 'MXN';
 
 function getWsEndpoint(): string {
   return import.meta.env.VITE_WS_ENDPOINT ?? '';
@@ -80,15 +87,7 @@ function PosLayoutShell() {
         borderColor: { md: 'divider' },
       }}
     >
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}
-      >
-        <Typography variant="h6">Orden actual</Typography>
-      </Stack>
-      <Box sx={{ flex: 1, minHeight: 0, p: 2 }} />
+      <CartPanel currency={FALLBACK_CURRENCY} />
     </Box>
   );
 
@@ -167,11 +166,9 @@ function PosLayoutShell() {
         >
           <Stack
             direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}
+            justifyContent="flex-end"
+            sx={{ px: 1.5, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}
           >
-            <Typography variant="subtitle1">Orden actual</Typography>
             <IconButton
               aria-label="Cerrar orden actual"
               onClick={() => setCartDrawerOpen(false)}
@@ -191,7 +188,11 @@ export function PosLayout() {
   return (
     <ActiveBranchProvider>
       <WebSocketProvider initialEndpoint={getWsEndpoint()}>
-        <PosLayoutShell />
+        <CartProvider>
+          <CatalogProvider>
+            <PosLayoutShell />
+          </CatalogProvider>
+        </CartProvider>
       </WebSocketProvider>
     </ActiveBranchProvider>
   );

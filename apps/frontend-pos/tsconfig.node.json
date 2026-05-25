@@ -1,0 +1,4 @@
+{
+  "extends": "@kaipos/tsconfig/node.json",
+  "include": ["vite.config.ts"]
+}

@@ -12,6 +12,7 @@ import {
   DialogContentText,
   DialogTitle,
   Edit,
+  EmptyState,
   FormControl,
   FormControlLabel,
   GripVertical,
@@ -56,7 +57,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { EmptyState, PageHeader, PaginationFooter } from '../components/index.js';
+import { PageHeader, PaginationFooter } from '../components/index.js';
 import { useAuth } from '../context/AuthContext.js';
 import { useWebSocketContext } from '../context/WebSocketContext.js';
 import { useActiveBranch } from '../hooks/useActiveBranch.js';
@@ -752,6 +753,8 @@ function ProductsTable({
   onDelete,
   onToggleFeatured,
 }: ProductsTableProps) {
+  const { business } = useAuth();
+  const currency = business?.currency ?? 'MXN';
   // On xs the row is the click target; the explicit Acciones column is hidden
   // because it doesn't fit alongside name + price + status chip at 375 px.
   return (
@@ -806,7 +809,7 @@ function ProductsTable({
                   <Chip size="small" label={product.category} />
                 </TableCell>
                 <TableCell align="right" sx={(theme) => ({ ...theme.typography.mono })}>
-                  {formatCurrency(product.price)}
+                  {formatCurrency(product.price, currency)}
                 </TableCell>
                 <TableCell>
                   <Chip
@@ -934,6 +937,8 @@ function ReorderableProductsTable({ products, onReorder }: ReorderableProductsTa
 }
 
 function SortableProductRow({ product, index }: { product: Product; index: number }) {
+  const { business } = useAuth();
+  const currency = business?.currency ?? 'MXN';
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: product._id,
   });
@@ -987,7 +992,7 @@ function SortableProductRow({ product, index }: { product: Product; index: numbe
         <Chip size="small" label={product.category} />
       </TableCell>
       <TableCell align="right" sx={(theme) => ({ ...theme.typography.mono })}>
-        {formatCurrency(product.price)}
+        {formatCurrency(product.price, currency)}
       </TableCell>
     </TableRow>
   );

@@ -15,9 +15,10 @@ import {
   TableRow,
   TextField,
   Typography,
+  WsStatusChip,
 } from '@kaipos/ui';
 import { useCallback, useEffect, useState } from 'react';
-import { PageHeader, WsStatusChip } from '../components/index.js';
+import { PageHeader } from '../components/index.js';
 import { useWebSocketContext } from '../context/WebSocketContext.js';
 import { api } from '../lib/api.js';
 import { getSession } from '../lib/auth-storage.js';

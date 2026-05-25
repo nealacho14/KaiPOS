@@ -1,8 +1,7 @@
 import type { Product } from '@kaipos/shared';
-import { Box, Button, Skeleton } from '@kaipos/ui';
+import { Box, Button, EmptyState, Skeleton } from '@kaipos/ui';
 import type { CatalogStatus } from '../state/CatalogProvider.js';
 import { ProductTile } from './ProductTile.js';
-import { EmptyState } from './EmptyState.js';
 
 export interface ProductGridProps {
   status: CatalogStatus;

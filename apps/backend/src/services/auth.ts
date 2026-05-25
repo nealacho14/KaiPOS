@@ -122,7 +122,12 @@ export async function login(
     if (!found) {
       throw new AppError('Business not found', 404, 'BUSINESS_NOT_FOUND');
     }
-    business = { _id: found._id, name: found.name, slug: found.slug };
+    business = {
+      _id: found._id,
+      name: found.name,
+      slug: found.slug,
+      currency: found.currency ?? 'MXN',
+    };
   }
 
   return { accessToken, refreshToken, user: stripPasswordHash(user), business };
@@ -284,6 +289,11 @@ export async function me(token: TokenPayload): Promise<MeResponse> {
 
   return {
     user: stripPasswordHash(user),
-    business: { _id: business._id, name: business.name, slug: business.slug },
+    business: {
+      _id: business._id,
+      name: business.name,
+      slug: business.slug,
+      currency: business.currency ?? 'MXN',
+    },
   };
 }

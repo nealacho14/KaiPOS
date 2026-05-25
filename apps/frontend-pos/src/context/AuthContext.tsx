@@ -15,7 +15,12 @@ import { clearSession, getSession, setSession, type SessionUser } from '../lib/a
 
 export type AuthStatus = 'idle' | 'loading' | 'authenticated' | 'unauthenticated';
 
-export type AuthBusiness = { _id: string; name: string; slug: string } | null;
+export type AuthBusiness = {
+  _id: string;
+  name: string;
+  slug: string;
+  currency: string;
+} | null;
 
 export interface AuthContextValue {
   status: AuthStatus;

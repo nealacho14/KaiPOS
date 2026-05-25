@@ -13,6 +13,23 @@ const DEFAULTS = {
   terminator: 'Enter',
 };
 
+const MODIFIER_KEYS = new Set([
+  'Shift',
+  'Control',
+  'Alt',
+  'Meta',
+  'CapsLock',
+  'NumLock',
+  'ScrollLock',
+  'AltGraph',
+  'Fn',
+  'FnLock',
+  'Hyper',
+  'Super',
+  'Symbol',
+  'SymbolLock',
+]);
+
 // HID barcode-scanner heuristic. A handheld scanner emits a tight burst of
 // keystrokes (each `keydown` arriving within `maxIntervalMs` of the previous
 // one) terminated by `Enter`. Anything that doesn't fit that pattern resets
@@ -53,16 +70,19 @@ export function useBarcodeScanner(options: UseBarcodeScannerOptions): void {
 
       // Ignore typing in any input that isn't the search field. The search
       // field opts in via `data-scanner-target="true"`; we still consume the
-      // scan there, but keep the input's own value untouched by
-      // preventing the keystrokes from echoing.
+      // scan there. Note the first keystroke of a burst is allowed through so
+      // manual typing keeps working — the calling component clears the field
+      // on a successful scan (see lines 103–112).
       if (isField && !isScannerTarget) {
         reset();
         return;
       }
 
-      // Modifier-only events (Shift, Alt, etc.) aren't useful for the
-      // barcode buffer and shouldn't time out a legitimate scan.
-      if (event.key.length === 0) return;
+      // Modifier-only events (Shift, Alt, Control, Meta, CapsLock, etc.)
+      // aren't useful for the barcode buffer and must not reset it — scanners
+      // emitting uppercase ASCII send `Shift` between burst characters, and
+      // resetting on that would truncate every shifted scan mid-burst.
+      if (event.key.length === 0 || MODIFIER_KEYS.has(event.key)) return;
 
       const now = event.timeStamp || performance.now();
       const sinceLast = now - lastEventTs;

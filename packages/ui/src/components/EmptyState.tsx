@@ -1,5 +1,5 @@
-import { Box, Stack, Typography } from '@kaipos/ui';
 import type { ReactNode } from 'react';
+import { Box, Stack, Typography } from './index.js';
 
 export interface EmptyStateProps {
   icon?: ReactNode;

@@ -36,6 +36,7 @@ const collections: CollectionSetup[] = [
           address: { bsonType: 'string' },
           phone: { bsonType: 'string' },
           email: { bsonType: 'string' },
+          currency: { bsonType: 'string' },
           isActive: { bsonType: 'bool' },
           createdAt: { bsonType: 'date' },
           updatedAt: { bsonType: 'date' },

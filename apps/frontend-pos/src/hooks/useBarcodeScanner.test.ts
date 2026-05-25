@@ -85,6 +85,32 @@ describe('useBarcodeScanner', () => {
     expect(onScan).not.toHaveBeenCalled();
   });
 
+  it('ignores modifier keys mid-burst (Shift+letter scans stay intact)', () => {
+    const onScan = vi.fn();
+    renderHook(() => useBarcodeScanner({ onScan, minLength: 6, maxIntervalMs: 30 }));
+
+    // Simulate a HID scanner that emits Shift before each uppercase character.
+    const ts = 5000;
+    const sequence: Array<[string, number]> = [
+      ['Shift', 0],
+      ['A', 5],
+      ['Shift', 10],
+      ['B', 15],
+      ['Shift', 20],
+      ['C', 25],
+      ['1', 35],
+      ['2', 45],
+      ['3', 55],
+      ['Enter', 65],
+    ];
+    for (const [key, offset] of sequence) {
+      fireKey(key, { ts: ts + offset });
+    }
+
+    expect(onScan).toHaveBeenCalledTimes(1);
+    expect(onScan).toHaveBeenCalledWith('ABC123');
+  });
+
   it('consumes scans when the target has data-scanner-target="true"', () => {
     const onScan = vi.fn();
     renderHook(() => useBarcodeScanner({ onScan, minLength: 4, maxIntervalMs: 30 }));

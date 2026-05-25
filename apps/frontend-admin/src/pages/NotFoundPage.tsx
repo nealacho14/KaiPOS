@@ -1,6 +1,5 @@
-import { AlertCircle, Button } from '@kaipos/ui';
+import { AlertCircle, Button, EmptyState } from '@kaipos/ui';
 import { Link as RouterLink } from 'react-router-dom';
-import { EmptyState } from '../components/index.js';
 
 export function NotFoundPage() {
   return (

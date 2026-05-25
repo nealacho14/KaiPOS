@@ -79,6 +79,8 @@ export {
   type PosProductCardChip,
   type PosProductCardProps,
 } from './PosProductCard.js';
+export { EmptyState, type EmptyStateProps } from './EmptyState.js';
+export { WsStatusChip, type WsStatusChipProps, type WsStatusChipStatus } from './WsStatusChip.js';
 
 // Icons live in `@kaipos/ui/icons`; the root export re-exports them in
 // `src/index.ts` so existing `import { Plus } from '@kaipos/ui'` keeps working.

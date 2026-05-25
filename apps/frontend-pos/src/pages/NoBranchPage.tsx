@@ -1,5 +1,4 @@
-import { Box } from '@kaipos/ui';
-import { EmptyState } from '../components/EmptyState.js';
+import { Box, EmptyState } from '@kaipos/ui';
 
 export function NoBranchPage() {
   return (

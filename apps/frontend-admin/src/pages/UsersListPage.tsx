@@ -12,13 +12,14 @@ import {
   Table,
   TableBody,
   TableCell,
+  EmptyState,
   TableContainer,
   TableHead,
   TableRow,
 } from '@kaipos/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { EmptyState, PageHeader, PaginationFooter } from '../components/index.js';
+import { PageHeader, PaginationFooter } from '../components/index.js';
 import { useAuth } from '../context/AuthContext.js';
 import { ApiError, type Pagination } from '../lib/api.js';
 import { listUsers } from '../lib/users-api.js';

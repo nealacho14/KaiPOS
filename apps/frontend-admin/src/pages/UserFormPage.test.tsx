@@ -72,7 +72,10 @@ describe('UserFormPage (create)', () => {
       if (url === '/api/auth/me') {
         return jsonResponse(200, {
           success: true,
-          data: { user: adminUser, business: { _id: 'biz-1', name: 'Biz', slug: 'biz' } },
+          data: {
+            user: adminUser,
+            business: { _id: 'biz-1', name: 'Biz', slug: 'biz', currency: 'MXN' },
+          },
         });
       }
       if (url === '/api/branches') {
@@ -126,7 +129,10 @@ describe('UserFormPage (create)', () => {
       if (url === '/api/auth/me') {
         return jsonResponse(200, {
           success: true,
-          data: { user: adminUser, business: { _id: 'biz-1', name: 'Biz', slug: 'biz' } },
+          data: {
+            user: adminUser,
+            business: { _id: 'biz-1', name: 'Biz', slug: 'biz', currency: 'MXN' },
+          },
         });
       }
       if (url === '/api/branches') {
@@ -166,7 +172,10 @@ describe('UserFormPage (create)', () => {
       if (url === '/api/auth/me') {
         return jsonResponse(200, {
           success: true,
-          data: { user: adminUser, business: { _id: 'biz-1', name: 'Biz', slug: 'biz' } },
+          data: {
+            user: adminUser,
+            business: { _id: 'biz-1', name: 'Biz', slug: 'biz', currency: 'MXN' },
+          },
         });
       }
       if (url === '/api/branches') {

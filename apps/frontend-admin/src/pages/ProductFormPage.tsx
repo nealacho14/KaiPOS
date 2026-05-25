@@ -25,6 +25,7 @@ import {
   Chip,
   ChevronRight,
   Divider,
+  EmptyState,
   FormControl,
   FormControlLabel,
   FormHelperText,
@@ -34,6 +35,8 @@ import {
   InputLabel,
   MenuItem,
   Plus,
+  PosProductCard,
+  type PosProductCardChip,
   Select,
   Skeleton,
   Stack,
@@ -65,7 +68,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { EmptyState, PageHeader } from '../components/index.js';
+import { PageHeader } from '../components/index.js';
 import { useAuth } from '../context/AuthContext.js';
 import { useActiveBranch } from '../hooks/useActiveBranch.js';
 import { ApiError } from '../lib/api.js';
@@ -1014,6 +1017,8 @@ interface PricingCardProps {
 }
 
 function PricingCard({ form, updateForm, fieldErrors }: PricingCardProps) {
+  const { business } = useAuth();
+  const currency = business?.currency ?? 'MXN';
   const priceNumber = parseOptionalNumber(form.price);
   const costNumber = parseOptionalNumber(form.cost);
   const margin =
@@ -1092,7 +1097,7 @@ function PricingCard({ form, updateForm, fieldErrors }: PricingCardProps) {
             <Box sx={{ textAlign: 'right' }}>
               <Typography variant="body2">Ganancia por unidad</Typography>
               <Typography variant="money" component="div">
-                {formatCurrency(margin.profit)}
+                {formatCurrency(margin.profit, currency)}
               </Typography>
             </Box>
           </Box>
@@ -1823,77 +1828,23 @@ function TagsCard({ form, updateForm }: TagsCardProps) {
 }
 
 function PosPreviewCard({ form }: { form: FormState }) {
+  const { business } = useAuth();
+  const currency = business?.currency ?? 'MXN';
   const priceNum = parseOptionalNumber(form.price) ?? 0;
+  const topChips: PosProductCardChip[] = form.allergens.slice(0, 3).map((a) => ({
+    key: a,
+    label: `⚠ ${ALLERGEN_LABELS[a]}`,
+    color: 'warning',
+    variant: 'outlined',
+  }));
   return (
     <SectionCard title="Vista en POS" subtitle="Así se verá el tile en la terminal.">
-      <Box
-        sx={(theme) => ({
-          p: 2,
-          borderRadius: `${theme.radii.md}px`,
-          border: '1px solid',
-          borderColor: 'divider',
-          bgcolor: 'background.paper',
-          minHeight: 110,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          gap: 1.5,
-        })}
-      >
-        <Stack direction="row" spacing={1.5} alignItems="flex-start">
-          {form.imageUrl ? (
-            <Box
-              component="img"
-              src={form.imageUrl}
-              alt=""
-              sx={(theme) => ({
-                width: 48,
-                height: 48,
-                borderRadius: `${theme.radii.sm}px`,
-                objectFit: 'cover',
-                border: '1px solid',
-                borderColor: 'divider',
-              })}
-            />
-          ) : (
-            <Box
-              aria-hidden
-              sx={(theme) => ({
-                width: 48,
-                height: 48,
-                borderRadius: `${theme.radii.sm}px`,
-                display: 'grid',
-                placeItems: 'center',
-                bgcolor: 'action.hover',
-                color: 'text.disabled',
-              })}
-            >
-              <ImageIcon size={20} aria-hidden />
-            </Box>
-          )}
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="subtitle1" sx={{ lineHeight: 1.3 }}>
-              {form.name || 'Sin nombre'}
-            </Typography>
-            {form.allergens.length > 0 && (
-              <Stack direction="row" spacing={0.5} sx={{ mt: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
-                {form.allergens.slice(0, 3).map((a) => (
-                  <Chip
-                    key={a}
-                    label={`⚠ ${ALLERGEN_LABELS[a]}`}
-                    size="small"
-                    color="warning"
-                    variant="outlined"
-                  />
-                ))}
-              </Stack>
-            )}
-          </Box>
-        </Stack>
-        <Typography variant="money" component="div">
-          {formatCurrency(priceNum)}
-        </Typography>
-      </Box>
+      <PosProductCard
+        name={form.name || 'Sin nombre'}
+        price={formatCurrency(priceNum, currency)}
+        imageUrl={form.imageUrl || undefined}
+        topChips={topChips.length > 0 ? topChips : undefined}
+      />
     </SectionCard>
   );
 }

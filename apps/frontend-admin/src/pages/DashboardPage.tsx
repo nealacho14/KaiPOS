@@ -1,6 +1,6 @@
 import type { UserRole } from '@kaipos/shared';
-import { Box, Card, CardContent, Chip, Stack, Typography } from '@kaipos/ui';
-import { PageHeader, WsStatusChip } from '../components/index.js';
+import { Box, Card, CardContent, Chip, Stack, Typography, WsStatusChip } from '@kaipos/ui';
+import { PageHeader } from '../components/index.js';
 import { useAuth } from '../context/AuthContext.js';
 import { useWebSocketContext } from '../context/WebSocketContext.js';
 

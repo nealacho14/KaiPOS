@@ -5,9 +5,22 @@ export interface Business {
   address?: string;
   phone?: string;
   email?: string;
+  // ISO 4217 currency code used for money formatting across POS / admin
+  // surfaces. Defaults to `'MXN'` when missing so existing documents stay
+  // valid without a migration.
+  currency?: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Subset of `Business` returned alongside auth responses so the frontend can
+// format money and render the tenant name without a follow-up round-trip.
+export interface AuthBusiness {
+  _id: string;
+  name: string;
+  slug: string;
+  currency: string;
 }
 
 export interface Branch {
@@ -256,12 +269,12 @@ export interface LoginResponse {
   user: Omit<User, 'passwordHash'>;
   // Returned alongside the user so the frontend doesn't need a follow-up
   // /api/auth/me round-trip after login. `null` for super_admin.
-  business: { _id: string; name: string; slug: string } | null;
+  business: AuthBusiness | null;
 }
 
 export interface MeResponse {
   user: Omit<User, 'passwordHash'>;
-  business: { _id: string; name: string; slug: string } | null;
+  business: AuthBusiness | null;
 }
 
 export interface RefreshRequest {

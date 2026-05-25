@@ -32,7 +32,10 @@ function mockFetch(user: SafeUser) {
       return new Response(
         JSON.stringify({
           success: true,
-          data: { user, business: { _id: 'b1', name: 'La Cocina', slug: 'la-cocina' } },
+          data: {
+            user,
+            business: { _id: 'b1', name: 'La Cocina', slug: 'la-cocina', currency: 'MXN' },
+          },
         }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       );

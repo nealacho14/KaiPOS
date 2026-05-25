@@ -63,6 +63,7 @@ const sampleBusiness = {
   _id: 'biz-1',
   name: 'La Cocina de Kai',
   slug: 'la-cocina-de-kai',
+  currency: 'DOP',
 };
 
 async function signToken(

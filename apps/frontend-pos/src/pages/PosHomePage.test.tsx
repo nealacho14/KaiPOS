@@ -193,10 +193,18 @@ describe('PosHomePage', () => {
 
     renderApp();
 
-    await waitFor(() => {
-      expect(screen.getByTestId('product-tile-p1')).toBeInTheDocument();
-      expect(screen.getByTestId('product-tile-p2')).toBeInTheDocument();
-    });
+    // First test in the file pays the module-load cost (Vitest cold-starts
+    // each test file). The default 1s timeout is enough locally but flakes in
+    // CI now that AuthProvider + ActiveBranchProvider + CatalogProvider come
+    // from a separate workspace package (extra resolution + chained effects
+    // before the first products fetch resolves). 3s leaves margin.
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('product-tile-p1')).toBeInTheDocument();
+        expect(screen.getByTestId('product-tile-p2')).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
 
     const firstCall = state.productsCalls[0];
     expect(firstCall).toBeDefined();

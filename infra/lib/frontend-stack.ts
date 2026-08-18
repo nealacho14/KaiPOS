@@ -66,9 +66,12 @@ export class FrontendStack extends cdk.Stack {
       runtime: cloudfront.FunctionRuntime.JS_2_0,
     });
 
-    // POS-specific SPA router: strips the `/pos` prefix before forwarding to
-    // the POS bucket (whose assets live at the root, not under `pos/`) and
-    // adds the same SPA `/index.html` fallback for client-side routing.
+    // POS-specific SPA router: rewrites extension-less URIs to
+    // `/pos/index.html`. It must NOT rewrite to a URI the admin behavior also
+    // produces — the cache key is the rewritten URI (behavior/origin are not
+    // part of it), so both apps sharing `/index.html` poisons each other's
+    // cache. The POS bucket stores objects under a `pos/` prefix (see
+    // `destinationKeyPrefix` below) so viewer URIs map 1:1 to S3 keys.
     const posSpaRouter = new cloudfront.Function(this, 'PosSpaRouter', {
       code: cloudfront.FunctionCode.fromFile({
         filePath: path.join(import.meta.dirname, 'spa-router-pos.js'),
@@ -105,8 +108,8 @@ export class FrontendStack extends cdk.Stack {
           cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
           originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
         },
-        // POS app at `/pos/*`. The CloudFront Function strips the prefix
-        // before reaching S3 and rewrites no-extension URIs to /index.html.
+        // POS app at `/pos/*`. The CloudFront Function rewrites no-extension
+        // URIs to /pos/index.html; the bucket keys carry the same prefix.
         '/pos/*': {
           origin: new origins.S3Origin(posBucket, { originAccessIdentity: posOai }),
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -133,6 +136,7 @@ export class FrontendStack extends cdk.Stack {
     new s3deploy.BucketDeployment(this, 'DeployFrontendPos', {
       sources: [s3deploy.Source.asset('../apps/frontend-pos/dist')],
       destinationBucket: posBucket,
+      destinationKeyPrefix: 'pos/',
       distribution,
       distributionPaths: ['/pos/*'],
     });

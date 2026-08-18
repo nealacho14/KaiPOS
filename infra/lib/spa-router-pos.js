@@ -2,28 +2,24 @@
 // runs at VIEWER_REQUEST in the cloudfront-js 2.0 runtime: no `let`/`const`
 // rules, no module imports, no async, no fetch, ~1ms budget.
 //
-// Two responsibilities:
-//   1. Strip the `/pos` prefix before forwarding to the POS S3 bucket, whose
-//      assets are deployed at the bucket root (NOT under a `pos/` prefix).
-//      Without this strip, S3 returns 404 for every request.
-//   2. SPA fallback: any URI without a file extension is rewritten to
-//      `/index.html` so React Router takes over for deep-links like
-//      `/pos/select-business`.
+// SPA fallback only: any URI without a file extension is rewritten to
+// `/pos/index.html` so React Router takes over for deep-links like
+// `/pos/select-business`. Asset URIs (`/pos/assets/...`) pass through as-is —
+// the POS bucket stores everything under a `pos/` key prefix
+// (`destinationKeyPrefix` in the stack), so viewer URIs map 1:1 to S3 keys.
 //
-// The default `/*` behavior has its own SPA router (`spa-router.js`) for the
-// admin app, which we deliberately do NOT share — admin assets live at the
-// bucket root and need no prefix-stripping.
+// The rewritten URI MUST keep the `/pos` prefix. The URI rewrite happens
+// BEFORE the cache lookup and the cache key is the rewritten URI — it does
+// not include the behavior or origin. An earlier version stripped the prefix
+// and rewrote to `/index.html`, colliding with the admin app's cache entry
+// for the same key: whichever index.html an edge cached first was then served
+// for BOTH apps.
 function handler(event) {
   var request = event.request;
-  var uri = request.uri;
 
-  if (uri.indexOf('/pos') === 0) {
-    uri = uri.substring(4) || '/';
-  }
-  if (!/\.[a-zA-Z0-9]+$/.test(uri)) {
-    uri = '/index.html';
+  if (!/\.[a-zA-Z0-9]+$/.test(request.uri)) {
+    request.uri = '/pos/index.html';
   }
 
-  request.uri = uri;
   return request;
 }

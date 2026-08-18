@@ -15,7 +15,8 @@ import {
   getSession,
   useActiveBranch,
   useAuth,
-  useWebSocketContext,
+  useWebSocketActions,
+  useWebSocketState,
   WebSocketProvider,
 } from '@kaipos/app-runtime';
 import { CartPanel } from '../components/CartPanel.js';
@@ -65,25 +66,35 @@ function PosLayoutShell() {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const { status, business } = useAuth();
-  const ws = useWebSocketContext();
+  const wsActions = useWebSocketActions();
+  const wsState = useWebSocketState();
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
 
   useEffect(() => {
-    if (!ws.hasEndpoint) return;
+    if (!wsState.hasEndpoint) return;
     if (status !== 'authenticated') return;
     const session = getSession();
     if (!session?.accessToken) return;
-    if (ws.status === 'open' || ws.status === 'connecting' || ws.status === 'reconnecting') return;
-    ws.connect(session.accessToken);
-  }, [status, ws]);
+    // 'failed' is terminal (reconnect attempts exhausted / dead session) —
+    // auto-connecting here would silently re-arm the retry loop forever.
+    if (
+      wsState.status === 'open' ||
+      wsState.status === 'connecting' ||
+      wsState.status === 'reconnecting' ||
+      wsState.status === 'failed'
+    ) {
+      return;
+    }
+    wsActions.connect(session.accessToken);
+  }, [status, wsState.hasEndpoint, wsState.status, wsActions]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      ws.disconnect();
+      wsActions.disconnect();
     }
-  }, [status, ws]);
+  }, [status, wsActions]);
 
-  const chipStatus: WsStatusChipStatus = ws.hasEndpoint ? ws.status : 'idle';
+  const chipStatus: WsStatusChipStatus = wsState.hasEndpoint ? wsState.status : 'idle';
 
   // Right-panel content is the same on desktop and mobile — desktop pins it
   // as a fixed-width column; mobile slides it up as a bottom drawer.

@@ -2,10 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   api,
   apiJsonPaginated,
+  getFreshAccessToken,
   resetAuthFailureHandlerForTests,
   setAuthFailureHandler,
 } from './api.js';
-import { clearSession, setSession } from './auth-storage.js';
+import { clearSession, getSession, setSession } from './auth-storage.js';
 
 const ORIGINAL_LOCATION = window.location;
 
@@ -242,5 +243,73 @@ describe('apiJsonPaginated()', () => {
     const result = await apiJsonPaginated<{ id: string }>('/api/things');
     expect(result.data).toHaveLength(2);
     expect(result.pagination).toEqual({ page: 1, limit: 2, total: 2, totalPages: 1 });
+  });
+});
+
+describe('getFreshAccessToken()', () => {
+  function makeJwt(exp: number): string {
+    const payload = btoa(JSON.stringify({ exp }))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+    return `header.${payload}.sig`;
+  }
+
+  const FAR_FUTURE = Math.floor(Date.now() / 1000) + 3600;
+  const EXPIRED = Math.floor(Date.now() / 1000) - 60;
+
+  it('returns null when there is no session', async () => {
+    expect(await getFreshAccessToken()).toBeNull();
+  });
+
+  it('returns the current token as-is when it is not near expiry', async () => {
+    const token = makeJwt(FAR_FUTURE);
+    setSession({ accessToken: token, refreshToken: 'rfr-1' });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    expect(await getFreshAccessToken()).toBe(token);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('refreshes once when the token is expired and persists the new session', async () => {
+    setSession({ accessToken: makeJwt(EXPIRED), refreshToken: 'rfr-1' });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse(200, {
+        success: true,
+        data: { accessToken: 'new-token', refreshToken: 'rfr-2' },
+      }),
+    );
+
+    // Concurrent callers share the single in-flight refresh.
+    const [a, b] = await Promise.all([getFreshAccessToken(), getFreshAccessToken()]);
+    expect(a).toBe('new-token');
+    expect(b).toBe('new-token');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(getSession()?.accessToken).toBe('new-token');
+    expect(getSession()?.refreshToken).toBe('rfr-2');
+  });
+
+  it('clears the session and returns null when the refresh is explicitly rejected', async () => {
+    setSession({ accessToken: makeJwt(EXPIRED), refreshToken: 'rfr-dead' });
+    const onFailure = vi.fn();
+    setAuthFailureHandler(onFailure);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse(401, { success: false, error: 'revoked', code: 'INVALID_REFRESH' }),
+    );
+
+    expect(await getFreshAccessToken()).toBeNull();
+    expect(getSession()).toBeNull();
+    expect(onFailure).toHaveBeenCalled();
+  });
+
+  it('keeps the session and returns the stale token on a transient refresh failure', async () => {
+    const stale = makeJwt(EXPIRED);
+    setSession({ accessToken: stale, refreshToken: 'rfr-1' });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse(503, { success: false, error: 'throttled', code: 'THROTTLED' }),
+    );
+
+    expect(await getFreshAccessToken()).toBe(stale);
+    expect(getSession()?.refreshToken).toBe('rfr-1');
   });
 });

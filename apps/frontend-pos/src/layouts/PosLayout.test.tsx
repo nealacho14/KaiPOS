@@ -137,9 +137,15 @@ describe('PosLayout', () => {
 
     renderShell();
 
-    await waitFor(() => {
-      expect(screen.getByTestId('catalog-search-input')).toBeInTheDocument();
-    });
+    // First test in the file pays the module-load cost (Vitest cold-starts
+    // each test file), so the default 1s waitFor timeout flakes in CI — the
+    // same failure mode already fixed for PosHomePage. 3s leaves margin.
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('catalog-search-input')).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
     expect(screen.getByRole('banner')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /abrir menú de usuario/i })).toBeInTheDocument();
     // Cart panel placeholder is mounted in the layout.

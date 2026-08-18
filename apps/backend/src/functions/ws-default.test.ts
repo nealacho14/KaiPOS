@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type {
   APIGatewayProxyWebsocketEventV2,
   APIGatewayProxyResultV2,
   Callback,
   Context,
 } from 'aws-lambda';
-import { handler, __setManagementClientForTests } from './ws-default.js';
+import { handler, __setManagementClientForTests, __resetRateLimitForTests } from './ws-default.js';
 
 const { mockGetConnectionContext, mockAddChannel, mockRemoveChannel, mockManagementSend } =
   vi.hoisted(() => ({
@@ -31,7 +31,13 @@ vi.mock('@aws-sdk/client-apigatewaymanagementapi', () => {
       this.input = input;
     }
   }
-  return { ApiGatewayManagementApiClient, PostToConnectionCommand };
+  class DeleteConnectionCommand {
+    input: unknown;
+    constructor(input: unknown) {
+      this.input = input;
+    }
+  }
+  return { ApiGatewayManagementApiClient, PostToConnectionCommand, DeleteConnectionCommand };
 });
 
 vi.mock('../lib/logger.js', () => ({
@@ -77,6 +83,7 @@ function decodeSentMessage(callIndex = 0): { type: string; channel: unknown; pay
 
 beforeEach(() => {
   vi.clearAllMocks();
+  __resetRateLimitForTests();
   process.env.WS_API_ENDPOINT = 'https://example.execute-api.us-east-1.amazonaws.com/prod';
   mockManagementSend.mockResolvedValue({});
   mockAddChannel.mockResolvedValue(undefined);
@@ -275,6 +282,63 @@ describe('ws-default handler', () => {
       const ack = decodeSentMessage();
       expect(ack.type).toBe('unsubscribe.ack');
       expect(ack.channel).toBe('table:t-1');
+    });
+  });
+
+  describe('rate limiting', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-08-18T12:00:00Z'));
+      mockGetConnectionContext.mockResolvedValue({
+        userId: 'u-1',
+        businessId: 'biz-1',
+        role: 'cashier',
+        branchIds: ['br-1'],
+      });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('serves message 60 normally and force-closes on message 61', async () => {
+      for (let i = 0; i < 60; i++) {
+        const res = await run(makeEvent({ type: 'ping' }));
+        expect(res.statusCode).toBe(200);
+      }
+
+      const res = await run(makeEvent({ type: 'ping' }));
+      expect(res.statusCode).toBe(429);
+
+      // Last two management calls: the error frame to self, then the forced
+      // DeleteConnection against the abusive connectionId.
+      const calls = mockManagementSend.mock.calls;
+      const errorFrame = decodeSentMessage(calls.length - 2);
+      expect(errorFrame.type).toBe('error');
+      const deleteCmd = calls[calls.length - 1][0] as { input: { ConnectionId: string } };
+      expect(deleteCmd.input.ConnectionId).toBe('conn-1');
+      expect(deleteCmd.constructor.name).toBe('DeleteConnectionCommand');
+    });
+
+    it('resets the counter after the window elapses', async () => {
+      for (let i = 0; i < 60; i++) {
+        await run(makeEvent({ type: 'ping' }));
+      }
+      vi.advanceTimersByTime(60_000);
+
+      const res = await run(makeEvent({ type: 'ping' }));
+      expect(res.statusCode).toBe(200);
+    });
+
+    it('tracks connections independently', async () => {
+      for (let i = 0; i < 60; i++) {
+        await run(makeEvent({ type: 'ping' }));
+      }
+
+      const otherConn = makeEvent({ type: 'ping' });
+      (otherConn.requestContext as { connectionId: string }).connectionId = 'conn-2';
+      const res = await run(otherConn);
+      expect(res.statusCode).toBe(200);
     });
   });
 });

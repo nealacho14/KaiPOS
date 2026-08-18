@@ -9,7 +9,11 @@ export {
 export { ActiveBranchProvider, useActiveBranchContext } from './context/ActiveBranchContext.js';
 export {
   WebSocketProvider,
+  useWebSocketActions,
+  useWebSocketState,
   useWebSocketContext,
+  type WebSocketActions,
+  type WebSocketState,
   type WebSocketContextValue,
   type WebSocketProviderProps,
 } from './context/WebSocketContext.js';
@@ -20,6 +24,7 @@ export {
   apiJson,
   apiJsonPaginated,
   ApiError,
+  getFreshAccessToken,
   setAuthFailureHandler,
   resetAuthFailureHandlerForTests,
   type Pagination,

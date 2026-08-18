@@ -1,9 +1,9 @@
 # Observability
 
 How we know KaiPOS is healthy in production: structured Pino logs +
-CloudWatch metric filters + 8 alarms publishing to an SNS topic with an
-email subscription, plus API Gateway access logs in a dedicated log
-group.
+CloudWatch metric filters + 9 alarms publishing to an SNS topic with an
+email subscription, an AWS Budget cost alert, plus API Gateway access
+logs in a dedicated log group.
 
 The whole layer is provisioned by `infra/lib/monitoring-stack.ts`
 (`kaipos-prod-monitoring`) and a small slice of `infra/lib/api-stack.ts`
@@ -12,9 +12,10 @@ all alerts is `config.alertsEmail` (today
 `kelvin.hernandezc30@gmail.com`).
 
 > **Free-tier ceiling.** CloudWatch's free tier covers 10 alarms. The
-> stack provisions exactly 8. If you add more, consolidate via
-> `cloudwatch.MathExpression` (the WS Errors/Throttles alarms already
-> use this pattern).
+> stack provisions exactly 9. If you add more, consolidate via
+> `cloudwatch.MathExpression` (the WS Errors/Throttles/Invocations
+> alarms already use this pattern). AWS Budgets don't count against
+> this ceiling.
 
 ---
 
@@ -182,7 +183,7 @@ Stage prefix in alarm names is `kaipos-prod-`.
 
 - **Next actions**: confirm `JWT_SECRET_ARN` is still readable
   (Secrets Manager); if `$default` is failing, check for a regression in
-  the broadcast helper (`apps/backend/src/lib/ws-broadcast.ts` and
+  the publish helper (`apps/backend/src/lib/ws-publish.ts` and
   callers).
 
 ### `kaipos-prod-api-fn-throttles` / `kaipos-prod-ws-fn-throttles`
@@ -191,12 +192,57 @@ Stage prefix in alarm names is `kaipos-prod-`.
   Lambda Throttles > 0 in 1 min.
 - **What it usually means**: account-level concurrent execution ceiling
   (default 1000) is being hit, or a function-level reserved-concurrency
-  cap was set too low.
+  cap was hit. The WS Lambdas run with deliberate reserved concurrency
+  (`ws-connect` 5 / `ws-disconnect` 2 / `ws-default` 5) and the WS stage
+  is throttled to 20 rps / burst 50 — occasional WS throttles during a
+  runaway client are the guardrails working as designed, not an outage.
 - **Diagnose**: AWS Console → Lambda → function → Monitor →
   "Concurrent executions". Cross-reference with API Gateway access logs
   for the same window — a real spike will show in `requestId` count.
-- **Next actions**: file an account quota increase or remove the
-  reserved concurrency on the throttling function.
+  For WS, check whether `ws-fn-invocations` fired too — if so, find the
+  abusive `connectionId` with the Logs Insights query above.
+- **Next actions**: for the api Lambda, file an account quota increase.
+  For WS, first rule out a client loop (see `ws-fn-invocations` below)
+  before raising the reserved concurrency or stage throttle in
+  `infra/lib/config.ts`.
+
+### `kaipos-prod-ws-fn-invocations` (`WsLambdaInvocationsHigh`)
+
+- **Trigger**: SUM of Invocations across the 3 WS Lambdas > 1000 in
+  5 min.
+- **What it usually means**: a client-side loop. The 2026-05-06 incident
+  was a `useEffect(..., [ws])` around subscribe/unsubscribe that looped
+  at render speed (~6,000 `ws-default` invocations/min from **one**
+  tab). Legit traffic is < 100 invocations / 5 min, so this alarm firing
+  is ~10× above normal and hours before any cost materializes.
+- **Diagnose**: Logs Insights on `/aws/lambda/*WsDefault*`:
+
+  ```
+  fields @timestamp, connectionId, userId, msg, channel
+  | filter msg like /subscribe|unsubscribed|rate limit/
+  | stats count(*) as n by connectionId
+  | sort n desc
+  ```
+
+  A single `connectionId` dominating the count = one looping tab.
+
+- **Next actions**: the layered guardrails should already be containing
+  it (server rate limit disconnects the client at 60 msgs/min; the
+  stage throttle caps everything at 20 rps). Find the effect that
+  regressed — search for `useEffect` deps containing a merged ws
+  context object — and fix it with `useWebSocketActions()` +
+  `useWebSocketState()` (see `docs/realtime.md`).
+
+### AWS Budget `kaipos-prod-monthly`
+
+- **Trigger**: email (not SNS) when ACTUAL month-to-date cost > 80% of
+  $5, or FORECASTED month-end cost > 100% of $5.
+- **What it usually means**: something left the free tier — check Cost
+  Explorer grouped by service; Lambda invocations and CloudWatch are
+  the usual suspects.
+- **Next actions**: if the culprit is WS traffic, `ws-fn-invocations`
+  probably fired first — follow that runbook. Adjust the budget amount
+  in `infra/lib/monitoring-stack.ts` if the baseline legitimately grew.
 
 ### `kaipos-prod-mongo-connection-errors` (`MongoConnectionErrorsHigh`)
 

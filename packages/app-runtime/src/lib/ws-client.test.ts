@@ -67,10 +67,15 @@ describe('WSClient', () => {
   beforeEach(() => {
     installMockWebSocket();
     vi.useFakeTimers();
+    // Jitter is (Math.random() - 0.5) * 0.4 * base — pinning random to 0.5
+    // makes every reconnect delay exactly the base, keeping the timing
+    // assertions below deterministic. Jitter itself is covered explicitly.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('appends the token as a query param', () => {
@@ -199,6 +204,130 @@ describe('WSClient', () => {
     vi.advanceTimersByTime(10_000);
     // Only the original socket should exist — no reconnect timer fired.
     expect(MockWebSocket.instances).toHaveLength(1);
+  });
+
+  it('applies ±20% jitter to the reconnect delay', () => {
+    // random = 0 → delay = 0.8 * base; the socket must NOT reappear at 0.8*base - 1ms
+    // and MUST at 0.8*base.
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const client = new WSClient({ endpoint: 'wss://example/prod', initialBackoffMs: 1000 });
+    client.connect('jwt');
+    MockWebSocket.instances[0]!.simulateClose({ code: 1006, reason: '', wasClean: false });
+    vi.advanceTimersByTime(799);
+    expect(MockWebSocket.instances).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(MockWebSocket.instances).toHaveLength(2);
+
+    // random = 1 → delay = 1.2 * base.
+    vi.spyOn(Math, 'random').mockReturnValue(1);
+    MockWebSocket.instances[1]!.simulateClose({ code: 1006, reason: '', wasClean: false });
+    // Second attempt: base = 2000, jittered to 2400.
+    vi.advanceTimersByTime(2399);
+    expect(MockWebSocket.instances).toHaveLength(2);
+    vi.advanceTimersByTime(1);
+    expect(MockWebSocket.instances).toHaveLength(3);
+  });
+
+  it('gives up with status "failed" after maxReconnectAttempts', () => {
+    const client = new WSClient({
+      endpoint: 'wss://example/prod',
+      initialBackoffMs: 10,
+      maxBackoffMs: 10,
+      maxReconnectAttempts: 3,
+    });
+    const statusSpy = vi.fn();
+    client.on('status', statusSpy);
+    client.connect('jwt');
+
+    for (let i = 0; i < 3; i++) {
+      MockWebSocket.instances[i]!.simulateClose({ code: 1006, reason: '', wasClean: false });
+      vi.advanceTimersByTime(10);
+    }
+    expect(MockWebSocket.instances).toHaveLength(4);
+
+    // Attempt budget is spent — the next close is terminal.
+    MockWebSocket.instances[3]!.simulateClose({ code: 1006, reason: '', wasClean: false });
+    expect(client.status).toBe('failed');
+    expect(statusSpy).toHaveBeenCalledWith('failed');
+    vi.advanceTimersByTime(60_000);
+    expect(MockWebSocket.instances).toHaveLength(4);
+  });
+
+  it('recovers from "failed" on a fresh explicit connect()', () => {
+    const client = new WSClient({
+      endpoint: 'wss://example/prod',
+      initialBackoffMs: 10,
+      maxReconnectAttempts: 1,
+    });
+    client.connect('jwt');
+    MockWebSocket.instances[0]!.simulateClose({ code: 1006, reason: '', wasClean: false });
+    vi.advanceTimersByTime(10);
+    MockWebSocket.instances[1]!.simulateClose({ code: 1006, reason: '', wasClean: false });
+    expect(client.status).toBe('failed');
+
+    client.connect('jwt-2');
+    expect(client.status).toBe('connecting');
+    expect(MockWebSocket.instances).toHaveLength(3);
+    // The attempt counter was reset, so the retry budget is full again.
+    MockWebSocket.instances[2]!.simulateClose({ code: 1006, reason: '', wasClean: false });
+    expect(client.status).toBe('reconnecting');
+  });
+
+  it('re-reads the token via getToken on each reconnect attempt', async () => {
+    let calls = 0;
+    const client = new WSClient({
+      endpoint: 'wss://example/prod',
+      initialBackoffMs: 10,
+      getToken: () => {
+        calls++;
+        return Promise.resolve(`fresh-${calls}`);
+      },
+    });
+    client.connect('original');
+    // First dial keeps the explicit token (debug page contract).
+    expect(MockWebSocket.instances[0]!.url).toContain('token=original');
+    expect(calls).toBe(0);
+
+    MockWebSocket.instances[0]!.simulateClose({ code: 1006, reason: '', wasClean: false });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(MockWebSocket.instances).toHaveLength(2);
+    expect(MockWebSocket.instances[1]!.url).toContain('token=fresh-1');
+
+    MockWebSocket.instances[1]!.simulateClose({ code: 1006, reason: '', wasClean: false });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(MockWebSocket.instances[2]!.url).toContain('token=fresh-2');
+  });
+
+  it('fails terminally instead of dialing when getToken returns null', async () => {
+    const client = new WSClient({
+      endpoint: 'wss://example/prod',
+      initialBackoffMs: 10,
+      getToken: () => null,
+    });
+    client.connect('original');
+    MockWebSocket.instances[0]!.simulateClose({ code: 1006, reason: '', wasClean: false });
+    await vi.advanceTimersByTimeAsync(10);
+    // No session → no dial with a token known to be dead.
+    expect(MockWebSocket.instances).toHaveLength(1);
+    expect(client.status).toBe('failed');
+  });
+
+  it('lets a manual disconnect win over an in-flight getToken', async () => {
+    let resolveToken: (token: string) => void = () => undefined;
+    const client = new WSClient({
+      endpoint: 'wss://example/prod',
+      initialBackoffMs: 10,
+      getToken: () => new Promise<string>((resolve) => (resolveToken = resolve)),
+    });
+    client.connect('original');
+    MockWebSocket.instances[0]!.simulateClose({ code: 1006, reason: '', wasClean: false });
+    await vi.advanceTimersByTimeAsync(10);
+
+    client.disconnect();
+    resolveToken('too-late');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(MockWebSocket.instances).toHaveLength(1);
+    expect(client.status).toBe('closed');
   });
 
   it('forgets a channel on unsubscribe so reconnect does not re-subscribe it', () => {

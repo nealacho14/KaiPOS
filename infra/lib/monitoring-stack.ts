@@ -1,4 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
+import * as budgets from 'aws-cdk-lib/aws-budgets';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as cw_actions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as logs from 'aws-cdk-lib/aws-logs';
@@ -194,6 +195,41 @@ export class MonitoringStack extends cdk.Stack {
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     }).addAlarmAction(alarmAction);
 
+    // Errors and Throttles are lagging signals: the 2026-05-06 subscribe-loop
+    // incident produced ~30,000 mostly "successful" invocations per 5 min
+    // before anything errored. Invocation volume is the leading indicator —
+    // legit traffic is <100 per 5 min, so 1000 fires ~10x above normal and
+    // hours before any cost materializes.
+    const wsInvocationsExpression = new cloudwatch.MathExpression({
+      expression: 'connect + disconnect + def',
+      usingMetrics: {
+        connect: wsConnectFn.metricInvocations({
+          period: cdk.Duration.minutes(5),
+          statistic: 'sum',
+        }),
+        disconnect: wsDisconnectFn.metricInvocations({
+          period: cdk.Duration.minutes(5),
+          statistic: 'sum',
+        }),
+        def: wsDefaultFn.metricInvocations({
+          period: cdk.Duration.minutes(5),
+          statistic: 'sum',
+        }),
+      },
+      label: 'WebSocket Lambda Invocations (sum)',
+      period: cdk.Duration.minutes(5),
+    });
+
+    new cloudwatch.Alarm(this, 'WsLambdaInvocationsHigh', {
+      alarmName: `kaipos-${config.stage}-ws-fn-invocations`,
+      alarmDescription: 'WS Lambda Invocations (connect + disconnect + default) > 1000 in 5 min',
+      metric: wsInvocationsExpression,
+      threshold: 1000,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    }).addAlarmAction(alarmAction);
+
     // ---- Metric-filter alarms (2)
 
     new cloudwatch.Alarm(this, 'MongoConnectionErrorsHigh', {
@@ -225,6 +261,42 @@ export class MonitoringStack extends cdk.Stack {
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     }).addAlarmAction(alarmAction);
+
+    // ---- Cost guardrail
+    //
+    // Catches anything the metric alarms miss (or any non-Lambda cost creep)
+    // within hours/days instead of the 30-day Cost Explorer review. Email
+    // subscriber rather than SNS: Budgets needs a topic policy granting
+    // budgets.amazonaws.com publish rights, which isn't worth the coupling.
+    // Budgets without actions are free and don't consume CloudWatch alarm slots.
+    new budgets.CfnBudget(this, 'MonthlyCostBudget', {
+      budget: {
+        budgetName: `kaipos-${config.stage}-monthly`,
+        budgetType: 'COST',
+        timeUnit: 'MONTHLY',
+        budgetLimit: { amount: 5, unit: 'USD' },
+      },
+      notificationsWithSubscribers: [
+        {
+          notification: {
+            notificationType: 'ACTUAL',
+            comparisonOperator: 'GREATER_THAN',
+            threshold: 80,
+            thresholdType: 'PERCENTAGE',
+          },
+          subscribers: [{ subscriptionType: 'EMAIL', address: config.alertsEmail }],
+        },
+        {
+          notification: {
+            notificationType: 'FORECASTED',
+            comparisonOperator: 'GREATER_THAN',
+            threshold: 100,
+            thresholdType: 'PERCENTAGE',
+          },
+          subscribers: [{ subscriptionType: 'EMAIL', address: config.alertsEmail }],
+        },
+      ],
+    });
 
     new cdk.CfnOutput(this, 'AlertsTopicArn', {
       value: this.alertsTopic.topicArn,

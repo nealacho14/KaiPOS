@@ -12,6 +12,21 @@ export interface StageConfig {
   lambdaMemoryWsDisconnect: number;
   /** Memory (MB) for ws-default — DDB + PostToConnection. */
   lambdaMemoryWsDefault: number;
+  /**
+   * WebSocket stage throttling (requests/second + burst), applied to all
+   * routes ($connect/$disconnect/$default). Hard cap on WS Lambda invocations
+   * so a client-side loop cannot run away with cost or starve the HTTP API
+   * of account concurrency (2026-05-06 incident: one looping tab drove
+   * ~6,000 ws-default invocations/min and 503'd the HTTP API).
+   */
+  wsThrottleRateLimit: number;
+  wsThrottleBurstLimit: number;
+  /** Reserved concurrency for ws-connect — also an upper bound on parallel handshakes. */
+  lambdaConcurrencyWsConnect: number;
+  /** Reserved concurrency for ws-disconnect. */
+  lambdaConcurrencyWsDisconnect: number;
+  /** Reserved concurrency for ws-default — bounds subscribe/ping fan-in. */
+  lambdaConcurrencyWsDefault: number;
   removalPolicy: cdk.RemovalPolicy;
   autoDeleteObjects: boolean;
   domainName?: string;
@@ -41,6 +56,17 @@ export function getStageConfig(rawStage: string | undefined): StageConfig {
     lambdaMemoryWsConnect: 512,
     lambdaMemoryWsDisconnect: 256,
     lambdaMemoryWsDefault: 512,
+    // Legit peak with <10 users (full reconnect storm after a deploy) is
+    // ~10 connects + ~30 subscribes within a couple of seconds; steady state
+    // is <1 rps. The incident ran at ~100 rps from a single tab.
+    wsThrottleRateLimit: 20,
+    wsThrottleBurstLimit: 50,
+    // At 20 rps and ~100 ms handler duration the real WS concurrency is ~2;
+    // these reservations cap worst-case spend and guarantee WS traffic can
+    // never exhaust the account pool the api Lambda draws from.
+    lambdaConcurrencyWsConnect: 5,
+    lambdaConcurrencyWsDisconnect: 2,
+    lambdaConcurrencyWsDefault: 5,
     removalPolicy: cdk.RemovalPolicy.RETAIN,
     autoDeleteObjects: false,
     // Placeholder — set when Route53 hosted zone + ACM cert are ready.

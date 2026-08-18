@@ -25,9 +25,8 @@ import {
 } from '@kaipos/ui';
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
+import { type BranchOption, useAuth, useBranches } from '@kaipos/app-runtime';
 import { PageHeader } from '../components/index.js';
-import { useAuth } from '../context/AuthContext.js';
-import { useBranches, type BranchOption } from '../hooks/useBranches.js';
 import {
   createUser,
   getUser,

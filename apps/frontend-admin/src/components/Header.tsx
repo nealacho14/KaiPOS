@@ -14,10 +14,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@kaipos/ui';
-import { useAuth } from '../context/AuthContext.js';
-import { ActiveBranchSwitcher } from './ActiveBranchSwitcher.js';
-import { BusinessPicker } from './BusinessPicker.js';
-import { UserMenu } from './UserMenu.js';
+import { ActiveBranchSwitcher, BusinessPicker, useAuth, UserMenu } from '@kaipos/app-runtime';
 
 interface RoleChip {
   label: string;

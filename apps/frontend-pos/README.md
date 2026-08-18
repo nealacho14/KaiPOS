@@ -10,9 +10,11 @@ backend at `apps/backend`.
 pnpm --filter @kaipos/frontend-pos dev
 ```
 
-Boots Vite on `http://localhost:3002` and proxies `/api` to the backend (default
-`http://localhost:4000`). `pnpm dev` from the repo root brings up backend + admin + POS
-together; the POS owns `:3002`, the admin owns `:3000`, the backend owns `:4000`.
+Boots Vite on `http://localhost:3002/pos/` (the app is mounted under the `/pos/` base
+so dev mirrors how prod serves it under CloudFront `/pos/*`) and proxies `/api` to the
+backend (default `http://localhost:4000`). `pnpm dev` from the repo root brings up
+backend + admin + POS together; the POS owns `:3002`, the admin owns `:3000`, the
+backend owns `:4000`.
 
 After seeding the backend (`pnpm --filter @kaipos/backend db:seed`), log in with
 `admin@lacocinadekai.com` / `admin123`.
@@ -25,6 +27,24 @@ After seeding the backend (`pnpm --filter @kaipos/backend db:seed`), log in with
 | `VITE_API_URL`     | `http://localhost:4000` | Proxy target for `/api/*` — backend in dev.                   |
 | `VITE_WS_ENDPOINT` | _(empty)_               | `wss://…` URL the WS client connects to. Empty → WS disabled. |
 | `VITE_APP_VERSION` | from `package.json`     | Stamped at build time; shown in the login footer.             |
+
+## Production routing
+
+Vite is configured with `base: '/pos/'`, so the build emits assets like
+`/pos/assets/index-<hash>.js`. The CloudFront distribution in
+`infra/lib/frontend-stack.ts` has a dedicated `/pos/*` behavior pointing at a
+separate `kaipos-frontend-pos-prod` S3 bucket; a CloudFront Function
+(`infra/lib/spa-router-pos.js`) strips the `/pos` prefix before each request
+reaches S3 and rewrites no-extension URIs to `/index.html` for SPA deep-links.
+
+## Shared runtime
+
+`AuthContext`, `ActiveBranchContext`, `WebSocketContext`, the API/WS client
+libs, the auth hooks, and the `RequireAuth` / `RequirePermission` guards all
+live in `@kaipos/app-runtime` — shared with `@kaipos/frontend-admin`. The
+login / forgot / reset flows live in `@kaipos/auth-pages`. The POS app composes
+both: it passes `defaultRedirectPath="/"` to `<LoginPage>` and `fallbackPath="/"`
+to `<RequirePermission>` (the admin app passes `/dashboard` for both).
 
 ## Paso 2 / Paso 3 split (KAI2-2 → KAI2-3)
 

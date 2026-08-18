@@ -1,5 +1,5 @@
 import type { User, UserRole } from '@kaipos/shared';
-import { ApiError, apiJson, apiJsonPaginated, type PaginatedResult } from './api.js';
+import { ApiError, apiJson, apiJsonPaginated, type PaginatedResult } from '@kaipos/app-runtime';
 
 export type SafeUser = Omit<User, 'passwordHash'>;
 

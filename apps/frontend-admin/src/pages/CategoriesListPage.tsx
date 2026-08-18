@@ -24,9 +24,8 @@ import {
   Trash2,
 } from '@kaipos/ui';
 import { useCallback, useEffect, useId, useState } from 'react';
+import { type Pagination, useAuth } from '@kaipos/app-runtime';
 import { PageHeader, PaginationFooter } from '../components/index.js';
-import { useAuth } from '../context/AuthContext.js';
-import { type Pagination } from '../lib/api.js';
 import {
   createCategory,
   deactivateCategory,

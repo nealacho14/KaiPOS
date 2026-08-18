@@ -16,7 +16,7 @@ import {
 } from '@kaipos/ui';
 import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.js';
+import { useAuth } from '@kaipos/app-runtime';
 
 export const SIDEBAR_WIDTH = 240;
 

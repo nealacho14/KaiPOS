@@ -17,6 +17,8 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@kaipos/app-runtime": "workspace:*",
+    "@kaipos/auth-pages": "workspace:*",
     "@kaipos/shared": "workspace:*",
     "@kaipos/ui": "workspace:*",
     "@mui/icons-material": "^7.0.0",

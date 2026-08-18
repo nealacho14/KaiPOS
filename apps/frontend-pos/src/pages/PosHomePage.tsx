@@ -1,6 +1,7 @@
 import type { Product } from '@kaipos/shared';
 import { Alert, Box, EmptyState, Snackbar, Stack } from '@kaipos/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useActiveBranch, useAuth } from '@kaipos/app-runtime';
 import { ActiveNowToggle } from '../components/ActiveNowToggle.js';
 import {
   CategoryTabs,
@@ -10,9 +11,7 @@ import {
 } from '../components/CategoryTabs.js';
 import { CatalogSearch } from '../components/CatalogSearch.js';
 import { ProductGrid } from '../components/ProductGrid.js';
-import { useAuth } from '../context/AuthContext.js';
 import { useCart } from '../context/CartContext.js';
-import { useActiveBranch } from '../hooks/useActiveBranch.js';
 import { useBarcodeScanner } from '../hooks/useBarcodeScanner.js';
 import { useDebouncedValue } from '../hooks/useDebouncedValue.js';
 import { listProducts } from '../lib/products-api.js';

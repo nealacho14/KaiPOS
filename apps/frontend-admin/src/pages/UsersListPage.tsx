@@ -19,9 +19,8 @@ import {
 } from '@kaipos/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { ApiError, type Pagination, useAuth } from '@kaipos/app-runtime';
 import { PageHeader, PaginationFooter } from '../components/index.js';
-import { useAuth } from '../context/AuthContext.js';
-import { ApiError, type Pagination } from '../lib/api.js';
 import { listUsers } from '../lib/users-api.js';
 
 type SafeUser = Omit<User, 'passwordHash'>;

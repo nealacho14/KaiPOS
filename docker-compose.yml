@@ -41,9 +41,29 @@ services:
       - ./apps/frontend-admin/src:/app/apps/frontend-admin/src
       - ./packages/shared/src:/app/packages/shared/src
       - ./packages/ui/src:/app/packages/ui/src
+      - ./packages/app-runtime/src:/app/packages/app-runtime/src
+      - ./packages/auth-pages/src:/app/packages/auth-pages/src
     environment:
       - VITE_API_URL=http://backend:4001
       - VITE_PORT=3001
+    depends_on:
+      - backend
+
+  frontend-pos:
+    build:
+      context: .
+      dockerfile: docker/frontend-pos.Dockerfile
+    ports:
+      - '3002:3002'
+    volumes:
+      - ./apps/frontend-pos/src:/app/apps/frontend-pos/src
+      - ./packages/shared/src:/app/packages/shared/src
+      - ./packages/ui/src:/app/packages/ui/src
+      - ./packages/app-runtime/src:/app/packages/app-runtime/src
+      - ./packages/auth-pages/src:/app/packages/auth-pages/src
+    environment:
+      - VITE_API_URL=http://backend:4001
+      - VITE_PORT=3002
     depends_on:
       - backend
 

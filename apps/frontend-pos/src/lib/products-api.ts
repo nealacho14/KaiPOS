@@ -1,5 +1,5 @@
 import type { Product, ProductPreference } from '@kaipos/shared';
-import { ApiError, apiJson, apiJsonPaginated, type PaginatedResult } from './api.js';
+import { ApiError, apiJson, apiJsonPaginated, type PaginatedResult } from '@kaipos/app-runtime';
 
 export interface ListProductsParams {
   branchId: string;

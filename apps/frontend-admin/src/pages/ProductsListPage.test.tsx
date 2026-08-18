@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as ReactRouter from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError } from '../lib/api.js';
+import { ApiError } from '@kaipos/app-runtime';
 import { ProductsListPage } from './ProductsListPage.js';
 
 // We mock the products-api module so each test controls the data flow without
@@ -27,48 +27,46 @@ vi.mock('../lib/products-api.js', async () => {
   };
 });
 
-vi.mock('../context/AuthContext.js', () => ({
-  useAuth: () => ({
-    user: {
-      _id: 'user-1',
-      businessId: 'biz-1',
-      email: 'admin@x.com',
-      name: 'Admin',
-      role: 'admin',
+// The runtime contexts/hooks now live in @kaipos/app-runtime, so we override
+// just the hooks the page consumes — leaving the rest of the package's
+// exports (ApiError, etc.) intact for direct use in the test.
+vi.mock('@kaipos/app-runtime', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@kaipos/app-runtime')>();
+  return {
+    ...actual,
+    useAuth: () => ({
+      user: {
+        _id: 'user-1',
+        businessId: 'biz-1',
+        email: 'admin@x.com',
+        name: 'Admin',
+        role: 'admin',
+        branchIds: ['branch-1'],
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: 'system',
+      },
+    }),
+    useActiveBranch: () => ({
+      branchId: 'branch-1',
+      setBranchId: () => undefined,
       branchIds: ['branch-1'],
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      createdBy: 'system',
-    },
-  }),
-}));
-
-vi.mock('../hooks/useActiveBranch.js', () => ({
-  useActiveBranch: () => ({
-    branchId: 'branch-1',
-    setBranchId: () => undefined,
-    branchIds: ['branch-1'],
-    canManage: true,
-  }),
-}));
-
-vi.mock('../hooks/useBranches.js', () => ({
-  useBranches: () => ({
-    branches: [{ _id: 'branch-1', name: 'Centro' }],
-    loading: false,
-    error: null,
-  }),
-}));
-
-vi.mock('../context/WebSocketContext.js', () => ({
-  useWebSocketContext: () => ({
-    status: 'closed',
-    subscribe: () => undefined,
-    unsubscribe: () => undefined,
-    onMessage: () => () => undefined,
-  }),
-}));
+      canManage: true,
+    }),
+    useBranches: () => ({
+      branches: [{ _id: 'branch-1', name: 'Centro' }],
+      loading: false,
+      error: null,
+    }),
+    useWebSocketContext: () => ({
+      status: 'closed',
+      subscribe: () => undefined,
+      unsubscribe: () => undefined,
+      onMessage: () => () => undefined,
+    }),
+  };
+});
 
 const navigateMock = vi.fn();
 vi.mock('react-router-dom', async () => {

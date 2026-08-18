@@ -23,6 +23,7 @@ fi
 echo "    VITE_WS_ENDPOINT=${VITE_WS_ENDPOINT}"
 
 VITE_WS_ENDPOINT="${VITE_WS_ENDPOINT}" pnpm --filter @kaipos/frontend-admin build
+VITE_WS_ENDPOINT="${VITE_WS_ENDPOINT}" pnpm --filter @kaipos/frontend-pos build
 pnpm --filter @kaipos/infra cdk deploy \
   kaipos-${STAGE}-frontend \
   -c stage=${STAGE} \

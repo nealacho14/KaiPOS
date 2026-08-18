@@ -19,12 +19,13 @@ echo "==> Phase 1/2: backend build + backend-side stacks"
 pnpm --filter @kaipos/backend build
 
 # CDK synths every stack in the app before deploying any, including
-# `FrontendStack`, whose `BucketDeployment` asset source is
-# `apps/frontend-admin/dist`. That directory doesn't exist yet in phase 1, so
-# synth would fail with `CannotFindAsset`. Stub it out — the BucketDeployment
-# only actually runs in phase 2, which rebuilds `dist` with the real bundle.
-mkdir -p apps/frontend-admin/dist
-touch apps/frontend-admin/dist/.placeholder
+# `FrontendStack`, whose `BucketDeployment` asset sources are
+# `apps/frontend-admin/dist` and `apps/frontend-pos/dist`. Neither directory
+# exists yet in phase 1, so synth would fail with `CannotFindAsset`. Stub
+# both — the BucketDeployments only actually run in phase 2, which rebuilds
+# the dists with the real bundles.
+mkdir -p apps/frontend-admin/dist apps/frontend-pos/dist
+touch apps/frontend-admin/dist/.placeholder apps/frontend-pos/dist/.placeholder
 
 # Deploying `kaipos-prod-api` also deploys its deps (secrets, assets,
 # websocket) via CDK's implicit dependency resolution. `kaipos-prod-github-oidc`
@@ -48,8 +49,9 @@ fi
 
 echo "    VITE_WS_ENDPOINT=${VITE_WS_ENDPOINT}"
 
-echo "==> Phase 2/2: frontend build (with WS endpoint) + frontend stack"
+echo "==> Phase 2/2: frontend builds (with WS endpoint) + frontend stack"
 VITE_WS_ENDPOINT="${VITE_WS_ENDPOINT}" pnpm --filter @kaipos/frontend-admin build
+VITE_WS_ENDPOINT="${VITE_WS_ENDPOINT}" pnpm --filter @kaipos/frontend-pos build
 pnpm --filter @kaipos/infra cdk deploy \
   kaipos-${STAGE}-frontend \
   -c stage=${STAGE} \

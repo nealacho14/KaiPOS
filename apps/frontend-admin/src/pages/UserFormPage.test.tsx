@@ -4,8 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as ReactRouter from 'react-router-dom';
-import { setSession } from '../lib/auth-storage.js';
-import { AuthProvider } from '../context/AuthContext.js';
+import { AuthProvider, setSession } from '@kaipos/app-runtime';
 import { UserFormPage } from './UserFormPage.js';
 
 const navigateMock = vi.fn();

@@ -9,7 +9,7 @@ Single AWS environment: **`prod`**. Local development (`dev`) runs via `pnpm dev
 - `kaipos-prod-assets` — Private versioned S3 bucket `kaipos-assets-prod` plus a public CloudFront distribution that fronts it for read access (`/products/*` behavior). Exports `AssetsBucketName` and `AssetsCdnDomain`.
 - `kaipos-prod-websocket` — API Gateway WebSocket API + DynamoDB connections table + three Lambda handlers (`$connect`, `$disconnect`, `$default`). Outputs the `wss://...` URL that the frontend SPA needs.
 - `kaipos-prod-api` — API Gateway HTTP API + Lambda for backend functions. Lambda runs **outside any VPC** and connects to MongoDB Atlas directly over the public internet (protected by Atlas IP allowlist). This keeps monthly cost near zero by avoiding a NAT Gateway (~$33/month).
-- `kaipos-prod-frontend` — S3 + CloudFront for the admin SPA. The Vite build embeds `VITE_WS_ENDPOINT` from the websocket stack's output, which is why `deploy:prod` runs in two phases (see below).
+- `kaipos-prod-frontend` — S3 + CloudFront for **both** SPAs: admin served at the root (`/`) and POS served at `/pos/*`. Two S3 buckets (`kaipos-frontend-prod`, `kaipos-frontend-pos-prod`), three CloudFront behaviors (default → admin, `/api/*` → API Gateway, `/pos/*` → POS bucket via a prefix-stripping CloudFront Function). Both Vite builds embed `VITE_WS_ENDPOINT` from the websocket stack's output, which is why `deploy:prod` runs in two phases (see below).
 
 ## Prerequisites
 
@@ -26,6 +26,7 @@ Single AWS environment: **`prod`**. Local development (`dev`) runs via `pnpm dev
    pnpm install
    pnpm --filter @kaipos/backend build
    pnpm --filter @kaipos/frontend-admin build
+   pnpm --filter @kaipos/frontend-pos build
    ```
 
 2. **CDK bootstrap (once per account/region)**
@@ -49,7 +50,7 @@ Single AWS environment: **`prod`**. Local development (`dev`) runs via `pnpm dev
    pnpm --filter @kaipos/infra deploy:prod
    ```
 
-   Note the outputs: `ApiUrl`, `DistributionUrl`, `MongoSecretArn`, `JwtSecretArn`, `AssetsBucketName`, `AssetsCdnDomain`, `WebSocketEndpoint`, `WebSocketManagementEndpoint`, `ConnectionsTableName`, `DeployRoleArn`. (No VPC — Lambdas reach Atlas directly over the internet, see CLAUDE.md.)
+   Note the outputs: `ApiUrl`, `DistributionUrl` (admin), `PosUrl` (POS at `/pos/`), `MongoSecretArn`, `JwtSecretArn`, `AssetsBucketName`, `AssetsCdnDomain`, `WebSocketEndpoint`, `WebSocketManagementEndpoint`, `ConnectionsTableName`, `DeployRoleArn`. (No VPC — Lambdas reach Atlas directly over the internet, see CLAUDE.md.)
 
 5. **Populate the Mongo secret**
    The secret is created empty so the Atlas URI never touches source or CloudFormation.
@@ -95,7 +96,7 @@ pnpm deploy:prod:frontend     # read ws endpoint, frontend build with VITE_WS_EN
 pnpm --filter @kaipos/infra diff:prod
 ```
 
-**Why two phases?** The frontend bundle bakes `VITE_WS_ENDPOINT` at Vite build time. That URL only exists after `kaipos-prod-websocket` is deployed. `scripts/deploy-prod.sh` deploys everything except the frontend, reads `WebSocketEndpoint` via `aws cloudformation describe-stacks`, then builds + deploys the frontend with the env var set. Skipping this step (e.g. running only the Vite build without the env var) leaves the `#/debug/ws` endpoint field blank.
+**Why two phases?** The frontend bundles bake `VITE_WS_ENDPOINT` at Vite build time. That URL only exists after `kaipos-prod-websocket` is deployed. `scripts/deploy-prod.sh` deploys everything except the frontend stack, reads `WebSocketEndpoint` via `aws cloudformation describe-stacks`, then builds **both** the admin and POS bundles with the env var set and deploys `kaipos-prod-frontend` (which uploads both into their respective S3 buckets and invalidates `/*` and `/pos/*`). Skipping this step (e.g. running only the Vite builds without the env var) leaves the `#/debug/ws` endpoint field blank.
 
 ## Assets CDN
 

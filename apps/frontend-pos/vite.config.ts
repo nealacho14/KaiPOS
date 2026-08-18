@@ -14,6 +14,10 @@ const port = Number(process.env.VITE_PORT) || 3002;
 const apiUrl = process.env.VITE_API_URL || 'http://localhost:4000';
 
 export default defineConfig({
+  // Served under /pos/* in production so it can coexist with the admin app on
+  // the same CloudFront distribution. Vite rewrites every asset URL with this
+  // prefix at build time, and the dev server roots at http://localhost:3002/pos/.
+  base: '/pos/',
   plugins: [react()],
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),

@@ -39,31 +39,34 @@ vi.mock('../lib/kitchen-stations-api.js', () => ({
   listKitchenStations: (...args: unknown[]) => listKitchenStationsMock(...args),
 }));
 
-vi.mock('../context/AuthContext.js', () => ({
-  useAuth: () => ({
-    user: {
-      _id: 'user-1',
-      businessId: 'biz-1',
-      email: 'admin@x.com',
-      name: 'Admin',
-      role: 'admin',
+// Runtime hooks now live in @kaipos/app-runtime; override only the ones the
+// page consumes and preserve the rest of the module exports.
+vi.mock('@kaipos/app-runtime', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@kaipos/app-runtime')>();
+  return {
+    ...actual,
+    useAuth: () => ({
+      user: {
+        _id: 'user-1',
+        businessId: 'biz-1',
+        email: 'admin@x.com',
+        name: 'Admin',
+        role: 'admin',
+        branchIds: ['branch-1'],
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: 'system',
+      },
+    }),
+    useActiveBranch: () => ({
+      branchId: 'branch-1',
+      setBranchId: () => undefined,
       branchIds: ['branch-1'],
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      createdBy: 'system',
-    },
-  }),
-}));
-
-vi.mock('../hooks/useActiveBranch.js', () => ({
-  useActiveBranch: () => ({
-    branchId: 'branch-1',
-    setBranchId: () => undefined,
-    branchIds: ['branch-1'],
-    canManage: true,
-  }),
-}));
+      canManage: true,
+    }),
+  };
+});
 
 const navigateMock = vi.fn();
 vi.mock('react-router-dom', async () => {

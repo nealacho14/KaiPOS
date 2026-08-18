@@ -142,7 +142,7 @@ beforeEach(() => {
 });
 
 describe('products routes', () => {
-  describe('GET /api/products', () => {
+  describe('GET - /api/products', () => {
     it('401 without Authorization', async () => {
       const app = createApp();
       const res = await app.request('/api/products?branchId=br-1');

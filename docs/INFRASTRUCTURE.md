@@ -155,8 +155,9 @@ plus a third behavior that proxies `/api/*` to the API Gateway.
 S3 buckets:
 
 - `kaipos-frontend-prod` — admin assets.
-- `kaipos-frontend-pos-prod` — POS assets (deployed at the bucket root; the
-  `/pos` prefix is stripped at the CloudFront edge before reaching S3).
+- `kaipos-frontend-pos-prod` — POS assets, deployed under a `pos/` key prefix
+  (`destinationKeyPrefix`) so viewer URIs like `/pos/assets/x.js` map 1:1 to
+  S3 keys with no edge rewriting.
 - Both: `BlockPublicAccess.BLOCK_ALL`, SSE-S3, `enforceSSL`, `RETAIN`.
 - Each bucket has its own CloudFront Origin Access Identity (OAI) — the
   buckets are not reachable directly; only CloudFront can read them.
@@ -167,7 +168,9 @@ CloudFront distribution:
   that covers the expected audience.
 - **Default behavior** → admin S3 bucket via OAI, cache policy
   `CACHING_OPTIMIZED`, HTTPS only, SPA fallback (`spa-router.js` rewrites
-  no-extension URIs to `/index.html`) for client-side routing.
+  no-extension URIs to `/index.html`) for client-side routing. It also
+  301-redirects bare `/pos` to `/pos/`, since `/pos` without the trailing
+  slash doesn't match the `/pos/*` behavior and would serve the admin SPA.
 - **`/api/*` behavior** → `HttpOrigin` targeting
   `<apiId>.execute-api.us-east-1.amazonaws.com`:
   - `CACHING_DISABLED` (APIs aren't cacheable).
@@ -177,10 +180,19 @@ CloudFront distribution:
   - `ALLOW_ALL` methods (GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD).
 - **`/pos/*` behavior** → POS S3 bucket via its own OAI, cache policy
   `CACHING_OPTIMIZED`, HTTPS only. Attaches `spa-router-pos.js`, a
-  CloudFront Function that (1) strips the `/pos` prefix from the URI
-  before forwarding to S3 and (2) rewrites no-extension URIs to
-  `/index.html` for SPA deep-linking. The POS app is built with Vite
-  `base: '/pos/'` so all of its asset URLs are prefixed accordingly.
+  CloudFront Function that rewrites no-extension URIs to `/pos/index.html`
+  for SPA deep-linking; asset URIs pass through unchanged. The POS app is
+  built with Vite `base: '/pos/'` so all of its asset URLs are prefixed
+  accordingly.
+
+  ⚠️ **Cache-key lesson**: viewer-request URI rewrites happen _before_ the
+  cache lookup, and the cache key is the rewritten URI — it does not include
+  the behavior or origin. An earlier version stripped the `/pos` prefix and
+  rewrote SPA routes to `/index.html`, the same key the default behavior
+  produces for the admin app: whichever `index.html` an edge cached first was
+  then served for _both_ apps. The two SPA routers must always rewrite to
+  disjoint URIs.
+
 - **Frontend deployments**: two `BucketDeployment` constructs upload
   `apps/frontend-admin/dist/` and `apps/frontend-pos/dist/` into their
   respective buckets and automatically invalidate `/*` and `/pos/*`

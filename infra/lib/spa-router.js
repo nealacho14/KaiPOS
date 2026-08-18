@@ -10,6 +10,15 @@
 function handler(event) {
   var request = event.request;
   var uri = request.uri;
+  // Bare `/pos` (no trailing slash) does NOT match the `/pos/*` behavior, so
+  // it lands here. Redirect to the POS app instead of serving the admin SPA.
+  if (uri === '/pos') {
+    return {
+      statusCode: 301,
+      statusDescription: 'Moved Permanently',
+      headers: { location: { value: '/pos/' } },
+    };
+  }
   // Anything ending in a file extension (.js, .css, .ico, .png, ...) is a
   // real asset and must hit S3 as-is — let S3 return 404 if it is missing.
   // Everything else is treated as a client-side route and rewritten so the

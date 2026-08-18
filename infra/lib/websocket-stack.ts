@@ -74,6 +74,7 @@ export class WebSocketStack extends cdk.Stack {
       memorySize: config.lambdaMemoryWsConnect,
       timeout: cdk.Duration.seconds(30),
       logRetention: logs.RetentionDays.ONE_MONTH,
+      reservedConcurrentExecutions: config.lambdaConcurrencyWsConnect,
       environment: { ...baseEnvironment },
     });
     this.wsConnectFn = wsConnectFn;
@@ -86,6 +87,7 @@ export class WebSocketStack extends cdk.Stack {
       memorySize: config.lambdaMemoryWsDisconnect,
       timeout: cdk.Duration.seconds(30),
       logRetention: logs.RetentionDays.ONE_MONTH,
+      reservedConcurrentExecutions: config.lambdaConcurrencyWsDisconnect,
       environment: { ...baseEnvironment },
     });
     this.wsDisconnectFn = wsDisconnectFn;
@@ -98,6 +100,7 @@ export class WebSocketStack extends cdk.Stack {
       memorySize: config.lambdaMemoryWsDefault,
       timeout: cdk.Duration.seconds(30),
       logRetention: logs.RetentionDays.ONE_MONTH,
+      reservedConcurrentExecutions: config.lambdaConcurrencyWsDefault,
       environment: { ...baseEnvironment },
     });
     this.wsDefaultFn = wsDefaultFn;
@@ -131,6 +134,14 @@ export class WebSocketStack extends cdk.Stack {
       webSocketApi: this.webSocketApi,
       stageName: config.stage,
       autoDeploy: true,
+      // Stage-wide invocation cap (all routes). Throttled $default frames are
+      // dropped by API Gateway; throttled $connect returns 429 and the client
+      // backs off. This is the kill switch for the 2026-05-06 class of
+      // incident — a looping client can never exceed this rate.
+      throttle: {
+        rateLimit: config.wsThrottleRateLimit,
+        burstLimit: config.wsThrottleBurstLimit,
+      },
     });
 
     // Default handler replies to pings/acks via PostToConnection, which requires

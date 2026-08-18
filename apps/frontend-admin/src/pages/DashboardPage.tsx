@@ -1,6 +1,6 @@
 import type { UserRole } from '@kaipos/shared';
 import { Box, Card, CardContent, Chip, Stack, Typography, WsStatusChip } from '@kaipos/ui';
-import { useAuth, useWebSocketContext } from '@kaipos/app-runtime';
+import { useAuth, useWebSocketState } from '@kaipos/app-runtime';
 import { PageHeader } from '../components/index.js';
 
 const ROLE_LABEL: Record<UserRole, string> = {
@@ -15,7 +15,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
 
 export function DashboardPage() {
   const { user, business } = useAuth();
-  const ws = useWebSocketContext();
+  const ws = useWebSocketState();
 
   if (!user) return null;
 

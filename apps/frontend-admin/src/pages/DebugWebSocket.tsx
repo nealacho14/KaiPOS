@@ -18,7 +18,7 @@ import {
   WsStatusChip,
 } from '@kaipos/ui';
 import { useCallback, useEffect, useState } from 'react';
-import { api, getSession, useWebSocketContext } from '@kaipos/app-runtime';
+import { api, getSession, useWebSocketActions, useWebSocketState } from '@kaipos/app-runtime';
 import { PageHeader } from '../components/index.js';
 
 const MAX_MESSAGES = 50;
@@ -43,7 +43,8 @@ const defaultOrderForm: DebugOrderForm = {
 };
 
 export function DebugWebSocket() {
-  const ws = useWebSocketContext();
+  const wsActions = useWebSocketActions();
+  const ws = useWebSocketState();
   const [endpointInput, setEndpointInput] = useState<string>(ws.endpoint);
   const [tokenInput, setTokenInput] = useState<string>(() => getSession()?.accessToken ?? '');
   const [subscribeInput, setSubscribeInput] = useState<string>('');
@@ -62,7 +63,8 @@ export function DebugWebSocket() {
     });
   }, []);
 
-  useEffect(() => ws.onMessage(pushMessage), [ws, pushMessage]);
+  // `wsActions` is identity-stable, so this registers the listener exactly once.
+  useEffect(() => wsActions.onMessage(pushMessage), [wsActions, pushMessage]);
 
   const onConnect = () => {
     setApiError(null);
@@ -81,22 +83,22 @@ export function DebugWebSocket() {
     const active =
       ws.status === 'open' || ws.status === 'connecting' || ws.status === 'reconnecting';
     if (active) {
-      ws.disconnect();
+      wsActions.disconnect();
     }
-    ws.setEndpoint(endpoint);
-    ws.connect(tokenInput);
+    wsActions.setEndpoint(endpoint);
+    wsActions.connect(tokenInput);
   };
 
-  const onDisconnect = () => ws.disconnect();
+  const onDisconnect = () => wsActions.disconnect();
 
   const onSubscribe = () => {
     const trimmed = subscribeInput.trim();
     if (!trimmed) return;
-    ws.subscribe(trimmed as WSChannel);
+    wsActions.subscribe(trimmed as WSChannel);
     setSubscribeInput('');
   };
 
-  const onUnsubscribe = (channel: WSChannel) => ws.unsubscribe(channel);
+  const onUnsubscribe = (channel: WSChannel) => wsActions.unsubscribe(channel);
 
   const onCreateOrder = async () => {
     setApiError(null);
@@ -218,7 +220,7 @@ export function DebugWebSocket() {
               <Button variant="contained" onClick={onSubscribe}>
                 Subscribe
               </Button>
-              <Button variant="outlined" onClick={() => ws.ping()}>
+              <Button variant="outlined" onClick={() => wsActions.ping()}>
                 Ping
               </Button>
             </Stack>

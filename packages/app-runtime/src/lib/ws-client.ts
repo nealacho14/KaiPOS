@@ -1,11 +1,27 @@
 import type { WSChannel, WSClientRequest, WSMessage } from '@kaipos/shared';
 
-export type WSClientStatus = 'idle' | 'connecting' | 'open' | 'closed' | 'reconnecting';
+export type WSClientStatus = 'idle' | 'connecting' | 'open' | 'closed' | 'reconnecting' | 'failed';
 
 export interface WSClientOptions {
   endpoint: string;
   initialBackoffMs?: number;
   maxBackoffMs?: number;
+  /**
+   * Consecutive reconnect attempts before giving up with status `'failed'`.
+   * `'failed'` is terminal until a fresh `connect()` — without a ceiling an
+   * abandoned tab with a dead session retries every `maxBackoffMs` forever,
+   * one $connect Lambda invocation at a time.
+   */
+  maxReconnectAttempts?: number;
+  /**
+   * Called before each *re*connect attempt to obtain a fresh token. The token
+   * passed to `connect()` is used as-is for the first dial. A 401 handshake
+   * rejection reaches the browser as a generic 1006 close (indistinguishable
+   * from a network drop), so instead of special-casing close codes every
+   * retry re-reads the token; returning `null` (no session) fails terminally
+   * instead of dialing with a token known to be dead.
+   */
+  getToken?: () => string | null | Promise<string | null>;
 }
 
 export interface WSClientEventMap {
@@ -20,6 +36,9 @@ type Listener<K extends keyof WSClientEventMap> = WSClientEventMap[K];
 
 const DEFAULT_INITIAL_BACKOFF_MS = 1000;
 const DEFAULT_MAX_BACKOFF_MS = 30_000;
+// 10 attempts at 1s→30s backoff ≈ 3.5 min of trying — enough to ride out a
+// deploy or a WiFi blip, short enough that dead sessions stop billing us.
+const DEFAULT_MAX_RECONNECT_ATTEMPTS = 10;
 
 /**
  * Tracks subscriptions client-side so that after a reconnect we can re-emit
@@ -30,6 +49,8 @@ export class WSClient {
   private endpoint: string;
   private readonly initialBackoffMs: number;
   private readonly maxBackoffMs: number;
+  private readonly maxReconnectAttempts: number;
+  private readonly getTokenFn: WSClientOptions['getToken'];
 
   private ws: WebSocket | null = null;
   private token: string | null = null;
@@ -53,6 +74,8 @@ export class WSClient {
     this.endpoint = options.endpoint;
     this.initialBackoffMs = options.initialBackoffMs ?? DEFAULT_INITIAL_BACKOFF_MS;
     this.maxBackoffMs = options.maxBackoffMs ?? DEFAULT_MAX_BACKOFF_MS;
+    this.maxReconnectAttempts = options.maxReconnectAttempts ?? DEFAULT_MAX_RECONNECT_ATTEMPTS;
+    this.getTokenFn = options.getToken;
   }
 
   get status(): WSClientStatus {
@@ -82,6 +105,9 @@ export class WSClient {
   connect(token: string): void {
     this.token = token;
     this.manualClose = false;
+    // A fresh explicit connect always starts with a clean slate, including
+    // recovery from a terminal 'failed' state.
+    this.reconnectAttempts = 0;
     this.openSocket();
   }
 
@@ -137,6 +163,35 @@ export class WSClient {
     this.clearReconnectTimer();
     this.setStatus(this.reconnectAttempts === 0 ? 'connecting' : 'reconnecting');
 
+    // Reconnects re-read the token so a session refreshed since connect()
+    // (or expired mid-outage) doesn't hammer $connect with a dead JWT. The
+    // first dial keeps the token passed to connect() verbatim, so explicit
+    // tokens (debug page) keep working.
+    if (this.getTokenFn && this.reconnectAttempts > 0) {
+      void this.refreshTokenAndDial();
+      return;
+    }
+    this.dial();
+  }
+
+  private async refreshTokenAndDial(): Promise<void> {
+    let token: string | null = null;
+    try {
+      token = await this.getTokenFn!();
+    } catch (err) {
+      this.emit('error', err);
+    }
+    // A manual disconnect() while the token fetch was in flight wins.
+    if (this.manualClose) return;
+    if (!token) {
+      this.setStatus('failed');
+      return;
+    }
+    this.token = token;
+    this.dial();
+  }
+
+  private dial(): void {
     let ws: WebSocket;
     try {
       ws = new WebSocket(this.buildUrl());
@@ -185,8 +240,16 @@ export class WSClient {
 
   private scheduleReconnect(): void {
     if (this.manualClose) return;
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      this.setStatus('failed');
+      return;
+    }
     this.setStatus('reconnecting');
-    const delay = Math.min(this.initialBackoffMs * 2 ** this.reconnectAttempts, this.maxBackoffMs);
+    const base = Math.min(this.initialBackoffMs * 2 ** this.reconnectAttempts, this.maxBackoffMs);
+    // ±20% jitter (mirrors the HTTP client's throttle retry) so a fleet-wide
+    // socket drop doesn't reconnect in lockstep against $connect.
+    const jitter = (Math.random() - 0.5) * 0.4 * base;
+    const delay = Math.round(base + jitter);
     this.reconnectAttempts++;
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;

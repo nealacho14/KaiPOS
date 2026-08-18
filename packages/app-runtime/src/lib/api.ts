@@ -107,6 +107,60 @@ function refreshOnce(refreshToken: string): Promise<RefreshResponse> {
   return inflightRefresh;
 }
 
+// Refresh slightly before actual expiry so a token that is about to die
+// mid-flight (e.g. a WS handshake) never gets sent.
+const TOKEN_EXPIRY_SLACK_MS = 30_000;
+
+function accessTokenExpiresSoon(accessToken: string): boolean {
+  try {
+    const segment = accessToken.split('.')[1];
+    if (!segment) return false;
+    // JWTs are base64url; atob wants standard base64 with padding.
+    const base64 = segment.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    const payload = JSON.parse(atob(padded)) as { exp?: number };
+    if (typeof payload.exp !== 'number') return false;
+    return payload.exp * 1000 < Date.now() + TOKEN_EXPIRY_SLACK_MS;
+  } catch {
+    // Unparseable token: let the server be the judge rather than refreshing
+    // preemptively on every call.
+    return false;
+  }
+}
+
+/**
+ * Returns a currently-valid access token, refreshing it first when it is
+ * expired or about to expire. `null` means there is no session at all — the
+ * caller should treat that as terminal instead of retrying. Used by the WS
+ * client so every reconnect dials with a live token instead of the one
+ * captured at the original `connect()`.
+ */
+export async function getFreshAccessToken(): Promise<string | null> {
+  const session = getSession();
+  if (!session) return null;
+  if (!accessTokenExpiresSoon(session.accessToken)) return session.accessToken;
+
+  try {
+    const refreshed = await refreshOnce(session.refreshToken);
+    setSession({
+      accessToken: refreshed.accessToken,
+      refreshToken: refreshed.refreshToken,
+      user: session.user,
+    });
+    return refreshed.accessToken;
+  } catch (err) {
+    // Same policy as the 401 retry path: only an explicit rejection kills the
+    // session. Transient failures return the stale token — the server rejects
+    // it and the caller's own backoff takes over.
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+      clearSession();
+      redirectToLogin();
+      return null;
+    }
+    return session.accessToken;
+  }
+}
+
 function buildHeaders(init: ApiInit | undefined, accessToken?: string): Headers {
   const headers = new Headers(init?.headers);
   if (accessToken && !init?.skipAuth) {

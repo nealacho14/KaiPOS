@@ -55,7 +55,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ApiError,
@@ -63,7 +63,8 @@ import {
   useActiveBranch,
   useAuth,
   useBranches,
-  useWebSocketContext,
+  useWebSocketActions,
+  useWebSocketState,
 } from '@kaipos/app-runtime';
 import { PageHeader, PaginationFooter } from '../components/index.js';
 import {
@@ -162,14 +163,11 @@ export function ProductsListPage() {
   // patch local state because the WS payload only carries identifiers — the
   // canonical product shape stays one source of truth (the API).
   //
-  // The subscribe/unsubscribe + onMessage handlers are wired through a ref so
-  // that re-renders of the WS context (which happen on every subscribe via
-  // setSubscribedChannels) don't re-fire the effect. Otherwise the effect's
-  // cleanup unsubscribes and the body re-subscribes on every render — a tight
-  // infinite loop that we observed saturating Lambda concurrency in prod.
-  const ws = useWebSocketContext();
-  const wsRef = useRef(ws);
-  wsRef.current = ws;
+  // `wsActions` is identity-stable by contract (see WebSocketContext), so it
+  // is safe in the dependency arrays — only a channel change or a connection
+  // status transition re-fires the subscribe effect.
+  const wsActions = useWebSocketActions();
+  const { status: wsStatus } = useWebSocketState();
   const branchChannel: WSChannel | null = useMemo(() => {
     if (!user || !branchId) return null;
     if (user.businessId === '*') return null;
@@ -178,19 +176,15 @@ export function ProductsListPage() {
 
   useEffect(() => {
     if (!branchChannel) return;
-    if (wsRef.current.status !== 'open') return;
-    wsRef.current.subscribe(branchChannel);
+    if (wsStatus !== 'open') return;
+    wsActions.subscribe(branchChannel);
     return () => {
-      wsRef.current.unsubscribe(branchChannel);
+      wsActions.unsubscribe(branchChannel);
     };
-    // We intentionally only depend on branchChannel + the ws connection
-    // status. `ws` itself changes identity on every subscribe — adding it
-    // to the dep array creates a re-subscribe loop. The wsRef above keeps
-    // us pointed at the latest reference without triggering re-runs.
-  }, [branchChannel, ws.status]);
+  }, [branchChannel, wsStatus, wsActions]);
 
   useEffect(() => {
-    return wsRef.current.onMessage((message) => {
+    return wsActions.onMessage((message) => {
       if (!message.channel || message.channel !== branchChannel) return;
       if (
         message.type === 'product.created' ||
@@ -224,7 +218,7 @@ export function ProductsListPage() {
         setLowStockToast(`${name} está bajo de stock`);
       }
     });
-  }, [branchChannel, reorderMode, onlyFeatured]);
+  }, [branchChannel, reorderMode, onlyFeatured, wsActions]);
 
   // Reset to first page whenever the filter/sucursal changes — otherwise the
   // request asks for `page=3` of a result set that may now have one page.

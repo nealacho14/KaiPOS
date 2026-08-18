@@ -59,11 +59,16 @@ vi.mock('@kaipos/app-runtime', async (importOriginal) => {
       loading: false,
       error: null,
     }),
-    useWebSocketContext: () => ({
-      status: 'closed',
+    useWebSocketActions: () => ({
       subscribe: () => undefined,
       unsubscribe: () => undefined,
       onMessage: () => () => undefined,
+    }),
+    useWebSocketState: () => ({
+      status: 'closed',
+      subscribedChannels: [],
+      endpoint: '',
+      hasEndpoint: false,
     }),
   };
 });

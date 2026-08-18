@@ -59,7 +59,16 @@ export function App() {
               <Route path="/users/:id/edit" element={<UserFormPage />} />
             </Route>
           </Route>
-          <Route path="/debug/ws" element={<DebugWebSocket />} />
+          {/* Manual WS console against the prod endpoint (connect/subscribe/ping,
+              order fan-out demo). Platform-only: in the wrong hands it is a
+              free traffic generator against the WS Lambdas. */}
+          <Route
+            element={
+              <RequirePermission permission="platform:manage" fallbackPath={ADMIN_FALLBACK} />
+            }
+          >
+            <Route path="/debug/ws" element={<DebugWebSocket />} />
+          </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

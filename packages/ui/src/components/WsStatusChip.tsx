@@ -3,11 +3,17 @@ import { Box, Chip } from './index.js';
 // Mirrors the union used by the app-level WS clients. Kept inline so this
 // component can ship from `@kaipos/ui` without dragging an app-runtime import
 // in. Keep in sync with `WSClientStatus` in the app runtime.
-export type WsStatusChipStatus = 'open' | 'connecting' | 'reconnecting' | 'closed' | 'idle';
+export type WsStatusChipStatus =
+  | 'open'
+  | 'connecting'
+  | 'reconnecting'
+  | 'closed'
+  | 'idle'
+  | 'failed';
 
 interface WsStatusConfig {
   label: string;
-  color: 'success' | 'warning' | 'default';
+  color: 'success' | 'warning' | 'error' | 'default';
   dot: string;
 }
 
@@ -17,6 +23,9 @@ const STATUS_CONFIG: Record<WsStatusChipStatus, WsStatusConfig> = {
   reconnecting: { label: 'Reconectando…', color: 'warning', dot: 'warning.main' },
   closed: { label: 'Desconectado', color: 'default', dot: 'text.disabled' },
   idle: { label: 'Inactivo', color: 'default', dot: 'text.disabled' },
+  // Terminal: the client exhausted its reconnect attempts (or has no session)
+  // and will not retry until an explicit reconnect / page reload.
+  failed: { label: 'Sin conexión', color: 'error', dot: 'error.main' },
 };
 
 export interface WsStatusChipProps {

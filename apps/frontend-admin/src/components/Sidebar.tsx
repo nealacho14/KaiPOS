@@ -28,11 +28,11 @@ interface SidebarItem {
 }
 
 const ITEMS: SidebarItem[] = [
-  { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
+  { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard, permission: 'business:manage' },
   { label: 'Productos', to: '/products', icon: Package, permission: 'products:read' },
   { label: 'Categorías', to: '/categories', icon: Inbox, permission: 'categories:read' },
   { label: 'Usuarios', to: '/users', icon: UsersIcon, permission: 'users:read' },
-  { label: 'Debug · WebSocket', to: '/debug/ws', icon: Radio },
+  { label: 'Debug · WebSocket', to: '/debug/ws', icon: Radio, permission: 'business:manage' },
 ];
 
 export interface SidebarProps {

@@ -29,7 +29,7 @@ function mockMe(user: SafeUser) {
       new Response(
         JSON.stringify({
           success: true,
-          data: { user, business: { _id: 'b1', name: 'Biz', slug: 'biz', currency: 'MXN' } },
+          data: { user, business: { _id: 'b1', name: 'Biz', slug: 'biz', currency: 'COP' } },
         }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),

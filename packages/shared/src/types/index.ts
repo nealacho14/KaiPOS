@@ -6,8 +6,8 @@ export interface Business {
   phone?: string;
   email?: string;
   // ISO 4217 currency code used for money formatting across POS / admin
-  // surfaces. Defaults to `'MXN'` when missing so existing documents stay
-  // valid without a migration.
+  // surfaces. Falls back to `DEFAULT_CURRENCY` ('COP') when missing so existing
+  // documents stay valid without a migration.
   currency?: string;
   isActive: boolean;
   createdAt: Date;
@@ -237,6 +237,10 @@ export interface RefreshToken {
   token: string;
   expiresAt: Date;
   createdAt: Date;
+  // Set when the session was opened with "mantener sesión (30 días)". Persisted
+  // on the token itself so rotation can re-issue with the same extended TTL —
+  // otherwise every refresh silently downgrades the session back to 7 days.
+  rememberMe?: boolean;
 }
 
 export interface LoginAttempt {

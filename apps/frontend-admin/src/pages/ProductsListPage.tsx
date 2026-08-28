@@ -1,5 +1,5 @@
 import type { Product, WSChannel } from '@kaipos/shared';
-import { channelFor, formatCurrency, hasPermission } from '@kaipos/shared';
+import { channelFor, DEFAULT_CURRENCY, formatCurrency, hasPermission } from '@kaipos/shared';
 import {
   Alert,
   Box,
@@ -68,6 +68,7 @@ import {
 import { PageHeader, PaginationFooter } from '../components/index.js';
 import {
   deleteProduct,
+  listFeaturedProductIds,
   listProducts,
   reorderProducts,
   setProductFeatured,
@@ -136,12 +137,10 @@ export function ProductsListPage() {
     message: string;
   } | null>(null);
 
-  // Set of product IDs locally known to be featured for the active branch.
-  // Toggled via the per-row star button; persisted via setProductFeatured.
-  // We treat the local set as optimistic — revert on error.
-  // Initial load: empty (no batched "is featured?" lookup exists yet). The
-  // user can switch on the "Sólo destacados" filter to scope the fetch to
-  // already-featured rows, which then seeds the set.
+  // Set of product IDs featured in the active branch. Hydrated from
+  // `/api/products/preferences` on every branch change, then kept in sync
+  // optimistically by the per-row star button (reverted on error) and by the
+  // `product.featured` WS event.
   const [featuredIds, setFeaturedIds] = useState<Set<string>>(new Set());
   const [featuredPending, setFeaturedPending] = useState<Set<string>>(new Set());
 
@@ -218,6 +217,27 @@ export function ProductsListPage() {
     setPage(0);
   }, [branchId, debouncedQuery, category, includeInactive, onlyFeatured, onlyActiveNow]);
 
+  // Hydrate the featured set for the active branch. Keyed on `branchId` alone
+  // so switching sucursal both refetches and clears the previous branch's
+  // stars — the featured flag is per-branch, so carrying it over would light up
+  // the wrong rows.
+  useEffect(() => {
+    setFeaturedIds(new Set());
+    if (!branchId) return;
+    let cancelled = false;
+    listFeaturedProductIds(branchId)
+      .then((ids) => {
+        if (!cancelled) setFeaturedIds(new Set(ids));
+      })
+      .catch(() => {
+        // A failed hydrate leaves the stars empty; the list itself still
+        // renders and the toggle keeps working, so don't surface an error.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [branchId, reloadKey]);
+
   useEffect(() => {
     if (!branchId) return;
     let cancelled = false;
@@ -235,15 +255,6 @@ export function ProductsListPage() {
       .then(({ data, pagination }) => {
         if (cancelled) return;
         setState({ status: 'success', data, pagination });
-        // Seed the local featured set when the request was scoped to featured
-        // products — anything that came back is featured by definition.
-        if (onlyFeatured) {
-          setFeaturedIds((prev) => {
-            const next = new Set(prev);
-            for (const p of data) next.add(p._id);
-            return next;
-          });
-        }
       })
       .catch((err) => {
         if (!cancelled) setState({ status: 'error', message: mapError(err) });
@@ -742,7 +753,7 @@ function ProductsTable({
   onToggleFeatured,
 }: ProductsTableProps) {
   const { business } = useAuth();
-  const currency = business?.currency ?? 'MXN';
+  const currency = business?.currency ?? DEFAULT_CURRENCY;
   // On xs the row is the click target; the explicit Acciones column is hidden
   // because it doesn't fit alongside name + price + status chip at 375 px.
   return (
@@ -926,7 +937,7 @@ function ReorderableProductsTable({ products, onReorder }: ReorderableProductsTa
 
 function SortableProductRow({ product, index }: { product: Product; index: number }) {
   const { business } = useAuth();
-  const currency = business?.currency ?? 'MXN';
+  const currency = business?.currency ?? DEFAULT_CURRENCY;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: product._id,
   });

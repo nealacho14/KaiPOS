@@ -1,16 +1,9 @@
+import { formatCurrency } from '@kaipos/shared';
 import { Box, Button, Card, Divider, EmptyState, Stack, Typography } from '@kaipos/ui';
 import { useCart } from '../context/CartContext.js';
 
 export interface CartPanelProps {
   currency: string;
-}
-
-function formatPrice(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(amount);
-  } catch {
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
-  }
 }
 
 // Visual-only placeholder. Paso 3 will replace this with the real cart UI:
@@ -59,7 +52,7 @@ export function CartPanel({ currency }: CartPanelProps) {
         data-testid="cart-panel-footer"
       >
         <Typography variant="moneyLg" component="span" data-testid="cart-panel-total">
-          {formatPrice(total, currency)}
+          {formatCurrency(total, currency)}
         </Typography>
         <Button size="pos" disabled data-testid="cart-panel-checkout">
           Cobrar (Paso 3)

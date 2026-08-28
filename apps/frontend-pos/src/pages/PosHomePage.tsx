@@ -1,4 +1,5 @@
 import type { Product } from '@kaipos/shared';
+import { DEFAULT_CURRENCY } from '@kaipos/shared';
 import { Alert, Box, EmptyState, Snackbar, Stack } from '@kaipos/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useActiveBranch, useAuth } from '@kaipos/app-runtime';
@@ -26,7 +27,7 @@ interface SnackbarState {
 // Fallback used only when the active session has no business (super_admin) or
 // the tenant document somehow lacks a currency. Real tenants ship
 // `business.currency` (ISO 4217) on the auth payload.
-const FALLBACK_CURRENCY = 'MXN';
+const FALLBACK_CURRENCY = DEFAULT_CURRENCY;
 
 export function PosHomePage() {
   const { user, business } = useAuth();

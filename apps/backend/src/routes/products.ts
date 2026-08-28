@@ -7,6 +7,7 @@ import { requireBranchAccess } from '../middleware/branch-access.js';
 import {
   createProductSchema,
   featureProductSchema,
+  listProductPreferencesQuerySchema,
   listProductsQuerySchema,
   productIdParamSchema,
   reorderProductsSchema,
@@ -65,6 +66,25 @@ products.patch(
     const body = reorderProductsSchema.parse(await c.req.json()) as ReorderProductsInput;
     const result = await productsService.reorderProducts(user, body);
     return c.json({ success: true, data: result });
+  },
+);
+
+// Featured product ids for a branch. Registered before `/:id` so it isn't
+// matched as a product whose id is "preferences".
+products.get(
+  '/api/products/preferences',
+  requireAuth(),
+  requirePermission('products:read'),
+  validate({ query: listProductPreferencesQuerySchema }),
+  requireBranchAccess('branchId', 'query'),
+  async (c) => {
+    const user = c.get('user')!;
+    const { branchId } = listProductPreferencesQuerySchema.parse(c.req.query());
+    const featuredProductIds = await productPreferencesService.listFeaturedProductIds(
+      user,
+      branchId,
+    );
+    return c.json({ success: true, data: { featuredProductIds } });
   },
 );
 

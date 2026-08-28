@@ -38,7 +38,7 @@ function mockFetch(user: SafeUser) {
           success: true,
           data: {
             user,
-            business: { _id: 'b1', name: 'La Cocina', slug: 'la-cocina', currency: 'MXN' },
+            business: { _id: 'b1', name: 'La Cocina', slug: 'la-cocina', currency: 'COP' },
           },
         }),
         { status: 200, headers: { 'content-type': 'application/json' } },
@@ -101,7 +101,7 @@ describe('AppLayout', () => {
     expect(screen.getByRole('link', { name: /debug · websocket/i })).toBeInTheDocument();
   });
 
-  it('hides Usuarios nav for cashier', async () => {
+  it('hides Dashboard, Usuarios and Debug · WebSocket nav for cashier', async () => {
     const cashier = makeUser('cashier');
     mockFetch(cashier);
     setSession({ accessToken: 'a', refreshToken: 'r', user: cashier });
@@ -111,9 +111,12 @@ describe('AppLayout', () => {
     await waitFor(() => {
       expect(screen.getByText('dashboard content')).toBeInTheDocument();
     });
-    expect(screen.getByRole('link', { name: /dashboard/i })).toBeInTheDocument();
+    // Dashboard and the WS console are both gated on `business:manage`, so a
+    // cashier must not even see the links — previously the Debug link rendered
+    // for everyone and bounced on click.
+    expect(screen.queryByRole('link', { name: /dashboard/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /usuarios/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /debug · websocket/i })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /debug · websocket/i })).not.toBeInTheDocument();
   });
 
   it('logout clears session and navigates to /login', async () => {

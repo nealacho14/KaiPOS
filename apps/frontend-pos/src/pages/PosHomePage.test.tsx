@@ -82,7 +82,7 @@ function setupMockFetch(state: MockState, user: SafeUser) {
           success: true,
           data: {
             user,
-            business: { _id: 'b1', name: 'La Cocina', slug: 'la-cocina', currency: 'MXN' },
+            business: { _id: 'b1', name: 'La Cocina', slug: 'la-cocina', currency: 'COP' },
           },
         }),
         { status: 200, headers: { 'content-type': 'application/json' } },

@@ -2,55 +2,67 @@ import { CYPRESS_FIXTURES } from './support/fixtures';
 
 interface RoleMatrix {
   role: 'admin' | 'manager' | 'supervisor' | 'cashier' | 'waiter' | 'kitchen';
+  // Where this role lands when it has nowhere else to go — the post-login
+  // target and the redirect destination of every RequirePermission guard.
+  // Mirrors `resolveHomePath` in packages/app-runtime/src/lib/home-path.ts.
+  homePath: string;
   // Visible nav labels in the sidebar (must be exact text matches).
   visible: string[];
   // Sidebar labels that must NOT appear for this role.
   hidden: string[];
   // Routes that require a permission this role lacks; visiting must redirect
-  // away (the SPA bounces unauthorized routes back to /dashboard).
+  // to the role's own homePath.
   forbiddenRoutes: string[];
 }
 
-// Sidebar items: Dashboard (no perm), Productos (products:read), Categorías
-// (categories:read), Usuarios (users:read), Debug · WebSocket (no perm).
+// Sidebar items: Dashboard (business:manage), Productos (products:read),
+// Categorías (categories:read), Usuarios (users:read), Debug · WebSocket
+// (business:manage). Dashboard and the WS console are admin-only, so every
+// other role both loses the nav link and gets bounced off the route.
 // See apps/frontend-admin/src/components/Sidebar.tsx and
 // packages/shared/src/permissions.ts for the source of truth.
 const MATRIX: RoleMatrix[] = [
   {
     role: 'admin',
+    homePath: '/dashboard',
     visible: ['Dashboard', 'Productos', 'Categorías', 'Usuarios', 'Debug · WebSocket'],
     hidden: [],
     forbiddenRoutes: [],
   },
   {
     role: 'manager',
-    visible: ['Dashboard', 'Productos', 'Categorías', 'Usuarios', 'Debug · WebSocket'],
-    hidden: [],
-    forbiddenRoutes: [],
+    homePath: '/products',
+    visible: ['Productos', 'Categorías', 'Usuarios'],
+    hidden: ['Dashboard', 'Debug · WebSocket'],
+    forbiddenRoutes: ['/dashboard', '/debug/ws'],
   },
   {
     role: 'supervisor',
-    visible: ['Dashboard', 'Productos', 'Categorías', 'Debug · WebSocket'],
-    hidden: ['Usuarios'],
-    forbiddenRoutes: ['/users'],
+    homePath: '/products',
+    visible: ['Productos', 'Categorías'],
+    hidden: ['Dashboard', 'Usuarios', 'Debug · WebSocket'],
+    forbiddenRoutes: ['/dashboard', '/debug/ws', '/users'],
   },
   {
     role: 'cashier',
-    visible: ['Dashboard', 'Productos', 'Categorías', 'Debug · WebSocket'],
-    hidden: ['Usuarios'],
-    forbiddenRoutes: ['/users', '/users/new'],
+    homePath: '/products',
+    visible: ['Productos', 'Categorías'],
+    hidden: ['Dashboard', 'Usuarios', 'Debug · WebSocket'],
+    forbiddenRoutes: ['/dashboard', '/debug/ws', '/users', '/users/new'],
   },
   {
     role: 'waiter',
-    visible: ['Dashboard', 'Productos', 'Categorías', 'Debug · WebSocket'],
-    hidden: ['Usuarios'],
-    forbiddenRoutes: ['/users'],
+    homePath: '/products',
+    visible: ['Productos', 'Categorías'],
+    hidden: ['Dashboard', 'Usuarios', 'Debug · WebSocket'],
+    forbiddenRoutes: ['/dashboard', '/debug/ws', '/users'],
   },
   {
     role: 'kitchen',
-    visible: ['Dashboard', 'Debug · WebSocket'],
-    hidden: ['Productos', 'Categorías', 'Usuarios'],
-    forbiddenRoutes: ['/products', '/categories', '/users'],
+    homePath: '/no-access',
+    visible: [],
+    hidden: ['Dashboard', 'Productos', 'Categorías', 'Usuarios', 'Debug · WebSocket'],
+    forbiddenRoutes: ['/dashboard', '/debug/ws', '/products', '/categories', '/users'],
   },
 ];
 
@@ -62,8 +74,11 @@ describe('rbac · per-role gating', () => {
   for (const entry of MATRIX) {
     it(`role=${entry.role}: sidebar + protected routes match the permission matrix`, () => {
       cy.loginAs(entry.role);
-      cy.visit('/dashboard');
-      cy.location('pathname').should('include', '/dashboard');
+      // `/` redirects to the role's own home. Landing here (rather than on a
+      // fixed /dashboard) is itself the assertion that the guards resolve
+      // without bouncing — /dashboard is admin-only now.
+      cy.visit('/');
+      cy.location('pathname', { timeout: 10_000 }).should('eq', entry.homePath);
 
       // The sidebar nav has aria-label="Navegación principal" (Sidebar.tsx).
       // Wait for it to mount before asserting absence — otherwise we race
@@ -77,11 +92,12 @@ describe('rbac · per-role gating', () => {
         cy.get('nav[aria-label="Navegación principal"]').contains('a', label).should('not.exist');
       }
 
-      // Direct URL access to forbidden routes redirects back to /dashboard
-      // (RequirePermission guard, see apps/frontend-admin/src/components/guards).
+      // Direct URL access to a forbidden route redirects to this role's home
+      // (RequirePermission, packages/app-runtime/src/guards). Asserting the
+      // exact destination also proves we don't land in a redirect loop.
       for (const route of entry.forbiddenRoutes) {
         cy.visit(route);
-        cy.location('pathname', { timeout: 10_000 }).should('eq', '/dashboard');
+        cy.location('pathname', { timeout: 10_000 }).should('eq', entry.homePath);
       }
 
       cy.logout();

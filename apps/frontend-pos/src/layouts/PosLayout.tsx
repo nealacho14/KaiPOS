@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY } from '@kaipos/shared';
 import {
   Box,
   Button,
@@ -28,7 +29,7 @@ import { CatalogProvider } from '../state/CatalogProvider.js';
 // Used as a last-resort fallback when the active session has no business
 // (super_admin) and money formatting still needs a currency. Real tenants
 // carry `business.currency` (ISO 4217) plumbed through the auth payload.
-const FALLBACK_CURRENCY = 'MXN';
+const FALLBACK_CURRENCY = DEFAULT_CURRENCY;
 
 function getWsEndpoint(): string {
   return import.meta.env.VITE_WS_ENDPOINT ?? '';

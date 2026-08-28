@@ -14,6 +14,7 @@ export {
   Image as ImageIcon,
   Inbox,
   LayoutDashboard,
+  Lock,
   LogOut,
   Menu as MenuIcon,
   Package,

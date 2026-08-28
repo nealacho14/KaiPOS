@@ -10,7 +10,7 @@ import type {
   ServiceSchedule,
   StockUnit,
 } from '@kaipos/shared';
-import { formatCurrency, hasPermission } from '@kaipos/shared';
+import { DEFAULT_CURRENCY, formatCurrency, hasPermission } from '@kaipos/shared';
 import { createProductSchema } from '@kaipos/shared/schemas/products';
 import {
   Alert,
@@ -24,6 +24,11 @@ import {
   Checkbox,
   Chip,
   ChevronRight,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Divider,
   EmptyState,
   FormControl,
@@ -75,6 +80,7 @@ import {
   createProduct,
   generateUploadUrl,
   getProduct,
+  listFeaturedProductIds,
   setProductFeatured,
   toProductsApiError,
   updateProduct,
@@ -433,6 +439,8 @@ export function ProductFormPage() {
   const [featuredSaving, setFeaturedSaving] = useState(false);
   const [featuredError, setFeaturedError] = useState<string | null>(null);
 
+  const [previewOpen, setPreviewOpen] = useState(false);
+
   const updateForm = useCallback((patch: Partial<FormState>) => {
     setForm((prev) => ({ ...prev, ...patch }));
   }, []);
@@ -449,6 +457,16 @@ export function ProductFormPage() {
         setForm(productToForm(product));
         setSkuTouched(true);
         setLoadState({ status: 'ready' });
+        // The featured flag is a per-branch preference, so it doesn't ride
+        // along on the product doc — hydrate it here or the star always renders
+        // empty and the first click re-sends `featured: true` as a no-op.
+        listFeaturedProductIds(product.branchId)
+          .then((ids) => {
+            if (!cancelled) setFeatured(ids.includes(product._id));
+          })
+          .catch(() => {
+            // Non-fatal: the star just stays off until the user toggles it.
+          });
       })
       .catch((err) => {
         if (cancelled) return;
@@ -715,7 +733,7 @@ export function ProductFormPage() {
               </span>
             </Tooltip>
           )}
-          <Button size="small" disabled>
+          <Button size="small" onClick={() => setPreviewOpen(true)}>
             Vista previa
           </Button>
           <Button
@@ -837,6 +855,8 @@ export function ProductFormPage() {
           />
         </Box>
       </Box>
+
+      <PosPreviewDialog form={form} open={previewOpen} onClose={() => setPreviewOpen(false)} />
     </Box>
   );
 }
@@ -1005,7 +1025,7 @@ interface PricingCardProps {
 
 function PricingCard({ form, updateForm, fieldErrors }: PricingCardProps) {
   const { business } = useAuth();
-  const currency = business?.currency ?? 'MXN';
+  const currency = business?.currency ?? DEFAULT_CURRENCY;
   const priceNumber = parseOptionalNumber(form.price);
   const costNumber = parseOptionalNumber(form.cost);
   const margin =
@@ -1814,9 +1834,13 @@ function TagsCard({ form, updateForm }: TagsCardProps) {
   );
 }
 
-function PosPreviewCard({ form }: { form: FormState }) {
+// Both the sidebar card and the full-size preview dialog render the same tile,
+// so the chip/price mapping lives in one place. Mirrors the POS's ProductTile
+// (apps/frontend-pos/src/components/ProductTile.tsx) so what the admin previews
+// is what the terminal draws.
+function usePosPreviewProps(form: FormState) {
   const { business } = useAuth();
-  const currency = business?.currency ?? 'MXN';
+  const currency = business?.currency ?? DEFAULT_CURRENCY;
   const priceNum = parseOptionalNumber(form.price) ?? 0;
   const topChips: PosProductCardChip[] = form.allergens.slice(0, 3).map((a) => ({
     key: a,
@@ -1824,15 +1848,63 @@ function PosPreviewCard({ form }: { form: FormState }) {
     color: 'warning',
     variant: 'outlined',
   }));
+  // A group marked `required` forces the cashier through a config step before
+  // the item can be added — the POS flags that on the tile.
+  const requiresConfig = form.modifierGroups.some((g) => g.required);
+
+  return {
+    name: form.name || 'Sin nombre',
+    price: formatCurrency(priceNum, currency),
+    imageUrl: form.imageUrl || undefined,
+    topChips: topChips.length > 0 ? topChips : undefined,
+    trailingChip: requiresConfig
+      ? ({ key: 'config', label: 'Configurable', variant: 'outlined' } as const)
+      : undefined,
+  };
+}
+
+function PosPreviewCard({ form }: { form: FormState }) {
+  const cardProps = usePosPreviewProps(form);
   return (
     <SectionCard title="Vista en POS" subtitle="Así se verá el tile en la terminal.">
-      <PosProductCard
-        name={form.name || 'Sin nombre'}
-        price={formatCurrency(priceNum, currency)}
-        imageUrl={form.imageUrl || undefined}
-        topChips={topChips.length > 0 ? topChips : undefined}
-      />
+      <PosProductCard {...cardProps} />
     </SectionCard>
+  );
+}
+
+function PosPreviewDialog({
+  form,
+  open,
+  onClose,
+}: {
+  form: FormState;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const cardProps = usePosPreviewProps(form);
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+      aria-labelledby="pos-preview-title"
+    >
+      <DialogTitle id="pos-preview-title">Vista previa</DialogTitle>
+      <DialogContent>
+        <DialogContentText sx={{ mb: 2 }}>
+          Así se verá este producto en la terminal, con los cambios que aún no has guardado.
+        </DialogContentText>
+        {/* Terminal tiles are noticeably larger than the sidebar preview —
+            render at POS scale so the image crop and text wrapping match. */}
+        <Box sx={{ maxWidth: 280, mx: 'auto' }}>
+          <PosProductCard {...cardProps} />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cerrar</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

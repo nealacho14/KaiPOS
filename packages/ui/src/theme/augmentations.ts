@@ -7,6 +7,7 @@ import type { CSSProperties } from 'react';
 import type { touch } from '../tokens/touch.js';
 import type { radius } from '../tokens/radius.js';
 import type { shadow } from '../tokens/shadows.js';
+import type { safeArea } from '../tokens/safeArea.js';
 
 declare module '@mui/material/styles' {
   interface Palette {
@@ -67,11 +68,13 @@ declare module '@mui/material/styles' {
     posSize: typeof touch;
     radii: typeof radius;
     shadowTokens: typeof shadow;
+    safeArea: typeof safeArea;
   }
   interface ThemeOptions {
     posSize?: typeof touch;
     radii?: typeof radius;
     shadowTokens?: typeof shadow;
+    safeArea?: typeof safeArea;
   }
 }
 

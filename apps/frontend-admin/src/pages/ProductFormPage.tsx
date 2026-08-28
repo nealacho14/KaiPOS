@@ -735,17 +735,6 @@ export function ProductFormPage() {
         </Alert>
       )}
 
-      {mode === 'edit' && branchId && (
-        <Box sx={{ mb: 2 }}>
-          <Chip
-            size="small"
-            label={`Sucursal: ${branchId}`}
-            variant="outlined"
-            aria-label="Sucursal del producto"
-          />
-        </Box>
-      )}
-
       {submitError && (
         <Alert severity="error" sx={{ mb: 3 }}>
           <AlertTitle>No pudimos publicar</AlertTitle>

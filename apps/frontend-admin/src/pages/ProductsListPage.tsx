@@ -62,7 +62,6 @@ import {
   type Pagination,
   useActiveBranch,
   useAuth,
-  useBranches,
   useWebSocketActions,
   useWebSocketState,
 } from '@kaipos/app-runtime';
@@ -105,13 +104,6 @@ export function ProductsListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { branchId, branchIds } = useActiveBranch();
-  const { branches } = useBranches();
-
-  const branchName = useMemo(() => {
-    if (!branchId) return null;
-    const match = branches.find((b) => b._id === branchId);
-    return match?.name ?? null;
-  }, [branches, branchId]);
 
   const canWrite = user ? hasPermission(user.role, 'products:write') : false;
   const canDelete = user ? hasPermission(user.role, 'products:delete') : false;
@@ -407,9 +399,6 @@ export function ProductsListPage() {
 
   const actions = (
     <Stack direction="row" spacing={2} alignItems="center">
-      {branchId && (
-        <Chip size="small" label={`Sucursal: ${branchName ?? '—'}`} variant="outlined" />
-      )}
       {canWrite && !reorderMode && state.status === 'success' && state.data.length > 1 && (
         <Button variant="outlined" onClick={startReorder} disabled={reorderSaving}>
           Reordenar

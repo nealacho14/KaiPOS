@@ -1,6 +1,6 @@
 import type { UserRole } from '@kaipos/shared';
 import { Box, Card, CardContent, Chip, Stack, Typography, WsStatusChip } from '@kaipos/ui';
-import { useAuth, useWebSocketState } from '@kaipos/app-runtime';
+import { useAuth, useBranches, useWebSocketState } from '@kaipos/app-runtime';
 import { PageHeader } from '../components/index.js';
 
 const ROLE_LABEL: Record<UserRole, string> = {
@@ -16,10 +16,14 @@ const ROLE_LABEL: Record<UserRole, string> = {
 export function DashboardPage() {
   const { user, business } = useAuth();
   const ws = useWebSocketState();
+  const { branches } = useBranches();
 
   if (!user) return null;
 
   const branchIds = user.branchIds ?? [];
+  // Branch ObjectIds mean nothing to a human — resolve them to names and only
+  // fall back to the raw id while `/api/branches` is still in flight.
+  const branchLabel = (id: string) => branches.find((b) => b._id === id)?.name ?? id;
   const chipStatus = ws.hasEndpoint ? ws.status : 'idle';
 
   return (
@@ -88,7 +92,7 @@ export function DashboardPage() {
             ) : (
               <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }} useFlexGap>
                 {branchIds.map((id) => (
-                  <Chip key={id} size="small" label={id} variant="outlined" />
+                  <Chip key={id} size="small" label={branchLabel(id)} variant="outlined" />
                 ))}
               </Stack>
             )}

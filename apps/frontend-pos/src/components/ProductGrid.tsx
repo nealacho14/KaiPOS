@@ -15,6 +15,24 @@ export interface ProductGridProps {
 
 const SKELETON_COUNT = 12;
 
+// Shared by the skeleton and the real grid so the two can't drift — they were
+// previously two copies of the same literal.
+//
+// The tablet floor is deliberately *smaller* than the phone one: the tablet
+// layout gives ~40% of the width to the cart pane, so tiles must be narrower to
+// still fit three across. Keys are width-only, which is all tile sizing needs.
+const GRID_SX = {
+  display: 'grid',
+  gridTemplateColumns: {
+    xs: 'repeat(auto-fill, minmax(140px, 1fr))',
+    sm: 'repeat(auto-fill, minmax(150px, 1fr))',
+    md: 'repeat(auto-fill, minmax(180px, 1fr))',
+    lg: 'repeat(auto-fill, minmax(200px, 1fr))',
+  },
+  gap: 1.5,
+  p: 2,
+} as const;
+
 export function ProductGrid({
   status,
   items,
@@ -29,15 +47,7 @@ export function ProductGrid({
   // the pages merge in without a re-skeleton.
   if (status === 'loading' && items.length === 0) {
     return (
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-          gap: 1.5,
-          p: 2,
-        }}
-        data-testid="product-grid-skeleton"
-      >
+      <Box sx={GRID_SX} data-testid="product-grid-skeleton">
         {Array.from({ length: SKELETON_COUNT }, (_, idx) => (
           <Skeleton key={idx} variant="rounded" height={220} />
         ))}
@@ -72,15 +82,7 @@ export function ProductGrid({
   }
 
   return (
-    <Box
-      sx={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-        gap: 1.5,
-        p: 2,
-      }}
-      data-testid="product-grid"
-    >
+    <Box sx={GRID_SX} data-testid="product-grid">
       {items.map((product) => (
         <ProductTile
           key={product._id}

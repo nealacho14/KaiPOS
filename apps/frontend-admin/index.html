@@ -2,8 +2,17 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="Panel de administración de KaiPOS: catálogo, usuarios y sucursales." />
+    <!-- Two entries so the browser chrome matches the active scheme; a single
+         static theme-color is wrong half the time in an app with a real dark mode. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0B7A75" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#043B38" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <!-- black-translucent runs the web view full-bleed when installed, which is
+         what makes viewport-fit=cover and theme.safeArea.* load-bearing. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

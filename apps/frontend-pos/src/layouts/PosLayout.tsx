@@ -1,12 +1,12 @@
 import {
   Box,
+  Button,
   Drawer,
   IconButton,
   Stack,
   Typography,
   type WsStatusChipStatus,
-  useMediaQuery,
-  useTheme,
+  useLayoutMode,
 } from '@kaipos/ui';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
@@ -33,10 +33,14 @@ function getWsEndpoint(): string {
   return import.meta.env.VITE_WS_ENDPOINT ?? '';
 }
 
-// Right-panel width clamp (px). 360 keeps the cart usable on a 1280-wide
+// Right-panel width clamps (px). 360 keeps the cart usable on a 1280-wide
 // desktop; 480 prevents it from eating into the catalog grid on ultrawides.
 const CART_PANEL_MIN = 360;
 const CART_PANEL_MAX = 480;
+// A tablet in portrait is only 768 px wide, so the desktop 360 px floor would
+// leave ~408 px of catalog. Shrinking the cart keeps three tiles per row.
+const CART_PANEL_TABLET_MIN = 300;
+const CART_PANEL_TABLET_MAX = 360;
 
 function GatingRedirect({ children }: { children: ReactNode }) {
   const { user, business } = useAuth();
@@ -63,8 +67,10 @@ function GatingRedirect({ children }: { children: ReactNode }) {
 }
 
 function PosLayoutShell() {
-  const theme = useTheme();
-  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+  const mode = useLayoutMode();
+  // Tablet and desktop both pin the cart beside the catalog; only a phone (or a
+  // handset in landscape, which has no vertical room) falls back to the drawer.
+  const isSplit = mode !== 'phone';
   const { status, business } = useAuth();
   const wsActions = useWebSocketActions();
   const wsState = useWebSocketState();
@@ -117,7 +123,7 @@ function PosLayoutShell() {
   return (
     <Box
       sx={{
-        height: '100vh',
+        height: '100dvh',
         display: 'flex',
         flexDirection: 'column',
         bgcolor: 'background.default',
@@ -139,20 +145,24 @@ function PosLayoutShell() {
               overflow: 'hidden',
             }}
           >
-            {!isDesktop && (
+            {!isSplit && (
               <Stack
                 direction="row"
-                justifyContent="flex-end"
                 sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}
               >
-                <IconButton
+                {/* Opening the cart is the primary action on a phone, so it is a
+                    real full-width button at the POS touch height — not an
+                    IconButton wrapping text, which was neither. */}
+                <Button
                   data-testid="pos-open-cart"
                   aria-label="Abrir orden actual"
                   onClick={() => setCartDrawerOpen(true)}
-                  size="small"
+                  variant="outlined"
+                  size="pos"
+                  fullWidth
                 >
-                  <Typography variant="button">Ver orden</Typography>
-                </IconButton>
+                  Ver orden
+                </Button>
               </Stack>
             )}
             <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
@@ -160,13 +170,13 @@ function PosLayoutShell() {
             </Box>
           </Box>
 
-          {isDesktop && (
+          {isSplit && (
             <Box
               data-testid="pos-cart-pane-desktop"
               sx={{
-                flex: '0 0 30%',
-                minWidth: CART_PANEL_MIN,
-                maxWidth: CART_PANEL_MAX,
+                flex: mode === 'tablet' ? '0 0 40%' : '0 0 30%',
+                minWidth: mode === 'tablet' ? CART_PANEL_TABLET_MIN : CART_PANEL_MIN,
+                maxWidth: mode === 'tablet' ? CART_PANEL_TABLET_MAX : CART_PANEL_MAX,
                 height: '100%',
               }}
             >
@@ -176,15 +186,25 @@ function PosLayoutShell() {
         </Box>
       </GatingRedirect>
 
-      {!isDesktop && (
+      {!isSplit && (
         <Drawer
           anchor="bottom"
-          variant="persistent"
+          // `temporary`, not `persistent`: a persistent Drawer renders no Modal
+          // and no backdrop, so `onClose` never fired and tapping outside the
+          // cart did nothing.
+          variant="temporary"
           open={cartDrawerOpen}
           onClose={() => setCartDrawerOpen(false)}
           ModalProps={{ keepMounted: true }}
           PaperProps={{
-            sx: { height: '70vh', display: 'flex', flexDirection: 'column' },
+            sx: (theme) => ({
+              // `dvh` tracks the collapsing mobile URL bar; `vh` does not, and
+              // left the cart footer below the fold on iOS Safari.
+              height: '70dvh',
+              display: 'flex',
+              flexDirection: 'column',
+              pb: theme.safeArea.bottom,
+            }),
           }}
         >
           <Stack

@@ -185,6 +185,16 @@ export function reorderProducts(
   });
 }
 
+// Featured state lives in `productPreferences`, not on the product doc, so the
+// list/detail responses can't carry it. Fetch it alongside them to hydrate the
+// star icons — without this the stars render empty after every reload.
+export async function listFeaturedProductIds(branchId: string): Promise<string[]> {
+  const { featuredProductIds } = await apiJson<{ featuredProductIds: string[] }>(
+    `/api/products/preferences?branchId=${encodeURIComponent(branchId)}`,
+  );
+  return featuredProductIds;
+}
+
 export function setProductFeatured(
   id: string,
   input: { branchId: string; featured: boolean },

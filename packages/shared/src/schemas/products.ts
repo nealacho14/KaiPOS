@@ -205,11 +205,16 @@ export const featureProductSchema = z.object({
   featured: z.boolean(),
 });
 
+export const listProductPreferencesQuerySchema = z.object({
+  branchId: z.string().min(1),
+});
+
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export type ListProductsQuery = z.infer<typeof listProductsQuerySchema>;
 export type UploadUrlInput = z.infer<typeof uploadUrlSchema>;
 export type ReorderProductsInput = z.infer<typeof reorderProductsSchema>;
 export type FeatureProductInput = z.infer<typeof featureProductSchema>;
+export type ListProductPreferencesQuery = z.infer<typeof listProductPreferencesQuerySchema>;
 export type ProductVariantInput = z.infer<typeof productVariantSchema>;
 export type AvailabilityWindowInput = z.infer<typeof availabilityWindowSchema>;

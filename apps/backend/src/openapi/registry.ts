@@ -566,6 +566,31 @@ export function buildRegistry(): OpenAPIRegistry {
   });
 
   r.registerPath({
+    method: 'get',
+    path: '/api/products/preferences',
+    tags: ['products'],
+    summary: 'Featured product ids for a branch',
+    security: [{ [bearerScheme]: [] }],
+    request: {
+      query: z.object({ branchId: z.string().min(1) }),
+    },
+    responses: {
+      200: {
+        description: 'Ids of the products featured in this branch',
+        content: {
+          'application/json': {
+            schema: successEnvelope(z.object({ featuredProductIds: z.array(z.string()) })),
+          },
+        },
+      },
+      403: {
+        description: 'Access denied to this branch',
+        content: { 'application/json': { schema: errorEnvelope } },
+      },
+    },
+  });
+
+  r.registerPath({
     method: 'patch',
     path: '/api/products/{id}/feature',
     tags: ['products'],

@@ -73,7 +73,7 @@ describe('UserFormPage (create)', () => {
           success: true,
           data: {
             user: adminUser,
-            business: { _id: 'biz-1', name: 'Biz', slug: 'biz', currency: 'MXN' },
+            business: { _id: 'biz-1', name: 'Biz', slug: 'biz', currency: 'COP' },
           },
         });
       }
@@ -130,7 +130,7 @@ describe('UserFormPage (create)', () => {
           success: true,
           data: {
             user: adminUser,
-            business: { _id: 'biz-1', name: 'Biz', slug: 'biz', currency: 'MXN' },
+            business: { _id: 'biz-1', name: 'Biz', slug: 'biz', currency: 'COP' },
           },
         });
       }
@@ -173,7 +173,7 @@ describe('UserFormPage (create)', () => {
           success: true,
           data: {
             user: adminUser,
-            business: { _id: 'biz-1', name: 'Biz', slug: 'biz', currency: 'MXN' },
+            business: { _id: 'biz-1', name: 'Biz', slug: 'biz', currency: 'COP' },
           },
         });
       }

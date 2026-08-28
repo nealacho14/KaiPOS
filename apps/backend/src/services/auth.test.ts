@@ -262,6 +262,8 @@ describe('auth service', () => {
       const ms = (inserted.expiresAt as Date).getTime();
       expect(ms).toBeGreaterThanOrEqual(before + 30 * 24 * 60 * 60 * 1000);
       expect(ms).toBeLessThanOrEqual(after + 30 * 24 * 60 * 60 * 1000);
+      // Persisted on the document so rotation can carry it forward.
+      expect(inserted.rememberMe).toBe(true);
     });
   });
 
@@ -285,6 +287,61 @@ describe('auth service', () => {
       expect(result.accessToken).toBe('mock-access-token');
       expect(result.refreshToken).toBe('mock-refresh-token');
       expect(mockRefreshTokensCollection.deleteOne).toHaveBeenCalledWith({ _id: 'rt-1' });
+    });
+
+    it('preserves the 30-day TTL across rotation for a rememberMe session', async () => {
+      // Regression: rotation used to re-issue at the fixed 7-day default, so a
+      // "mantener sesión 30 días" login silently decayed to 7 days on the first
+      // token refresh (i.e. within ~15 minutes of logging in).
+      const storedToken: RefreshToken = {
+        _id: 'rt-remember',
+        userId: 'admin-1',
+        token: 'valid-refresh',
+        expiresAt: new Date(Date.now() + 29 * 24 * 60 * 60 * 1000),
+        createdAt: now,
+        rememberMe: true,
+      };
+
+      mockRefreshTokensCollection.findOne.mockResolvedValue(storedToken);
+      mockRefreshTokensCollection.deleteOne.mockResolvedValue({});
+      mockRefreshTokensCollection.insertOne.mockResolvedValue({});
+      mockUsersCollection.findOne.mockResolvedValue(adminUser);
+
+      const before = Date.now();
+      await refresh('valid-refresh');
+      const after = Date.now();
+
+      const inserted = mockRefreshTokensCollection.insertOne.mock.calls[0][0];
+      const ms = (inserted.expiresAt as Date).getTime();
+      expect(ms).toBeGreaterThanOrEqual(before + 30 * 24 * 60 * 60 * 1000);
+      expect(ms).toBeLessThanOrEqual(after + 30 * 24 * 60 * 60 * 1000);
+      // The flag must survive so the *next* rotation keeps the window too.
+      expect(inserted.rememberMe).toBe(true);
+    });
+
+    it('rotates a non-rememberMe session at the 7-day default', async () => {
+      const storedToken: RefreshToken = {
+        _id: 'rt-plain',
+        userId: 'admin-1',
+        token: 'valid-refresh',
+        expiresAt: new Date(Date.now() + 86_400_000),
+        createdAt: now,
+      };
+
+      mockRefreshTokensCollection.findOne.mockResolvedValue(storedToken);
+      mockRefreshTokensCollection.deleteOne.mockResolvedValue({});
+      mockRefreshTokensCollection.insertOne.mockResolvedValue({});
+      mockUsersCollection.findOne.mockResolvedValue(adminUser);
+
+      const before = Date.now();
+      await refresh('valid-refresh');
+      const after = Date.now();
+
+      const inserted = mockRefreshTokensCollection.insertOne.mock.calls[0][0];
+      const ms = (inserted.expiresAt as Date).getTime();
+      expect(ms).toBeGreaterThanOrEqual(before + 7 * 24 * 60 * 60 * 1000);
+      expect(ms).toBeLessThanOrEqual(after + 7 * 24 * 60 * 60 * 1000);
+      expect(inserted.rememberMe).toBe(false);
     });
 
     it('throws on invalid refresh token', async () => {

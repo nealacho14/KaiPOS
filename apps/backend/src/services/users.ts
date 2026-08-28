@@ -76,9 +76,19 @@ export async function listUsers(
   query: Partial<ListUsersQuery> = {},
 ): Promise<PaginatedResult<SafeUser>> {
   const users = await getUsersCollection();
+  // The actor never appears in their own user list: you cannot deactivate or
+  // demote yourself anyway (see `deactivateUser`), so the row is dead weight.
+  // Excluding it here rather than in the client keeps `pagination.total`
+  // consistent with the rows actually returned. Scoped to the list on purpose —
+  // `buildScopeFilter` also backs the by-id read/update/delete paths, which
+  // must still resolve the actor.
+  const filter: Filter<User> = {
+    ...buildScopeFilter(actor, query),
+    _id: { $ne: actor.userId },
+  };
   const result = await paginate({
     collection: users,
-    filter: buildScopeFilter(actor, query),
+    filter,
     page: query.page ?? 1,
     limit: query.limit ?? 50,
     projection: { passwordHash: 0 },

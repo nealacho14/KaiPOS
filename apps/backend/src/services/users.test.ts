@@ -100,7 +100,7 @@ describe('users service', () => {
       await listUsers(adminPayload);
 
       expect(mockUsersCollection.find).toHaveBeenCalledWith(
-        { businessId: 'biz-1' },
+        { businessId: 'biz-1', _id: { $ne: 'admin-1' } },
         { projection: { passwordHash: 0 } },
       );
     });
@@ -123,7 +123,7 @@ describe('users service', () => {
       await listUsers(superAdminPayload);
 
       expect(mockUsersCollection.find).toHaveBeenCalledWith(
-        {},
+        { _id: { $ne: 'sa-1' } },
         { projection: { passwordHash: 0 } },
       );
     });
@@ -134,9 +134,21 @@ describe('users service', () => {
       await listUsers(superAdminPayload, { businessId: 'biz-other' });
 
       expect(mockUsersCollection.find).toHaveBeenCalledWith(
-        { businessId: 'biz-other' },
+        { businessId: 'biz-other', _id: { $ne: 'sa-1' } },
         { projection: { passwordHash: 0 } },
       );
+    });
+
+    it('excludes the acting user from their own list', async () => {
+      mockFindReturns([]);
+
+      await listUsers(adminPayload);
+
+      // You cannot deactivate or demote yourself, so the actor's own row is
+      // dead weight. Excluding it in the query (rather than in the client)
+      // keeps `total` consistent with the rows returned.
+      const [filter] = mockUsersCollection.find.mock.calls[0];
+      expect(filter._id).toEqual({ $ne: adminPayload.userId });
     });
   });
 
@@ -463,7 +475,7 @@ describe('users service', () => {
       await listUsers(cashierPayload);
 
       expect(mockUsersCollection.find).toHaveBeenCalledWith(
-        { businessId: 'biz-1' },
+        { businessId: 'biz-1', _id: { $ne: 'cash-1' } },
         { projection: { passwordHash: 0 } },
       );
     });

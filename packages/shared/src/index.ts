@@ -59,6 +59,8 @@ export { WS_MESSAGE_VERSION, channelFor, parseChannel, canSubscribeTo } from './
 
 export {
   API_VERSION,
+  DEFAULT_CURRENCY,
+  DEFAULT_LOCALE,
   formatCurrency,
   generateOrderNumber,
   calculateOrderTotal,

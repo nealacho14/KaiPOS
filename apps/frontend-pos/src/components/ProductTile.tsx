@@ -1,4 +1,5 @@
 import type { Allergen, Product } from '@kaipos/shared';
+import { formatCurrency } from '@kaipos/shared';
 import { PosProductCard, type PosProductCardChip } from '@kaipos/ui';
 
 export interface ProductTileProps {
@@ -29,19 +30,11 @@ function isConfigurable(product: Product): boolean {
   return (product.modifierGroups ?? []).some((g) => g.required);
 }
 
-function formatPrice(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(amount);
-  } catch {
-    // Unknown currency code throws — fall back to MXN so the tile still
-    // renders something meaningful.
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
-  }
-}
-
 export function ProductTile({ product, currency, onSelect, highlighted }: ProductTileProps) {
   const requiresConfig = isConfigurable(product);
-  const formattedPrice = formatPrice(product.price, currency);
+  // Shared with the admin surfaces so both render the same string; it already
+  // handles an unknown currency code internally.
+  const formattedPrice = formatCurrency(product.price, currency);
   const allergens = product.allergens ?? [];
 
   const topChips: PosProductCardChip[] = allergens.slice(0, 3).map((a) => ({

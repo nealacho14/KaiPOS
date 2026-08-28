@@ -72,7 +72,7 @@ describe('LoginPage', () => {
                 updatedAt: new Date(),
                 createdBy: 'system',
               },
-              business: { _id: 'b1', name: 'Biz', slug: 'biz', currency: 'MXN' },
+              business: { _id: 'b1', name: 'Biz', slug: 'biz', currency: 'COP' },
             },
           });
         }

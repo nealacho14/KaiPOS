@@ -12,6 +12,36 @@ import { logAuditEvent } from './audit.js';
 const log = createLogger({ module: 'product-preferences-service' });
 
 /**
+ * Ids of the products currently featured in a branch.
+ *
+ * The featured flag lives in `productPreferences`, not on the product doc, so
+ * `listProducts` cannot return it without an aggregation — and that list path
+ * is hand-tuned (index + collation + `_id` tiebreaker) and not worth
+ * destabilising for a star icon. This read is backed by the
+ * `{businessId, branchId, featured}` index and the featured set per branch is
+ * small by nature, so the whole set comes back in one go.
+ */
+export async function listFeaturedProductIds(
+  actor: TokenPayload,
+  branchId: string,
+): Promise<string[]> {
+  if (!canAccessBranch(actor, branchId)) {
+    throw new ForbiddenError('Access denied to this branch');
+  }
+
+  const prefs = await getProductPreferencesCollection();
+  // super_admin is scoped by the branch it asked for rather than by businessId,
+  // mirroring how the rest of the service treats the wildcard business.
+  const filter =
+    actor.businessId === SUPER_ADMIN_BUSINESS_ID
+      ? { branchId, featured: true }
+      : { businessId: actor.businessId, branchId, featured: true };
+
+  const rows = await prefs.find(filter, { projection: { productId: 1, _id: 0 } }).toArray();
+  return rows.map((row) => row.productId);
+}
+
+/**
  * Mark / unmark a product as featured in a branch. Per-branch + per-product
  * is enforced by the unique index on `productPreferences`. Idempotent: setting
  * the same value twice produces the same row.

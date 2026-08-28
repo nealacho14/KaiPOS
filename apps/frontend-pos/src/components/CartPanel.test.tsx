@@ -5,11 +5,11 @@ import { CartProvider } from '../context/CartContext.js';
 import { CartPanel } from './CartPanel.js';
 
 describe('CartPanel', () => {
-  it('renders empty state, total $0.00 and disabled Cobrar CTA in Paso 2', () => {
+  it('renders empty state, a zero total and a disabled Cobrar CTA in Paso 2', () => {
     render(
       <KaiPOSThemeProvider>
         <CartProvider>
-          <CartPanel currency="MXN" />
+          <CartPanel currency="COP" />
         </CartProvider>
       </KaiPOSThemeProvider>,
     );
@@ -19,7 +19,7 @@ describe('CartPanel', () => {
 
     const total = screen.getByTestId('cart-panel-total');
     // Intl formatting may use a non-breaking space; normalize for comparison.
-    expect(total.textContent?.replace(/\s/g, '')).toMatch(/\$0\.00/);
+    expect(total.textContent?.replace(/\s/g, '')).toMatch(/\$0,00/);
 
     const checkout = screen.getByTestId('cart-panel-checkout') as HTMLButtonElement;
     expect(checkout.textContent).toMatch(/cobrar/i);

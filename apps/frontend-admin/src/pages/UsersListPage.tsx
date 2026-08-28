@@ -4,7 +4,13 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Edit,
+  IconButton,
   Inbox,
   Plus,
   Skeleton,
@@ -16,12 +22,14 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
+  Trash2,
 } from '@kaipos/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { ApiError, type Pagination, useAuth, useBranches } from '@kaipos/app-runtime';
 import { PageHeader, PaginationFooter } from '../components/index.js';
-import { listUsers } from '../lib/users-api.js';
+import { deactivateUser, listUsers, toUsersApiError } from '../lib/users-api.js';
 
 type SafeUser = Omit<User, 'passwordHash'>;
 
@@ -59,12 +67,42 @@ export function UsersListPage() {
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(50);
 
+  const [pendingDelete, setPendingDelete] = useState<SafeUser | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const canWrite = actor ? hasPermission(actor.role, 'users:write') : false;
+  // `users:delete` is admin-only: a manager holds users:read/users:write but
+  // must not be able to deactivate anyone.
+  const canDelete = actor ? hasPermission(actor.role, 'users:delete') : false;
 
   const retry = useCallback(() => {
     setState({ status: 'loading' });
     setReloadKey((n) => n + 1);
   }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deactivateUser(pendingDelete._id);
+      setPendingDelete(null);
+      setState({ status: 'loading' });
+      setReloadKey((n) => n + 1);
+    } catch (err) {
+      const mapped = toUsersApiError(err);
+      setDeleteError(
+        mapped.code === 'CANNOT_DEACTIVATE_SELF'
+          ? 'No puedes desactivar tu propia cuenta.'
+          : mapped.status === 403
+            ? 'No tienes permiso para desactivar a este usuario.'
+            : mapped.message || 'No pudimos desactivar al usuario.',
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }, [pendingDelete]);
 
   useEffect(() => {
     let cancelled = false;
@@ -134,7 +172,15 @@ export function UsersListPage() {
 
       {state.status === 'success' && state.data.length > 0 && (
         <>
-          <UsersTable users={state.data} canWrite={canWrite} />
+          <UsersTable
+            users={state.data}
+            canWrite={canWrite}
+            canDelete={canDelete}
+            onRequestDelete={(user) => {
+              setDeleteError(null);
+              setPendingDelete(user);
+            }}
+          />
           <PaginationFooter
             count={state.pagination.total}
             page={page}
@@ -147,6 +193,39 @@ export function UsersListPage() {
           />
         </>
       )}
+
+      <Dialog
+        open={pendingDelete !== null}
+        onClose={() => (deleting ? undefined : setPendingDelete(null))}
+        aria-labelledby="delete-user-title"
+      >
+        <DialogTitle id="delete-user-title">Desactivar usuario</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {pendingDelete
+              ? `${pendingDelete.name} se marcará como inactivo y no podrá iniciar sesión. Puedes reactivarlo desde su ficha.`
+              : ''}
+          </DialogContentText>
+          {deleteError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {deleteError}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingDelete(null)} disabled={deleting}>
+            Cancelar
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => void handleConfirmDelete()}
+            disabled={deleting}
+          >
+            {deleting ? 'Desactivando…' : 'Desactivar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }
@@ -190,8 +269,19 @@ function LoadingTable() {
   );
 }
 
-function UsersTable({ users, canWrite }: { users: SafeUser[]; canWrite: boolean }) {
+function UsersTable({
+  users,
+  canWrite,
+  canDelete,
+  onRequestDelete,
+}: {
+  users: SafeUser[];
+  canWrite: boolean;
+  canDelete: boolean;
+  onRequestDelete: (user: SafeUser) => void;
+}) {
   const navigate = useNavigate();
+  const showActions = canWrite || canDelete;
   return (
     <TableContainer>
       <Table>
@@ -202,7 +292,7 @@ function UsersTable({ users, canWrite }: { users: SafeUser[]; canWrite: boolean 
             <TableCell>Rol</TableCell>
             <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Sucursales</TableCell>
             <TableCell>Estado</TableCell>
-            {canWrite && <TableCell align="right">Acciones</TableCell>}
+            {showActions && <TableCell align="right">Acciones</TableCell>}
           </TableRow>
         </TableHead>
         <TableBody>
@@ -229,17 +319,33 @@ function UsersTable({ users, canWrite }: { users: SafeUser[]; canWrite: boolean 
                   label={user.isActive ? 'Activo' : 'Inactivo'}
                 />
               </TableCell>
-              {canWrite && (
+              {showActions && (
                 <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                  <Button
-                    size="small"
-                    variant="text"
-                    startIcon={<Edit size={14} aria-hidden />}
-                    component={RouterLink}
-                    to={`/users/${user._id}/edit`}
-                  >
-                    Editar
-                  </Button>
+                  <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                    {canWrite && (
+                      <Button
+                        size="small"
+                        variant="text"
+                        startIcon={<Edit size={14} aria-hidden />}
+                        component={RouterLink}
+                        to={`/users/${user._id}/edit`}
+                      >
+                        Editar
+                      </Button>
+                    )}
+                    {canDelete && user.isActive && (
+                      <Tooltip title="Desactivar usuario">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          aria-label={`Desactivar ${user.name}`}
+                          onClick={() => onRequestDelete(user)}
+                        >
+                          <Trash2 size={16} aria-hidden />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Stack>
                 </TableCell>
               )}
             </TableRow>

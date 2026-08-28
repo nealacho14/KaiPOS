@@ -46,6 +46,7 @@ export {
   type WSClientStatus,
   type WSClientEventMap,
 } from './lib/ws-client.js';
+export { resolveHomePath } from './lib/home-path.js';
 
 // Hooks — derived consumers of the contexts and lib.
 export {

@@ -1,5 +1,6 @@
 import type { LoginResponse, MeResponse, TokenPayload } from '@kaipos/shared/types';
 import { SUPER_ADMIN_BUSINESS_ID } from '@kaipos/shared/permissions';
+import { DEFAULT_CURRENCY } from '@kaipos/shared/utils';
 import {
   getBusinessesCollection,
   getUsersCollection,
@@ -24,6 +25,14 @@ import { stripPasswordHash } from '../lib/user-sanitize.js';
 import { logAuditEvent } from './audit.js';
 
 const log = createLogger({ module: 'auth-service' });
+
+// Single source of truth for refresh-token expiry, shared by `login` and the
+// rotation in `refresh` so a "remember me" session keeps its 30 days instead of
+// decaying to the 7-day default on the first token rotation.
+function refreshTokenExpiry(rememberMe: boolean): Date {
+  const ttlDays = rememberMe ? REFRESH_TOKEN_TTL_DAYS_REMEMBER : REFRESH_TOKEN_TTL_DAYS;
+  return new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000);
+}
 
 export async function login(
   email: string,
@@ -91,15 +100,16 @@ export async function login(
   const accessToken = await signAccessToken(payload);
   const refreshToken = generateRefreshToken();
 
-  // Store refresh token. `rememberMe` extends the TTL from the default 7d to 30d.
-  const ttlDays = rememberMe ? REFRESH_TOKEN_TTL_DAYS_REMEMBER : REFRESH_TOKEN_TTL_DAYS;
+  // Store refresh token. `rememberMe` extends the TTL from the default 7d to 30d
+  // and is persisted on the document so rotation can preserve it.
   const refreshTokens = await getRefreshTokensCollection();
   await refreshTokens.insertOne({
     _id: crypto.randomUUID(),
     userId,
     token: refreshToken,
-    expiresAt: new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000),
+    expiresAt: refreshTokenExpiry(rememberMe),
     createdAt: new Date(),
+    rememberMe,
   });
 
   logAuditEvent({
@@ -126,7 +136,7 @@ export async function login(
       _id: found._id,
       name: found.name,
       slug: found.slug,
-      currency: found.currency ?? 'MXN',
+      currency: found.currency ?? DEFAULT_CURRENCY,
     };
   }
 
@@ -170,12 +180,17 @@ export async function refresh(
   const newAccessToken = await signAccessToken(payload);
   const newRefreshToken = generateRefreshToken();
 
+  // Carry the original session's `rememberMe` across the rotation. Access
+  // tokens live 15m and the client rotates on every expiry, so re-issuing at
+  // the default TTL here would collapse a 30-day session within minutes.
+  const rememberMe = stored.rememberMe === true;
   await refreshTokens.insertOne({
     _id: crypto.randomUUID(),
     userId,
     token: newRefreshToken,
-    expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000),
+    expiresAt: refreshTokenExpiry(rememberMe),
     createdAt: new Date(),
+    rememberMe,
   });
 
   logAuditEvent({
@@ -293,7 +308,7 @@ export async function me(token: TokenPayload): Promise<MeResponse> {
       _id: business._id,
       name: business.name,
       slug: business.slug,
-      currency: business.currency ?? 'MXN',
+      currency: business.currency ?? DEFAULT_CURRENCY,
     },
   };
 }

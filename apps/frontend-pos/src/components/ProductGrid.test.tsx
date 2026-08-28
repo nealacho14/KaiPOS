@@ -68,7 +68,7 @@ describe('ProductGrid', () => {
 
     render(
       <KaiPOSThemeProvider>
-        <ProductGrid status="ready" items={items} currency="MXN" onSelect={() => {}} />
+        <ProductGrid status="ready" items={items} currency="COP" onSelect={() => {}} />
       </KaiPOSThemeProvider>,
     );
 
@@ -83,7 +83,7 @@ describe('ProductGrid', () => {
   it('renders the empty state when ready with no items', () => {
     render(
       <KaiPOSThemeProvider>
-        <ProductGrid status="ready" items={[]} currency="MXN" onSelect={() => {}} />
+        <ProductGrid status="ready" items={[]} currency="COP" onSelect={() => {}} />
       </KaiPOSThemeProvider>,
     );
     expect(screen.getByText(/sin productos/i)).toBeInTheDocument();
@@ -97,7 +97,7 @@ describe('ProductGrid', () => {
           status="error"
           items={[]}
           error="boom"
-          currency="MXN"
+          currency="COP"
           onSelect={() => {}}
           onRetry={retry}
         />
@@ -110,7 +110,7 @@ describe('ProductGrid', () => {
   it('renders skeletons during initial load', () => {
     render(
       <KaiPOSThemeProvider>
-        <ProductGrid status="loading" items={[]} currency="MXN" onSelect={() => {}} />
+        <ProductGrid status="loading" items={[]} currency="COP" onSelect={() => {}} />
       </KaiPOSThemeProvider>,
     );
     expect(screen.getByTestId('product-grid-skeleton')).toBeInTheDocument();

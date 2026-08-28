@@ -433,6 +433,8 @@ const collections: CollectionSetup[] = [
           token: { bsonType: 'string' },
           expiresAt: { bsonType: 'date' },
           createdAt: { bsonType: 'date' },
+          // Optional so tokens issued before this field existed stay valid.
+          rememberMe: { bsonType: 'bool' },
         },
       },
     },

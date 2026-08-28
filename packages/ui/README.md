@@ -47,6 +47,43 @@ Usar `<Typography variant="...">`. Para componentes que no son `<Typography>` (A
 - **Shadows** — `theme.shadowTokens.{ none, xs, sm, md, lg, xl, focus, inset }` o `elevation={n}` en MUI.
 - **Z-index** — `theme.zIndex.*` (estándar MUI).
 - **Breakpoints** — `xs: 0, sm: 600, md: 960, lg: 1280, xl: 1600`. Helpers `theme.breakpoints.up('md')` y `useMediaQuery`.
+- **Safe area** — `theme.safeArea.{ top, right, bottom, left }`. Envuelven `env(safe-area-inset-*)` con fallback `0px`, así que son inertes fuera de una PWA instalada. Nunca escribas `env(...)` a mano en `sx`.
+
+## Responsive
+
+Tres modos, vía `useLayoutMode()` de `@kaipos/ui`:
+
+| Modo      | Regla                        | Ejemplo                          |
+| --------- | ---------------------------- | -------------------------------- |
+| `phone`   | el resto                     | teléfono; y horizontal (932×430) |
+| `tablet`  | ancho ≥ 720 **y** alto ≥ 600 | iPad vertical (768×1024)         |
+| `desktop` | `up('md')` → ancho ≥ 960     | iPad horizontal (1024), laptop   |
+
+La cláusula de alto no es opcional: un teléfono grande en horizontal supera
+cualquier umbral de ancho razonable, y darle un layout de dos paneles lo deja
+con ~366 px útiles bajo el header. El ancho solo no distingue una tablet de un
+teléfono acostado.
+
+**Cuándo usar cuál:**
+
+- `useLayoutMode()` cuando **cambia el árbol de componentes** (un panel fijo vs.
+  un drawer, una sidebar permanente vs. temporal).
+- Objetos de breakpoint en `sx` (`p={{ xs: 2, md: 4 }}`) cuando solo **escala el
+  estilo**. Son width-only — por eso no pueden expresar la regla de alto de
+  arriba, y por eso el modo tablet no es una clave de breakpoint.
+
+**Reglas:**
+
+- Mobile-first: el valor base es el de teléfono, los breakpoints suben.
+- Nunca `100vh` — usa `100dvh`. `vh` no descuenta la barra de direcciones
+  colapsable del navegador móvil y corta el contenido.
+- En el POS, todo objetivo táctil ≥ `theme.posSize.min` (48 px, piso WCAG 2.5.5).
+
+Para tests, `@kaipos/ui/testing` expone `setViewport` / `VIEWPORT` /
+`resetViewport`. happy-dom tiene un motor real de media queries, así que las
+ramas responsive se ejercitan de verdad en lugar de mockear `matchMedia`. Ojo:
+`renderHook` debe envolverse en `<KaiPOSThemeProvider>` — sin él, `useTheme()`
+cae al tema por defecto de MUI, cuyo `md` es 900 y no 960.
 
 ## Color scheme
 

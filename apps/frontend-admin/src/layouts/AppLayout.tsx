@@ -1,8 +1,9 @@
-import { Box, useMediaQuery, useTheme, type WsStatusChipStatus } from '@kaipos/ui';
+import { Box, useLayoutMode, type WsStatusChipStatus } from '@kaipos/ui';
 import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import {
   ActiveBranchProvider,
+  OfflineBanner,
   getSession,
   useAuth,
   useWebSocketActions,
@@ -16,8 +17,10 @@ function getWsEndpoint(): string {
 }
 
 function AppLayoutShell() {
-  const theme = useTheme();
-  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+  const mode = useLayoutMode();
+  // A permanent 240px sidebar would leave 528px of content on a 768px tablet,
+  // so tablets keep the temporary drawer and only gain roomier padding.
+  const isDesktop = mode === 'desktop';
   const { status } = useAuth();
   const wsActions = useWebSocketActions();
   const wsState = useWebSocketState();
@@ -52,7 +55,7 @@ function AppLayoutShell() {
   return (
     <Box
       sx={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
         display: 'flex',
         flexDirection: 'column',
         bgcolor: 'background.default',
@@ -62,6 +65,7 @@ function AppLayoutShell() {
         wsStatus={chipStatus}
         onMenuToggle={isDesktop ? undefined : () => setDrawerOpen((v) => !v)}
       />
+      <OfflineBanner />
       <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <Sidebar open={drawerOpen} onClose={() => setDrawerOpen(false)} isDesktop={isDesktop} />
         <Box
@@ -69,7 +73,7 @@ function AppLayoutShell() {
           sx={{
             flex: 1,
             minWidth: 0,
-            px: { xs: 2, md: 4 },
+            px: { xs: 2, sm: 3, md: 4 },
             py: { xs: 3, md: 4 },
             maxWidth: { md: `calc(100% - ${SIDEBAR_WIDTH}px)` },
           }}

@@ -1,5 +1,6 @@
 import { createTheme, type Theme } from '@mui/material/styles';
 import { radius } from '../tokens/radius.js';
+import { safeArea } from '../tokens/safeArea.js';
 import { shadow } from '../tokens/shadows.js';
 import { spacingUnit } from '../tokens/spacing.js';
 import { touch } from '../tokens/touch.js';
@@ -62,6 +63,7 @@ export const kaiPOSTheme = createTheme({
   posSize: touch,
   radii: radius,
   shadowTokens: shadow,
+  safeArea,
 });
 
 export default kaiPOSTheme;

@@ -193,10 +193,38 @@ CloudFront distribution:
   then served for _both_ apps. The two SPA routers must always rewrite to
   disjoint URIs.
 
-- **Frontend deployments**: two `BucketDeployment` constructs upload
-  `apps/frontend-admin/dist/` and `apps/frontend-pos/dist/` into their
-  respective buckets and automatically invalidate `/*` and `/pos/*`
-  respectively.
+- **Frontend deployments**: each app uploads in **two** `BucketDeployment`
+  passes so its files carry the right `Cache-Control` — hashed `assets/*` get
+  `public, max-age=31536000, immutable`, everything else (`index.html`,
+  `sw.js`, `manifest.webmanifest`, icons) gets `no-cache`. Each app still
+  invalidates once, on the shell pass (`/*` and `/pos/*`).
+
+  ⚠️ **Cache-header lesson**: without an origin `Cache-Control`,
+  `CACHING_OPTIMIZED` applies its 86400 s default TTL to _everything_,
+  `index.html` included. Invalidation flushes the edge but not browsers, so
+  returning users kept running the previous build for up to a day after every
+  deploy — the old `index.html` still resolves, because hashed assets are never
+  removed. A service worker turns that from annoying into dangerous: `sw.js` is
+  the channel every future update travels through, so a stale copy is
+  effectively unrecallable for its cache lifetime. `no-cache` (not `no-store`)
+  still allows caching; it only forces revalidation, so the common case is a
+  cheap 304.
+
+  `prune: false` on all four passes is required: prune deletes destination
+  objects absent from the source and ignores `include`/`exclude` when computing
+  them, so a pruning shell pass would wipe `assets/`. Superseded hashed assets
+  therefore accumulate; they are content-addressed and harmless, and expiring
+  them while an older cached `index.html` may still reference them would be
+  worse.
+
+- **Service workers**: the same "one origin, two apps" hazard as the cache key,
+  one layer up. The admin worker (`/sw.js`, scope `/`) also controls `/pos/*`,
+  and a worker intercepts before the network — so its
+  `navigateFallbackDenylist` must exclude `/^\/pos(\/|$)/` and `/^\/api\//`,
+  or a client that visited the admin first is served the admin shell at
+  `/pos/`. The POS worker is at `/pos/sw.js`, so its scope is capped at `/pos/`
+  and it cannot affect the admin app. Both are configured in each app's
+  `pwa.config.ts`.
 
 The `CloudFront → API Gateway` wiring is the reason the SPA can use
 relative `fetch("/api/health")` in both dev (Vite proxy) and prod

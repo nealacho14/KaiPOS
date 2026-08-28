@@ -146,7 +146,7 @@ export function CenteredAuthLayout({ children }: { children: React.ReactNode }) 
   return (
     <Box
       sx={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
         width: '100%',
         bgcolor: 'background.default',
         color: 'text.primary',

@@ -1,4 +1,4 @@
-import { IconButton, InputAdornment, TextField } from '@kaipos/ui';
+import { IconButton, InputAdornment, TextField, useLayoutMode } from '@kaipos/ui';
 import { X } from '@kaipos/ui/icons';
 import { useEffect, useRef } from 'react';
 
@@ -14,6 +14,8 @@ export interface CatalogSearchProps {
 // waiting for a debounce window to expire.
 export function CatalogSearch({ value, onChange }: CatalogSearchProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const mode = useLayoutMode();
+  const isDesktop = mode === 'desktop';
 
   // Global `/` shortcut focuses the search input when no other field has focus.
   useEffect(() => {
@@ -37,13 +39,18 @@ export function CatalogSearch({ value, onChange }: CatalogSearchProps) {
 
   return (
     <TextField
-      size="small"
+      // `small` is a 40px target — under the 48px POS floor. Desktop keeps the
+      // denser field since it is driven by a keyboard and a scanner.
+      size={isDesktop ? 'small' : 'medium'}
       fullWidth
       placeholder="Buscar producto, SKU o código…"
       value={value}
       onChange={(event) => onChange(event.target.value)}
       inputRef={inputRef}
-      autoFocus
+      // Autofocusing on a touch device pops the on-screen keyboard over the
+      // catalog on every mount. The `/` shortcut it exists for is a keyboard
+      // affordance anyway.
+      autoFocus={isDesktop}
       inputProps={{
         inputMode: 'search',
         enterKeyHint: 'search',

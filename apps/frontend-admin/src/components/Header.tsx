@@ -11,6 +11,7 @@ import {
   Typography,
   WsStatusChip,
   type WsStatusChipStatus,
+  useLayoutMode,
   useMediaQuery,
   useTheme,
 } from '@kaipos/ui';
@@ -38,7 +39,11 @@ export interface HeaderProps {
 
 export function Header({ wsStatus, onMenuToggle }: HeaderProps) {
   const theme = useTheme();
-  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+  const mode = useLayoutMode();
+  const isDesktop = mode === 'desktop';
+  // A tablet has room for the wordmark even though it keeps the compact
+  // right-hand cluster, so the logo follows a looser rule than the rest.
+  const showWordmark = mode !== 'phone';
   // `sm` (600px) gates the compact WsStatusChip / hidden role chip — below
   // that we're on phone territory and the labeled chip eats ~110px of header
   // width that we need for hamburger + logo + theme toggle + user menu.
@@ -53,8 +58,12 @@ export function Header({ wsStatus, onMenuToggle }: HeaderProps) {
   return (
     <Box
       component="header"
-      sx={{
+      sx={(theme) => ({
         height: 64,
+        // Installed on iOS the web view runs under the status bar, so the header
+        // grows by the notch inset instead of sliding beneath it.
+        boxSizing: 'content-box',
+        pt: theme.safeArea.top,
         flexShrink: 0,
         display: 'flex',
         alignItems: 'center',
@@ -63,7 +72,7 @@ export function Header({ wsStatus, onMenuToggle }: HeaderProps) {
         borderBottom: '1px solid',
         borderColor: 'divider',
         gap: 2,
-      }}
+      })}
     >
       {!isDesktop && onMenuToggle && (
         <IconButton
@@ -77,7 +86,7 @@ export function Header({ wsStatus, onMenuToggle }: HeaderProps) {
       )}
 
       <Stack direction="row" spacing={2} alignItems="center" sx={{ minWidth: 0, flexShrink: 0 }}>
-        <KaiPOSLogo variant={isDesktop ? 'horizontal' : 'icon'} size="sm" />
+        <KaiPOSLogo variant={showWordmark ? 'horizontal' : 'icon'} size="sm" />
         {isDesktop && <Divider orientation="vertical" flexItem sx={{ my: 1.5 }} />}
         {isDesktop && isSuperAdmin && <BusinessPicker />}
         {isDesktop && !isSuperAdmin && businessName && (

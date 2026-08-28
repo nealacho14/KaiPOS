@@ -1,5 +1,6 @@
 import type { User } from '@kaipos/shared';
 import { KaiPOSThemeProvider } from '@kaipos/ui';
+import { resetViewport, setViewport, VIEWPORT } from '@kaipos/ui/testing';
 import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -127,6 +128,8 @@ afterEach(() => {
   clearSession();
   vi.unstubAllEnvs();
   window.sessionStorage.clear();
+  // happy-dom's default is 1024x768 (desktop); the layout cases below move it.
+  resetViewport();
 });
 
 describe('PosLayout', () => {
@@ -173,6 +176,54 @@ describe('PosLayout', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/sin sucursales asignadas/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('layout modes', () => {
+    async function renderAt(size: { width: number; height: number }) {
+      setViewport(size);
+      const admin = makeUser('admin');
+      mockFetch(admin);
+      setSession({ accessToken: 'a', refreshToken: 'r', user: admin });
+      renderShell();
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('catalog-search-input')).toBeInTheDocument();
+        },
+        { timeout: 3000 },
+      );
+    }
+
+    it('pins the cart beside the catalog on a tablet in portrait', async () => {
+      // 768x1024 used to fall below `md` and get the phone drawer, even though
+      // there is room for both panes. This is the regression this guards.
+      await renderAt(VIEWPORT.tabletPortrait);
+
+      expect(screen.getByTestId('pos-cart-pane-desktop')).toBeInTheDocument();
+      expect(screen.queryByTestId('pos-open-cart')).not.toBeInTheDocument();
+    });
+
+    it('pins the cart on a tablet in landscape', async () => {
+      await renderAt(VIEWPORT.tabletLandscape);
+
+      expect(screen.getByTestId('pos-cart-pane-desktop')).toBeInTheDocument();
+      expect(screen.queryByTestId('pos-open-cart')).not.toBeInTheDocument();
+    });
+
+    it('collapses the cart into a drawer on a handset', async () => {
+      await renderAt(VIEWPORT.phone);
+
+      expect(screen.queryByTestId('pos-cart-pane-desktop')).not.toBeInTheDocument();
+      expect(screen.getByTestId('pos-open-cart')).toBeInTheDocument();
+    });
+
+    it('collapses the cart on a handset in landscape despite the width', async () => {
+      // 932x430 is wider than a tablet in portrait but has no vertical room, so
+      // it must stay on the drawer layout.
+      await renderAt(VIEWPORT.phoneLandscape);
+
+      expect(screen.queryByTestId('pos-cart-pane-desktop')).not.toBeInTheDocument();
+      expect(screen.getByTestId('pos-open-cart')).toBeInTheDocument();
     });
   });
 });

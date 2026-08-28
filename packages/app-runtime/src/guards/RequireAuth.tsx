@@ -12,7 +12,7 @@ export function RequireAuth() {
         role="status"
         aria-live="polite"
         sx={{
-          minHeight: '100vh',
+          minHeight: '100dvh',
           display: 'grid',
           placeItems: 'center',
           bgcolor: 'background.default',

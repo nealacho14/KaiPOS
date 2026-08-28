@@ -19,6 +19,9 @@ export default defineConfig({
         'src/icons/index.ts',
         'src/providers/index.ts',
         'src/tokens/index.ts',
+        'src/hooks/index.ts',
+        // Test-only helpers; they are the instrument, not the subject.
+        'src/testing/**',
         // Tests + setup + ambient type augmentations.
         'src/**/*.test.{ts,tsx}',
         'src/test-setup.ts',

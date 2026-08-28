@@ -1,0 +1,26 @@
+<!--
+  Source for the generated PWA icons (purpose: any).
+
+  The rendered brand mark lives in `../components/KaiPOSLogo.tsx` and is
+  composed in DOM/CSS, not SVG, so it cannot be exported directly. This file
+  mirrors `KMark` in its `color` variant at a 512 canvas: teal ground, white
+  "K", amber accent node and connector, faint bottom grid line.
+
+  The "K" is drawn as a filled path rather than <text> so rasterising it does
+  not depend on a font being installed. Keep it in sync with KMark by eye.
+
+  Regenerate the PNGs with `pnpm icons:generate` after editing.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="KaiPOS">
+  <rect width="512" height="512" rx="113" fill="#0B7A75"/>
+  <g>
+    <!-- Connector from the K toward the accent node (KMark: rotate(-45deg), opacity .6) -->
+    <path d="M 330 150 L 404 76" stroke="#E8833A" stroke-width="15" stroke-opacity="0.6" stroke-linecap="round"/>
+    <!-- Accent node, top-right -->
+    <circle cx="420" cy="92" r="31" fill="#E8833A"/>
+    <!-- Bottom grid line -->
+    <rect x="77" y="425" width="358" height="10" fill="#FFFFFF" fill-opacity="0.15"/>
+    <!-- K -->
+    <path fill="#FFFFFF" d="M160 156 L204 156 L204 236 L286 156 L346 156 L248 254 L352 356 L288 356 L204 272 L204 356 L160 356 Z"/>
+  </g>
+</svg>

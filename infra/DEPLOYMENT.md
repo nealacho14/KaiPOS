@@ -9,7 +9,7 @@ Single AWS environment: **`prod`**. Local development (`dev`) runs via `pnpm dev
 - `kaipos-prod-assets` — Private versioned S3 bucket `kaipos-assets-prod` plus a public CloudFront distribution that fronts it for read access (`/products/*` behavior). Exports `AssetsBucketName` and `AssetsCdnDomain`.
 - `kaipos-prod-websocket` — API Gateway WebSocket API + DynamoDB connections table + three Lambda handlers (`$connect`, `$disconnect`, `$default`). Outputs the `wss://...` URL that the frontend SPA needs.
 - `kaipos-prod-api` — API Gateway HTTP API + Lambda for backend functions. Lambda runs **outside any VPC** and connects to MongoDB Atlas directly over the public internet (protected by Atlas IP allowlist). This keeps monthly cost near zero by avoiding a NAT Gateway (~$33/month).
-- `kaipos-prod-frontend` — S3 + CloudFront for **both** SPAs: admin served at the root (`/`) and POS served at `/pos/*`. Two S3 buckets (`kaipos-frontend-prod`, `kaipos-frontend-pos-prod`), three CloudFront behaviors (default → admin, `/api/*` → API Gateway, `/pos/*` → POS bucket via a prefix-stripping CloudFront Function). Both Vite builds embed `VITE_WS_ENDPOINT` from the websocket stack's output, which is why `deploy:prod` runs in two phases (see below).
+- `kaipos-prod-frontend` — S3 + CloudFront for **both** SPAs: admin served at the root (`/`) and POS served at `/pos/*`. Two S3 buckets (`kaipos-frontend-prod`, `kaipos-frontend-pos-prod`), three CloudFront behaviors (default → admin, `/api/*` → API Gateway, `/pos/*` → POS bucket via a CloudFront Function that rewrites deep links to `/pos/index.html`). Both Vite builds embed `VITE_WS_ENDPOINT` from the websocket stack's output, which is why `deploy:prod` runs in two phases (see below).
 
 ## Prerequisites
 

@@ -2,7 +2,7 @@
 
 ## Project
 
-KaiPOS — cloud-native Point of Sale. pnpm + Turborepo monorepo: apps in `apps/` (`backend`, `frontend-admin`), libs in `packages/` (`shared`, `ui`, `tsconfig`, `eslint-config`), AWS CDK in `infra/`.
+KaiPOS — cloud-native Point of Sale. pnpm + Turborepo monorepo: apps in `apps/` (`backend`, `frontend-admin`, `frontend-pos`, `e2e`), libs in `packages/` (`shared`, `ui`, `app-runtime`, `auth-pages`, `tsconfig`, `eslint-config`), AWS CDK in `infra/`.
 
 ## Commands
 
@@ -30,6 +30,7 @@ Login (after seed): `admin@lacocinadekai.com` / `admin123`.
 - **RBAC.** Authorization decisions go through `hasPermission(role, permission)` / `requirePermission(permission)`. **Never** inline `role === '...'` for authorization — the only legitimate `role === 'super_admin'` checks are for tenant-isolation scoping (`businessId === '*'`). See `docs/database.md`.
 - **Design system boundary.** In `apps/**/src` never import from `@mui/material`, `@mui/material/*`, or `lucide-react` directly. Everything routes through `@kaipos/ui` (re-exports both). Enforced by `no-restricted-imports` in `packages/eslint-config/react.js`.
 - **Design tokens.** In `apps/**/src` never use `fontSize: <n>`, `fontWeight: <n>` or `borderRadius: <n>` numeric literals in `sx`/`style`. Use `<Typography variant="...">` (or `theme.typography.X`), `theme.radii.X`, `theme.shape.borderRadius`. Spacing always via the MUI scale (`p={2}`, `m={3}`, `theme.spacing(n)`) — never `'<n>px'` strings. Colors via `palette.*` or `colors.*` — never hex/rgb literals. See `packages/ui/README.md` for variant mapping.
+- **Responsive & PWA.** Three layout modes via `useLayoutMode()` from `@kaipos/ui` (`phone` / `tablet` / `desktop`) — use it when the component tree changes, `sx` breakpoints when only styling scales. Never `100vh`, always `100dvh`. Both SPAs share one origin, so the admin service worker must keep `/pos` and `/api` in its `navigateFallbackDenylist`. See `packages/ui/README.md` and `apps/frontend-pos/README.md`.
 - **Shared RBAC types.** `Permission`, `ROLE_PERMISSIONS`, `hasPermission`, `SUPER_ADMIN_BUSINESS_ID` live only in `@kaipos/shared` / `@kaipos/shared/permissions`. No local shim in apps.
 - **Lambda bundling.** Don't change `apps/backend/tsup.config.ts` without preserving: workspace packages + `mongodb` bundled, `@aws-sdk/*` external (Node 20 runtime), `dist/package.json` with `type: "module"`, and the `createRequire` banner.
 - **No Atlas in local.** Never put `mongodb+srv://` in `.env`. Atlas creds live only in Secrets Manager (`kaipos/prod/mongo-uri`) and load at Lambda cold start; `src/db/client.ts`, `pnpm setup` and the seed scripts refuse `mongodb+srv://` when `MONGO_SECRET_ARN` is unset.
@@ -54,3 +55,4 @@ TypeScript strict, ES2022. MongoDB native driver (no Mongoose). Prettier: double
 - [infra/DEPLOYMENT.md](infra/DEPLOYMENT.md) — deployment runbook.
 - [packages/ui/README.md](packages/ui/README.md) — design tokens and variants.
 - [apps/frontend-admin/README.md](apps/frontend-admin/README.md) — admin routes and dev notes.
+- [apps/frontend-pos/README.md](apps/frontend-pos/README.md) — POS routing, PWA and offline behavior.

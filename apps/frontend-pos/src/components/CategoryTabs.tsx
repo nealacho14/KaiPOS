@@ -1,5 +1,5 @@
 import type { Category } from '@kaipos/shared';
-import { Box, Tab, Tabs } from '@kaipos/ui';
+import { Box, Tab, Tabs, useLayoutMode } from '@kaipos/ui';
 import { useEffect, useState } from 'react';
 import { listCategories } from '../lib/categories-api.js';
 import { logger } from '../lib/logger.js';
@@ -17,6 +17,7 @@ export interface CategoryTabsProps {
 const PAGE_LIMIT = 100;
 
 export function CategoryTabs({ value, onChange }: CategoryTabsProps) {
+  const isDesktop = useLayoutMode() === 'desktop';
   const [categories, setCategories] = useState<Category[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -68,9 +69,17 @@ export function CategoryTabs({ value, onChange }: CategoryTabsProps) {
         value={value}
         onChange={(_, next) => onChange(next as CategoryTabValue)}
         variant="scrollable"
-        scrollButtons="auto"
-        allowScrollButtonsMobile
+        // Arrows are dead weight on a touch screen — the strip is swipeable and
+        // they eat width that tab labels need.
+        scrollButtons={isDesktop ? 'auto' : false}
+        allowScrollButtonsMobile={isDesktop}
         aria-label="Categorías"
+        sx={(theme) => ({
+          ...(!isDesktop && {
+            minHeight: theme.posSize.min,
+            '& .MuiTab-root': { minHeight: theme.posSize.min },
+          }),
+        })}
       >
         <Tab value={TAB_ALL} label="Todas" data-testid="category-tab-all" />
         <Tab value={TAB_FEATURED} label="Destacados" data-testid="category-tab-featured" />

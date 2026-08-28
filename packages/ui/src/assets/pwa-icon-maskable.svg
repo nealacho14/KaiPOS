@@ -1,0 +1,21 @@
+<!--
+  Source for the generated maskable PWA icon.
+
+  Same mark as `pwa-icon.svg`, but full-bleed (no rounded corners — the
+  platform supplies the mask) and scaled to 72% about the centre so every part
+  of it, including the top-right accent node, sits inside the maskable safe
+  zone: the centred circle of 80% diameter. At full scale the accent node is
+  ~232px from centre against a 205px safe radius, so it would be clipped on a
+  circular mask.
+
+  Regenerate the PNGs with `pnpm icons:generate` after editing.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="KaiPOS">
+  <rect width="512" height="512" fill="#0B7A75"/>
+  <g transform="translate(256 256) scale(0.72) translate(-256 -256)">
+    <path d="M 330 150 L 404 76" stroke="#E8833A" stroke-width="15" stroke-opacity="0.6" stroke-linecap="round"/>
+    <circle cx="420" cy="92" r="31" fill="#E8833A"/>
+    <rect x="77" y="425" width="358" height="10" fill="#FFFFFF" fill-opacity="0.15"/>
+    <path fill="#FFFFFF" d="M160 156 L204 156 L204 236 L286 156 L346 156 L248 254 L352 356 L288 356 L204 272 L204 356 L160 356 Z"/>
+  </g>
+</svg>

@@ -21,7 +21,11 @@ Manager. Vite proxies `/api` to the local backend.
 
 ## `pnpm docker:up` (containerized + local Mongo + MinIO)
 
-Backend on `:4001`, frontend on `:3001`. Compose file at `docker-compose.yml`.
+Backend on `:4001`, frontend admin on `:3001`. Compose file at `docker-compose.yml`.
+
+The POS app runs on `:3002` under `/pos/` (Vite `base`), so `pnpm dev` serves it
+at <http://localhost:3002/pos/>. Its service worker only exists in a build —
+use `pnpm --filter @kaipos/frontend-pos build && … preview` to exercise the PWA.
 
 ## `pnpm e2e` (Cypress)
 

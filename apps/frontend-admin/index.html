@@ -13,12 +13,10 @@
     <!-- black-translucent runs the web view full-bleed when installed, which is
          what makes viewport-fit=cover and theme.safeArea.* load-bearing. -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Vite rewrites these with the app's `base`, so the POS build emits /pos/. -->
+    <link rel="icon" type="image/png" sizes="96x96" href="/icons/favicon-96x96.png" />
+    <!-- iOS ignores the manifest icons for the home-screen shortcut. -->
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180x180.png" />
     <title>KaiPOS - Admin</title>
   </head>
   <body>

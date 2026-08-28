@@ -54,6 +54,7 @@ export {
   type UseActiveBranchResult,
 } from './hooks/useActiveBranch.js';
 export { useBranches, type BranchOption, type UseBranchesResult } from './hooks/useBranches.js';
+export { useOnlineStatus } from './hooks/useOnlineStatus.js';
 export { useWebSocket, type UseWebSocketResult } from './hooks/useWebSocket.js';
 
 // Guards — route-level gates that read auth context.
@@ -63,6 +64,7 @@ export { RequirePermission, type RequirePermissionProps } from './guards/Require
 // Components — header-level controls that consume the runtime hooks. They
 // live here (not in @kaipos/ui) because @kaipos/ui is meant to stay free of
 // app state; these primitives are inherently stateful.
+export { OfflineBanner } from './components/OfflineBanner.js';
 export {
   ActiveBranchSwitcher,
   type ActiveBranchSwitcherProps,

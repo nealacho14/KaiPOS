@@ -13,6 +13,7 @@
     "typecheck": "turbo typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yaml,yml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,yaml,yml}\"",
+    "icons:generate": "node scripts/generate-icons.mjs",
     "test": "turbo test",
     "e2e": "pnpm --filter @kaipos/e2e cy:run",
     "e2e:setup": "pnpm --filter @kaipos/backend db:seed-cypress",
@@ -37,6 +38,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "prettier": "^3.5.0",
+    "sharp": "^0.35.4",
     "turbo": "^2.9.0"
   }
 }

@@ -126,17 +126,64 @@ export class FrontendStack extends cdk.Stack {
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
     });
 
+    // Each app uploads in two passes so its files get the right `Cache-Control`.
+    //
+    // Without an origin header, `CACHING_OPTIMIZED` applies its 86400 s default
+    // TTL to *everything*, `index.html` included. The deployment invalidation
+    // flushes the edge, but browsers keep the old `index.html` for up to a day
+    // — and it references hashed assets that still exist in S3, so returning
+    // users silently run yesterday's build. A service worker makes this worse:
+    // `sw.js` is how every future update is delivered, so a stale copy is
+    // effectively unrecallable for its cache lifetime.
+    //
+    // `no-cache` (not `no-store`) still permits caching; it only forces
+    // revalidation, so the common case stays a cheap 304.
+    //
+    // `prune: false` is mandatory on all four. Prune deletes destination
+    // objects absent from the source and ignores include/exclude when working
+    // that out, so a pruning shell pass would wipe `assets/`. The cost is that
+    // superseded hashed assets accumulate; they are content-addressed and
+    // therefore harmless, and expiring them while an older cached `index.html`
+    // may still reference them would be worse.
+    const IMMUTABLE = s3deploy.CacheControl.fromString('public, max-age=31536000, immutable');
+    const REVALIDATE = s3deploy.CacheControl.fromString('no-cache');
+
+    new s3deploy.BucketDeployment(this, 'DeployFrontendAssets', {
+      sources: [s3deploy.Source.asset('../apps/frontend-admin/dist')],
+      destinationBucket: bucket,
+      exclude: ['*'],
+      include: ['assets/*'],
+      cacheControl: [IMMUTABLE],
+      prune: false,
+    });
+
     new s3deploy.BucketDeployment(this, 'DeployFrontend', {
       sources: [s3deploy.Source.asset('../apps/frontend-admin/dist')],
       destinationBucket: bucket,
+      exclude: ['assets/*'],
+      cacheControl: [REVALIDATE],
+      prune: false,
       distribution,
       distributionPaths: ['/*'],
+    });
+
+    new s3deploy.BucketDeployment(this, 'DeployFrontendPosAssets', {
+      sources: [s3deploy.Source.asset('../apps/frontend-pos/dist')],
+      destinationBucket: posBucket,
+      destinationKeyPrefix: 'pos/',
+      exclude: ['*'],
+      include: ['assets/*'],
+      cacheControl: [IMMUTABLE],
+      prune: false,
     });
 
     new s3deploy.BucketDeployment(this, 'DeployFrontendPos', {
       sources: [s3deploy.Source.asset('../apps/frontend-pos/dist')],
       destinationBucket: posBucket,
       destinationKeyPrefix: 'pos/',
+      exclude: ['assets/*'],
+      cacheControl: [REVALIDATE],
+      prune: false,
       distribution,
       distributionPaths: ['/pos/*'],
     });

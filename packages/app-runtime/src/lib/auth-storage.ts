@@ -1,5 +1,6 @@
 import type { User } from '@kaipos/shared';
 import { ACTIVE_BRANCH_STORAGE_KEY } from '../hooks/useActiveBranch.js';
+import { clearCatalogCache } from './catalog-cache.js';
 
 export type SessionUser = Omit<User, 'passwordHash'>;
 
@@ -78,6 +79,9 @@ export function getSelectedBusinessId(): string | null {
 export function setSelectedBusinessId(id: string | null): void {
   const storage = safeStorage();
   if (!storage) return;
+  // Switching business changes which tenant's catalog is correct, and the
+  // cached responses are keyed only by URL.
+  clearCatalogCache();
   if (id) {
     storage.setItem(SELECTED_BUSINESS_KEY, id);
   } else {
@@ -86,6 +90,9 @@ export function setSelectedBusinessId(id: string | null): void {
 }
 
 export function clearSession(): void {
+  // Before the early return below: the catalog cache must be dropped on logout
+  // even when localStorage is unavailable.
+  clearCatalogCache();
   const storage = safeStorage();
   if (!storage) return;
   storage.removeItem(ACCESS_KEY);

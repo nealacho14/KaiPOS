@@ -1,5 +1,8 @@
 export const fontFamily = {
-  sans: '"Inter", "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  // "Inter Variable" first: it is the family we self-host, and it is the only
+  // one carrying the wght axis that weights 450/550/650 need. A locally
+  // installed static "Inter" would otherwise win and round them.
+  sans: '"Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   mono: '"JetBrains Mono", "SF Mono", "Roboto Mono", Menlo, Consolas, monospace',
 } as const;
 

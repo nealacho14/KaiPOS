@@ -80,6 +80,7 @@ export {
   type PosProductCardProps,
 } from './PosProductCard.js';
 export { EmptyState, type EmptyStateProps } from './EmptyState.js';
+export { UpdatePrompt, type UpdatePromptProps } from './UpdatePrompt.js';
 export { WsStatusChip, type WsStatusChipProps, type WsStatusChipStatus } from './WsStatusChip.js';
 
 // Icons live in `@kaipos/ui/icons`; the root export re-exports them in

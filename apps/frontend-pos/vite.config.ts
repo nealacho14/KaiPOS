@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
+import { pwaOptions } from './pwa.config.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')) as {
@@ -18,7 +20,7 @@ export default defineConfig({
   // the same CloudFront distribution. Vite rewrites every asset URL with this
   // prefix at build time, and the dev server roots at http://localhost:3002/pos/.
   base: '/pos/',
-  plugins: [react()],
+  plugins: [react(), VitePWA(pwaOptions)],
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
   },

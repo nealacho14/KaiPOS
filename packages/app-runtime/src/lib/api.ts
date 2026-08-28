@@ -178,6 +178,12 @@ function buildHeaders(init: ApiInit | undefined, accessToken?: string): Headers 
 }
 
 function redirectToLogin(): void {
+  // Offline, every token refresh fails for want of a network — not because the
+  // session is invalid. Evicting it here would drop an offline-capable app onto
+  // a login screen that cannot possibly succeed, which is precisely when the
+  // cached catalog is most useful. Keep the session and let the offline banner
+  // explain; the next online request re-runs this path for real.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
   onAuthFailure();
 }
 

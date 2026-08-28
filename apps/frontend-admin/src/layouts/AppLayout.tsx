@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import {
   ActiveBranchProvider,
+  OfflineBanner,
   getSession,
   useAuth,
   useWebSocketActions,
@@ -64,6 +65,7 @@ function AppLayoutShell() {
         wsStatus={chipStatus}
         onMenuToggle={isDesktop ? undefined : () => setDrawerOpen((v) => !v)}
       />
+      <OfflineBanner />
       <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <Sidebar open={drawerOpen} onClose={() => setDrawerOpen(false)} isDesktop={isDesktop} />
         <Box

@@ -12,6 +12,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import {
   ActiveBranchProvider,
+  OfflineBanner,
   getSession,
   useActiveBranch,
   useAuth,
@@ -131,6 +132,7 @@ function PosLayoutShell() {
       }}
     >
       <PosHeader wsStatus={chipStatus} />
+      <OfflineBanner />
 
       <GatingRedirect>
         <Box sx={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>

@@ -18,14 +18,15 @@ const SKELETON_COUNT = 12;
 // Shared by the skeleton and the real grid so the two can't drift — they were
 // previously two copies of the same literal.
 //
-// The tablet floor is deliberately *smaller* than the phone one: the tablet
-// layout gives ~40% of the width to the cart pane, so tiles must be narrower to
-// still fit three across. Keys are width-only, which is all tile sizing needs.
+// The `sm` floor is deliberately low. A tablet in portrait (768) hands ~40% of
+// its width to the cart pane, leaving ~430px of catalog — at a 150px floor that
+// is two columns and a lot of scrolling, at 140px it is three. Keys are
+// width-only, which is all tile sizing needs.
 const GRID_SX = {
   display: 'grid',
   gridTemplateColumns: {
     xs: 'repeat(auto-fill, minmax(140px, 1fr))',
-    sm: 'repeat(auto-fill, minmax(150px, 1fr))',
+    sm: 'repeat(auto-fill, minmax(140px, 1fr))',
     md: 'repeat(auto-fill, minmax(180px, 1fr))',
     lg: 'repeat(auto-fill, minmax(200px, 1fr))',
   },

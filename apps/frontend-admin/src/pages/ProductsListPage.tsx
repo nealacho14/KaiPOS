@@ -398,7 +398,9 @@ export function ProductsListPage() {
   }, [pendingDelete, includeInactive, state, retry]);
 
   const actions = (
-    <Stack direction="row" spacing={2} alignItems="center">
+    // Up to three controls live here; without wrapping they push past the
+    // viewport on a phone.
+    <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
       {canWrite && !reorderMode && state.status === 'success' && state.data.length > 1 && (
         <Button variant="outlined" onClick={startReorder} disabled={reorderSaving}>
           Reordenar

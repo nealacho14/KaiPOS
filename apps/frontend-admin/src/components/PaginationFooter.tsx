@@ -26,6 +26,14 @@ export function PaginationFooter({
   return (
     <TablePagination
       component="div"
+      // The rows-per-page selector, the range text and the arrows share one row
+      // and overflow below ~400px. The selector is the least important of the
+      // three, so it drops out first; the range and arrows always stay.
+      sx={{
+        '& .MuiTablePagination-selectLabel, & .MuiTablePagination-input': {
+          display: { xs: 'none', sm: 'flex' },
+        },
+      }}
       count={count}
       page={page}
       onPageChange={(_, next) => onPageChange(next)}

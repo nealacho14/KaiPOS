@@ -19,7 +19,7 @@ import {
 } from '@kaipos/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { ApiError, type Pagination, useAuth } from '@kaipos/app-runtime';
+import { ApiError, type Pagination, useAuth, useBranches } from '@kaipos/app-runtime';
 import { PageHeader, PaginationFooter } from '../components/index.js';
 import { listUsers } from '../lib/users-api.js';
 
@@ -251,6 +251,8 @@ function UsersTable({ users, canWrite }: { users: SafeUser[]; canWrite: boolean 
 }
 
 function BranchesCell({ branchIds }: { branchIds?: string[] }) {
+  const { branches } = useBranches();
+
   if (!branchIds || branchIds.length === 0) {
     return (
       <Box component="span" sx={{ color: 'text.disabled' }}>
@@ -259,7 +261,10 @@ function BranchesCell({ branchIds }: { branchIds?: string[] }) {
     );
   }
   if (branchIds.length <= 2) {
-    return <>{branchIds.join(', ')}</>;
+    // A branch ObjectId means nothing to whoever is reading this table. Fall
+    // back to the raw id only while `/api/branches` is still in flight.
+    const names = branchIds.map((id) => branches.find((b) => b._id === id)?.name ?? id);
+    return <>{names.join(', ')}</>;
   }
   return <>{`${branchIds.length} sucursales`}</>;
 }

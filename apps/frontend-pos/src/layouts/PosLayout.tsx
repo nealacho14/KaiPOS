@@ -39,7 +39,8 @@ function getWsEndpoint(): string {
 const CART_PANEL_MIN = 360;
 const CART_PANEL_MAX = 480;
 // A tablet in portrait is only 768 px wide, so the desktop 360 px floor would
-// leave ~408 px of catalog. Shrinking the cart keeps three tiles per row.
+// leave ~408 px of catalog. Shrinking the cart to ~307 px leaves ~430 px, which
+// fits three tiles at the `sm` grid floor in ProductGrid.
 const CART_PANEL_TABLET_MIN = 300;
 const CART_PANEL_TABLET_MAX = 360;
 

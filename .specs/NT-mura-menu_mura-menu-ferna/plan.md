@@ -33,7 +33,7 @@
 | Phase 1 | `upload-limit-compression` | done    | none             | —        |
 | Phase 2 | `mura-seed-data`           | done    | none             | Phase 4  |
 | Phase 3 | `purge-business-script`    | done    | none             | Phase 4  |
-| Phase 4 | `ferna-contract-cutover`   | docs done, prod cutover pending | Phase 2, Phase 3 | —        |
+| Phase 4 | `ferna-contract-cutover`   | done    | Phase 2, Phase 3 | —        |
 
 ## Dependency Graph
 
@@ -185,14 +185,14 @@ Phase 3 ──┘
       imágenes, política de cambios, cache ≥ 60 s). Enlazar desde `CLAUDE.md` y `docs/database.md`.
 - [x] Runbook "Atlas runbooks" en `docs/database.md` (pasos 0–8: deploy, placeholder a S3, dry-run purge,
       seed-atlas con `MURA_ADMIN_PASSWORD`, inventario, login, purge `--yes`, GitHub vars, Atlas user read-only).
-- [ ] Ejecutar el runbook contra Atlas y enviar `menu:export` a la sesión Ferna.
+- [x] Ejecutar el runbook contra Atlas y enviar `menu:export` a la sesión Ferna (2026-09-06: seed + purge ejecutados, inventario final `mura` + `cypress-biz-a/b`).
 
 ### Verification
 
 - [x] `pnpm format:check` passes
 - [x] `pnpm typecheck` / `pnpm lint` / `pnpm build` passes
-- [ ] Inventario Atlas: negocios `mura`, `cypress-biz-a`, `cypress-biz-b`; 64 productos Mura; 5 featured
-- [ ] Smoke E2E post-deploy verde tras rotar `CYPRESS_USER_ADMIN_*`
+- [x] Inventario Atlas: negocios `mura`, `cypress-biz-a`, `cypress-biz-b`; 64 productos Mura; 5 featured
+- [x] Smoke E2E post-deploy verde (run 34046866876, tras restaurar `CYPRESS_USER_ADMIN_A_PASSWORD` y limpiar `loginAttempts`)
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 

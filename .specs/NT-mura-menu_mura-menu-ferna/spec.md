@@ -3,7 +3,7 @@
 | Field         | Value                                    |
 | ------------- | ---------------------------------------- |
 | Notion Ticket | NT-mura-menu (sin página Notion)         |
-| Status        | In progress                              |
+| Status        | Done (KaiPOS side, 2026-09-06)           |
 | Priority      | High                                     |
 | Branch        | `NT-mura-menu/mura-menu-ferna/feature`   |
 | Created       | 2026-09-06                               |
@@ -41,17 +41,17 @@ Compatibilidad de schema acordada con la sesión Ferna (sin cambiar el modelo de
 
 ## Acceptance Criteria
 
-- [ ] `db:setup` + `db:seed` en Docker Mongo deja 13 categorías, 64 productos, 5 destacados y 2 admins; un
+- [x] `db:setup` + `db:seed` en Docker Mongo deja 13 categorías, 64 productos, 5 destacados y 2 admins; un
       segundo `db:seed` es no-op.
-- [ ] `pnpm --filter @kaipos/backend menu:export` imprime JSON determinista con 64 productos.
-- [ ] `db:purge-business -- --slug la-cocina-de-kai` sin `--yes` no borra nada y lista conteos; con
+- [x] `pnpm --filter @kaipos/backend menu:export` imprime JSON determinista con 64 productos.
+- [x] `db:purge-business -- --slug la-cocina-de-kai` sin `--yes` no borra nada y lista conteos; con
       `--yes` elimina solo ese negocio; rechaza slugs `cypress-*`.
-- [ ] `POST /api/products/upload-url` acepta `fileSize` = 10 MB y rechaza 10 MB + 1; el admin comprime a
+- [x] `POST /api/products/upload-url` acepta `fileSize` = 10 MB y rechaza 10 MB + 1; el admin comprime a
       WebP ≤ ~1 MB antes de subir, en imagen principal y de variante.
-- [ ] `apps/backend/openapi.json` regenerado y en sync.
-- [ ] Atlas queda con negocios `mura`, `cypress-biz-a`, `cypress-biz-b`; login en prod con ambos admins.
-- [ ] `docs/ferna-integration.md` publicado con queries, shapes, fórmula de precio e IDs fijos.
-- [ ] `pnpm lint && pnpm typecheck && pnpm test && pnpm build` verdes; CI `quality` verde.
+- [x] `apps/backend/openapi.json` regenerado y en sync.
+- [x] Atlas queda con negocios `mura`, `cypress-biz-a`, `cypress-biz-b`; login en prod con ambos admins.
+- [x] `docs/ferna-integration.md` publicado con queries, shapes, fórmula de precio e IDs fijos.
+- [x] `pnpm lint && pnpm typecheck && pnpm test && pnpm build` verdes; CI `quality` verde.
 
 ## Out of Scope
 

@@ -33,7 +33,7 @@
 | Phase 1 | `upload-limit-compression` | done    | none             | —        |
 | Phase 2 | `mura-seed-data`           | done    | none             | Phase 4  |
 | Phase 3 | `purge-business-script`    | done    | none             | Phase 4  |
-| Phase 4 | `ferna-contract-cutover`   | pending | Phase 2, Phase 3 | —        |
+| Phase 4 | `ferna-contract-cutover`   | docs done, prod cutover pending | Phase 2, Phase 3 | —        |
 
 ## Dependency Graph
 
@@ -76,32 +76,33 @@ Phase 3 ──┘
 
 ### Tasks
 
-- [ ] `packages/shared/src/schemas/products.ts`: `export const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024`
+- [x] `packages/shared/src/schemas/products.ts`: `export const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024`
       (reemplaza `MAX_UPLOAD_SIZE`) y `export const UPLOAD_CONTENT_TYPES = uploadContentTypeEnum.options`.
-- [ ] Test en `packages/shared/src/schemas/products.test.ts`: `uploadUrlSchema` acepta 10 MB, rechaza 10 MB + 1.
-- [ ] `pnpm --filter @kaipos/backend openapi:generate` y commit de `apps/backend/openapi.json`.
-- [ ] `apps/backend/src/routes/products.test.ts`: "400 when fileSize exceeds 10 MB" (11 MB) + "201 at exactly 10 MB".
-- [ ] Nuevo `apps/frontend-admin/src/lib/upload-image.ts` con `browser-image-compression`:
+- [x] Test en `packages/shared/src/schemas/products.test.ts`: `uploadUrlSchema` acepta 10 MB, rechaza 10 MB + 1.
+- [x] `pnpm --filter @kaipos/backend openapi:generate` y commit de `apps/backend/openapi.json`.
+- [x] `apps/backend/src/routes/products.test.ts`: "400 when fileSize exceeds 10 MB" (11 MB) + "201 at exactly 10 MB".
+- [x] Nuevo `apps/frontend-admin/src/lib/upload-image.ts` con `browser-image-compression`:
       `UploadImageError` (codes `BRANCH_REQUIRED | UNSUPPORTED_TYPE | TOO_LARGE | UPLOAD_FAILED | ASSETS_NOT_CONFIGURED`),
       `COMPRESSION_OPTIONS` (maxSizeMB 1, maxWidthOrHeight 1600, `image/webp`, useWebWorker, initialQuality 0.85),
       `prepareImageForUpload(file)` (MIME → compresión con fallback al original → chequeo de tamaño),
       `uploadProductImage({ branchId, file })` (presign con el tipo/tamaño reales, PUT, `publicUrl`),
       `uploadErrorMessage(code)` con los copys en español.
-- [ ] `apps/frontend-admin/src/pages/ProductFormPage.tsx`: eliminar `UPLOAD_MIME` / `UPLOAD_MAX_BYTES`;
+- [x] `apps/frontend-admin/src/pages/ProductFormPage.tsx`: eliminar `UPLOAD_MIME` / `UPLOAD_MAX_BYTES`;
       `handleImagePick` y `VariantsCard.onUploadImage` delegan al helper; el catch de variantes mapea
       `UploadImageError.code`; copys "máx 10 MB · se comprime automáticamente"; `accept` desde `UPLOAD_CONTENT_TYPES`.
-- [ ] Test `apps/frontend-admin/src/lib/upload-image.test.ts` (mocks de `browser-image-compression`,
+- [x] Test `apps/frontend-admin/src/lib/upload-image.test.ts` (mocks de `browser-image-compression`,
       `./products-api.js` y `fetch`): compresión invocada y presign con `image/webp`; PNG 12 MB → 0.8 MB sube;
       compresión falla + >10 MB → `TOO_LARGE`; `image/gif` → `UNSUPPORTED_TYPE`; PUT non-ok → `UPLOAD_FAILED`.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm test` passes y `git diff --exit-code apps/backend/openapi.json` limpio tras regenerar
-- [ ] Manual (MinIO): JPEG 6 MB → presign `image/webp` < 1.2 MB, PUT ok, thumbnail; idem variante
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm test` passes y `git diff --exit-code apps/backend/openapi.json` limpio tras regenerar
+- [ ] Manual (MinIO, navegador): JPEG 6 MB → presign `image/webp` < 1.2 MB, PUT ok, thumbnail; idem variante
+- [x] Verificado por API contra Docker MinIO: presign JPEG 8,5 MB → 201, PUT → 200, GET público → 200; 10 MB + 1 → 400; 10 MB exactos → 201
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 
@@ -113,31 +114,31 @@ Phase 3 ──┘
 
 ### Tasks
 
-- [ ] Nuevo `apps/backend/src/db/seed-data/mura-menu.ts` (puro): constantes de IDs, `MURA_BUSINESS`
+- [x] Nuevo `apps/backend/src/db/seed-data/mura-menu.ts` (puro): constantes de IDs, `MURA_BUSINESS`
       (address/phone/email con `// TODO(mura)`), `MURA_BRANCH`, `MURA_CATEGORIES` (13, en orden del docx),
       builders `methodGroup()`, `milkGroup()`, `syrupGroup()`, `micheladaGroup()`, `foodExtrasGroup()`,
       `MURA_PRODUCTS` (64, precios y descripciones verbatim del docx, skus canónicos, `sortOrder` 10/20/30,
       `availability {pos:true, online:true, kiosk:false}` salvo alcohol `online:false`, `trackStock:false`,
       `stock:0`, `imageUrl` placeholder, alérgenos/dietary evidentes), `featuredProducts()`,
       `buildMuraDocuments({ now, imageBaseUrl, createdBy })`.
-- [ ] `apps/backend/src/db/seed.ts`: borrar data la-cocina; `seedData` idempotente por slug `mura`;
+- [x] `apps/backend/src/db/seed.ts`: borrar data la-cocina; `seedData` idempotente por slug `mura`;
       `resolveMuraUsers(db)` exportado (admin@mura.co con `MURA_ADMIN_PASSWORD`, kelvin con carry-over
       de hash → `MURA_KELVIN_PASSWORD` → skip local / throw en Atlas); `MURA_IMAGE_BASE_URL`.
-- [ ] `apps/backend/src/db/seed-atlas.ts`: exigir `MURA_ADMIN_PASSWORD`; actualizar cabecera.
-- [ ] Nuevo `apps/backend/scripts/export-mura-fixture.ts` + script `menu:export` (JSON determinista a stdout, sin DB).
-- [ ] Placeholder `apps/backend/src/db/seed-data/assets/product-placeholder.webp` (≤ 20 KB, 800×800).
-- [ ] Tests `apps/backend/src/db/seed-data/mura-menu.test.ts` y `apps/backend/src/db/seed.test.ts`.
-- [ ] Docs: `CLAUDE.md` (login), `README.md`, `docs/local-dev.md`, `docs/database.md` (bullet de seed),
+- [x] `apps/backend/src/db/seed-atlas.ts`: exigir `MURA_ADMIN_PASSWORD`; actualizar cabecera.
+- [x] Nuevo `apps/backend/scripts/export-mura-fixture.ts` + script `menu:export` (JSON determinista a stdout, sin DB).
+- [x] Placeholder `apps/backend/src/db/seed-data/assets/product-placeholder.webp` (≤ 20 KB, 800×800).
+- [x] Tests `apps/backend/src/db/seed-data/mura-menu.test.ts` y `apps/backend/src/db/seed.test.ts`.
+- [x] Docs: `CLAUDE.md` (login), `README.md`, `docs/local-dev.md`, `docs/database.md` (bullet de seed),
       `apps/e2e/.env.example`, `apps/e2e/README.md`.
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm test` passes
-- [ ] Manual: `db:setup` → `db:seed` ×2 (2º no-op); login `admin@mura.co`; 13 categorías en orden;
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm test` passes
+- [x] Manual: `db:setup` → `db:seed` ×2 (2º no-op); login `admin@mura.co`; 13 categorías en orden;
       Filtrado Lavado con 3 variantes + Método; Latte con Leche y Extras; Burger con Adiciones; 5 destacados;
       `menu:export | jq '.products|length'` = 64
 
@@ -151,23 +152,23 @@ Phase 3 ──┘
 
 ### Tasks
 
-- [ ] Nuevo `apps/backend/src/db/purge-business.ts`: `--slug` (obligatorio), `--yes`, `--expect-carried-over <email>`
+- [x] Nuevo `apps/backend/src/db/purge-business.ts`: `--slug` (obligatorio), `--yes`, `--expect-carried-over <email>`
       (repetible); rechaza `^cypress-`; `planBusinessPurge(db, slug)` con 12 pasos hijos→padres
       (refreshTokens, passwordResetTokens, loginAttempts, auditLogs, orders, productPreferences, products,
       categories, kitchenStations, users, branches, businesses); dry-run con `countDocuments`; `--yes` con
       `deleteMany` en orden; exit ≠ 0 si el negocio no existe o falla una expectativa.
-- [ ] `apps/backend/package.json`: script `db:purge-business`.
-- [ ] Test `apps/backend/src/db/purge-business.test.ts` (mock `Db`).
-- [ ] `docs/database.md`: bullet "Purging a business".
+- [x] `apps/backend/package.json`: script `db:purge-business`.
+- [x] Test `apps/backend/src/db/purge-business.test.ts` (mock `Db`).
+- [x] `docs/database.md`: bullet "Purging a business".
 
 ### Verification
 
-- [ ] `pnpm typecheck` passes
-- [ ] `pnpm lint` passes
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm build` succeeds
-- [ ] `pnpm test` passes
-- [ ] Manual en Docker Mongo con data vieja: dry-run no borra; `--yes` borra solo ese negocio; re-run exit ≠ 0
+- [x] `pnpm typecheck` passes
+- [x] `pnpm lint` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm build` succeeds
+- [x] `pnpm test` passes
+- [x] Manual en Docker Mongo con data vieja: dry-run no borra; `--yes` borra solo ese negocio; re-run exit ≠ 0
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 
@@ -179,17 +180,17 @@ Phase 3 ──┘
 
 ### Tasks
 
-- [ ] Nuevo `docs/ferna-integration.md` (conexión read-only, IDs fijos, queries exactas, shapes, campos a
+- [x] Nuevo `docs/ferna-integration.md` (conexión read-only, IDs fijos, queries exactas, shapes, campos a
       ignorar, dinero COP + fórmula de `computeEffectivePrice`, semántica de modifiers/variants, SKU = slug,
       imágenes, política de cambios, cache ≥ 60 s). Enlazar desde `CLAUDE.md` y `docs/database.md`.
-- [ ] Runbook "Atlas runbooks" en `docs/database.md` (pasos 0–8: deploy, placeholder a S3, dry-run purge,
+- [x] Runbook "Atlas runbooks" en `docs/database.md` (pasos 0–8: deploy, placeholder a S3, dry-run purge,
       seed-atlas con `MURA_ADMIN_PASSWORD`, inventario, login, purge `--yes`, GitHub vars, Atlas user read-only).
 - [ ] Ejecutar el runbook contra Atlas y enviar `menu:export` a la sesión Ferna.
 
 ### Verification
 
-- [ ] `pnpm format:check` passes
-- [ ] `pnpm typecheck` / `pnpm lint` / `pnpm build` passes
+- [x] `pnpm format:check` passes
+- [x] `pnpm typecheck` / `pnpm lint` / `pnpm build` passes
 - [ ] Inventario Atlas: negocios `mura`, `cypress-biz-a`, `cypress-biz-b`; 64 productos Mura; 5 featured
 - [ ] Smoke E2E post-deploy verde tras rotar `CYPRESS_USER_ADMIN_*`
 

@@ -113,7 +113,7 @@ describe('MURA_PRODUCTS', () => {
       const expectedKiosk = !ALCOHOL_SKUS.includes(p.sku);
       expect(p.availability.kiosk, p.sku).toBe(expectedKiosk);
       expect(p.availability.pos, p.sku).toBe(true);
-      expect(p.availability.online, p.sku).toBe(false);
+      expect(p.availability.online, p.sku).toBe(expectedKiosk);
     }
   });
 

@@ -21,7 +21,7 @@ Compatibilidad de schema acordada con la sesión Ferna (sin cambiar el modelo de
 - `product.sku` es el slug de Ferna (`[a-z0-9-]+`). El seed usa skus kebab-case únicos por sucursal.
 - Las categorías se identifican por `_id` fijo; el orden es `categories.sortOrder`.
 - Las "Adiciones" del menú son `modifierGroups` con ids estables, no una categoría.
-- Alcohol se seedea con `availability.online: false`; Ferna solo lee `availability.online === true`.
+- Ferna es el canal `kiosk`. Alcohol se seedea con `availability.kiosk: false`; Ferna marca `available` (canal + ventana horaria) y solo recomienda `available === true`.
 - Destacados = `productPreferences.featured === true`.
 
 ## Requirements

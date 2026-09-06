@@ -41,10 +41,12 @@ const categories = await db
   .sort({ sortOrder: 1, name: 1 })
   .toArray();
 
-// Products Ferna may show/recommend
+// Every live product of the branch. Ferna derives `available` per product (see below)
+// instead of filtering by channel, so it can tell a customer that something exists
+// but is not available right now.
 const products = await db
   .collection('products')
-  .find({ businessId, branchId, isActive: true, 'availability.online': true })
+  .find({ businessId, branchId, isActive: true })
   .toArray();
 
 // Featured ("Destacados")
@@ -63,13 +65,19 @@ Ordering rule (mirror of `listProducts` in `apps/backend/src/services/products.t
 Semantics:
 
 - `isActive: false` is a soft delete. Never show those.
-- `availability.online: false` means "not offered through Ferna" (today: beers and wine). They stay
-  visible in the POS but must not reach the chatbot, the menu page or the valid-slug list.
+- **Ferna is the `kiosk` channel.** `availability.kiosk: false` means "not offered through Ferna"
+  (today: beers and wine); `online` is unused by Mura. Ferna computes
+  `available = availability.kiosk && isWithinAvailabilityWindow(now, branch.timezone)`. Products with
+  `available: false` stay in the catalog (dimmed in the menu, listed as "no disponible hoy" in the
+  prompt) so Ferna can say they are not available right now, but they are never recommended and are
+  excluded from the valid-slug list for recommendations.
 - A `productPreferences` row with `featured: false` (or no row) means **not** featured. Un-featuring
   does not delete the row, so always filter `featured: true`.
 - `availabilityWindow` (`{ daysOfWeek: number[], from: "HH:mm", to: "HH:mm" }`) and
   `modifierGroups[].options[].available` are optional time windows evaluated in the branch timezone
   (`branches.timezone`, `America/Bogota`). The Mura seed sets none; treat "absent" as "always".
+  A window outside the current time makes the product `available: false` for Ferna (same UX as
+  `kiosk: false`).
 
 ## Document shapes
 
@@ -92,7 +100,7 @@ Source of truth: `packages/shared/src/types/index.ts` and the validators in
 | `dietaryTags`            | `('vegetarian'\|'vegan'\|'gluten-free'\|'keto'\|'halal'\|'kosher')[]`                       |                                                             |
 | `variants`               | `{ id, name, sku, priceDelta, imageUrl? }[]`?                                               | size/flavor; `priceDelta` relative to `price`               |
 | `modifierGroups`         | `{ id, name, required, maxSelectable, options: { id, label, priceDelta, available? }[] }[]` | add-ons                                                     |
-| `availability`           | `{ pos, online, kiosk }` booleans                                                           | use `online`                                                |
+| `availability`           | `{ pos, online, kiosk }` booleans                                                           | use `kiosk` (Ferna's channel)                               |
 | `availabilityWindow`     | `{ daysOfWeek, from, to }`?                                                                 | see above                                                   |
 | `sortOrder`              | number                                                                                      | within category                                             |
 | `isActive`               | boolean                                                                                     |                                                             |
@@ -150,7 +158,7 @@ Group and option ids are stable and part of this contract:
 | `metodo`           | Método    | true / 1                     | `v60`, `chemex`, `prensa-francesa` → 0                                                                                        | Filtrados                 |
 | `leche`            | Leche     | true / 1                     | `leche-deslactosada` 0 (default), `leche-almendra` 5000, `leche-avena` 5000                                                   | milk-based drinks         |
 | `extras`           | Extras    | false / 3                    | `vainilla`, `caramelo`, `amaretto`, `avellana` 6000; `leche-condensada`, `syrup-corozo`, `syrup-tamarindo`, `syrup-lulo` 4000 | drinks                    |
-| `michelada`        | Adiciones | false / 1                    | `michelada` 3000                                                                                                              | beers (online: false)     |
+| `michelada`        | Adiciones | false / 1                    | `michelada` 3000                                                                                                              | beers (kiosk: false)      |
 | `adiciones-comida` | Adiciones | false / 6                    | `huevos`, `queso`, `tocineta` 6000; `pulled-pork`, `pollo-apanado` 9000; `carne-angus` 12000                                  | Desayunos, Bowls, All Day |
 
 `required: true` + `maxSelectable: 1` ⇒ exactly one option; `required: false` ⇒ zero to

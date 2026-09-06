@@ -47,11 +47,17 @@ export function uploadErrorMessage(code: UploadImageErrorCode): string {
 // Product photos are shown at thumbnail / card sizes, so 1600px on the long
 // edge at ~1 MB WebP is plenty. The backend still enforces the 10 MB cap; the
 // compression only exists so phone camera shots (5–12 MB) fit comfortably.
+//
+// `useWebWorker` is off on purpose: the library bootstraps its worker with an
+// `importScripts` from a public CDN (jsdelivr), which is a runtime dependency
+// on a third party and breaks offline / any future CSP. One image on the main
+// thread costs well under a second and the upload button is already disabled
+// while it runs.
 export const COMPRESSION_OPTIONS: CompressionOptions = {
   maxSizeMB: 1,
   maxWidthOrHeight: 1600,
   fileType: 'image/webp',
-  useWebWorker: true,
+  useWebWorker: false,
   initialQuality: 0.85,
 };
 

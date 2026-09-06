@@ -108,12 +108,12 @@ describe('MURA_PRODUCTS', () => {
     ).toEqual([...FEATURED_SKUS].sort());
   });
 
-  it('alcohol is POS-only, everything else is online', () => {
+  it('alcohol is POS-only, everything else is on the kiosk (Ferna) channel', () => {
     for (const p of MURA_PRODUCTS) {
-      const expectedOnline = !ALCOHOL_SKUS.includes(p.sku);
-      expect(p.availability.online, p.sku).toBe(expectedOnline);
+      const expectedKiosk = !ALCOHOL_SKUS.includes(p.sku);
+      expect(p.availability.kiosk, p.sku).toBe(expectedKiosk);
       expect(p.availability.pos, p.sku).toBe(true);
-      expect(p.availability.kiosk, p.sku).toBe(false);
+      expect(p.availability.online, p.sku).toBe(false);
     }
   });
 

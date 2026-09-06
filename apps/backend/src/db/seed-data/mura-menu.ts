@@ -254,8 +254,10 @@ export type MuraProductSeed = Omit<CreateProductInput, 'branchId'> & {
   featured?: boolean;
 };
 
-const ONLINE: ProductAvailability = { pos: true, online: true, kiosk: false };
-// Alcohol is sold on-site only.
+// Ferna (the virtual barista) is the `kiosk` channel. Mura has no web ordering,
+// so `online` stays off everywhere.
+const ONLINE: ProductAvailability = { pos: true, online: false, kiosk: true };
+// Alcohol is sold on-site only: never surfaced or recommended by Ferna.
 const POS_ONLY: ProductAvailability = { pos: true, online: false, kiosk: false };
 
 const milkAndSyrups = (): ModifierGroup[] => [milkGroup(), syrupGroup()];

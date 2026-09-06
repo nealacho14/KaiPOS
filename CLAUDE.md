@@ -15,13 +15,14 @@ pnpm lint && pnpm typecheck && pnpm test
 pnpm format
 
 pnpm --filter @kaipos/backend db:setup      # collections + validators + indexes (idempotent)
-pnpm --filter @kaipos/backend db:seed       # demo data; Docker Mongo only — refuses mongodb+srv://
+pnpm --filter @kaipos/backend db:seed       # Mura menu; Docker Mongo only — refuses mongodb+srv://
+pnpm --filter @kaipos/backend menu:export   # Mura seed as JSON on stdout (Ferna fixture; no DB)
 
 pnpm deploy:prod                            # full two-phase deploy
 pnpm deploy:prod:api | :websocket | :frontend  # targeted
 ```
 
-Login (after seed): `admin@lacocinadekai.com` / `admin123`.
+Login (after seed): `admin@mura.co` / `admin123` (override with `MURA_ADMIN_PASSWORD`).
 
 ## Invariants (do not violate)
 

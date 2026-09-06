@@ -9,7 +9,7 @@ daemon, copies `.env.example` → `.env` if missing, brings the Docker stack up
 with `docker compose up -d --wait`, waits for Mongo to answer a ping, then
 runs `db:setup` and `db:seed`. Idempotent — safe to rerun. After it finishes,
 `pnpm dev` (or `pnpm docker:up`) gives you a working stack signed in as
-`admin@lacocinadekai.com` / `admin123`.
+`admin@mura.co` / `admin123`.
 
 ## `pnpm dev` (Docker Mongo)
 
@@ -49,6 +49,9 @@ suites.
 
 - `MONGO_URI` — MongoDB connection string. Loaded from root `.env` for `pnpm dev`. **Must point at a local Mongo** — the backend rejects `mongodb+srv://` (Atlas) when `MONGO_SECRET_ARN` is unset. For Docker, set in `docker-compose.yml` (the `environment:` block overrides `.env`). **Not used in AWS prod.**
 - `MONGO_SECRET_ARN` — ARN of the Secrets Manager secret holding the Atlas URI. Injected by CDK into the Lambda only in AWS prod. Never set locally. Its presence is also the "we're in Lambda" signal that bypasses the local anti-Atlas guard; `db:seed`/`db:seed-cypress` refuse to run when it's set.
+- `MURA_ADMIN_PASSWORD` — Password for the seeded `admin@mura.co` user (`db:seed` / `db:seed-atlas`). Optional locally (falls back to `admin123` with a warning); **required** by `db:seed-atlas`.
+- `MURA_KELVIN_PASSWORD` — Password for the seeded `kelvin.hernandezc30@gmail.com` admin when no existing user with that email (in another business) can lend its `passwordHash`. Without either source the user is skipped locally and the seed aborts on Atlas.
+- `MURA_IMAGE_BASE_URL` — Base URL for the product placeholder image referenced by the Mura seed and `menu:export` (default: the prod assets CDN `https://d6tpeu874uebt.cloudfront.net`). Point it at MinIO (`http://localhost:9000/kaipos-assets-dev`) if you upload `apps/backend/src/db/seed-data/assets/product-placeholder.webp` there.
 - `JWT_SECRET` — HMAC secret for signing access tokens. Loaded from root `.env` in local dev and Docker. In AWS prod replaced by `JWT_SECRET_ARN` (Secrets Manager).
 - `CLOUDFRONT_SECRET` — Shared secret for CloudFront origin verification. Injected by CDK into the Lambda in AWS prod. Not set locally (middleware skips the check).
 - `ASSETS_BUCKET_NAME` — S3 bucket receiving pre-signed PUTs from `POST /api/products/upload-url` (keys scoped to `products/<branchId>/<uuid>.<ext>`). Injected by CDK from `AssetsStack` in AWS prod; set to `kaipos-assets-dev` in `docker-compose.yml`. If unset (e.g. `pnpm dev` without extra config), the upload endpoint returns 503 `ASSETS_NOT_CONFIGURED` instead of calling AWS.

@@ -48,7 +48,8 @@ TypeScript strict, ES2022. MongoDB native driver (no Mongoose). Prettier: double
 ## Deeper docs
 
 - [docs/architecture.md](docs/architecture.md) — monorepo, backend pattern, frontend shell.
-- [docs/database.md](docs/database.md) — DB scripts and full RBAC.
+- [docs/database.md](docs/database.md) — DB scripts, Atlas runbooks and full RBAC.
+- [docs/ferna-integration.md](docs/ferna-integration.md) — read contract for Ferna (Mura menu over Mongo).
 - [docs/realtime.md](docs/realtime.md) — WebSocket (channels, auth, publish helper).
 - [docs/local-dev.md](docs/local-dev.md) — Docker, MinIO, environment variables.
 - [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) — AWS stacks, CloudFront, secrets.

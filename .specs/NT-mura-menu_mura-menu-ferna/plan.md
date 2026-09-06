@@ -30,10 +30,10 @@
 
 | Phase   | Slug                       | Status  | Depends on       | Unblocks |
 | ------- | -------------------------- | ------- | ---------------- | -------- |
-| Phase 1 | `upload-limit-compression` | pending | none             | —        |
-| Phase 2 | `mura-seed-data`           | pending | none             | Phase 4  |
-| Phase 3 | `purge-business-script`    | pending | none             | Phase 4  |
-| Phase 4 | `ferna-contract-cutover`   | blocked | Phase 2, Phase 3 | —        |
+| Phase 1 | `upload-limit-compression` | done    | none             | —        |
+| Phase 2 | `mura-seed-data`           | done    | none             | Phase 4  |
+| Phase 3 | `purge-business-script`    | done    | none             | Phase 4  |
+| Phase 4 | `ferna-contract-cutover`   | pending | Phase 2, Phase 3 | —        |
 
 ## Dependency Graph
 
@@ -201,4 +201,4 @@ Phase 3 ──┘
 - [ ] Matriz de upload en MinIO: 1 MB JPG, 6 MB JPG, 12 MB PNG, 9.9 MB WebP suben como webp ≤ ~1.2 MB;
       `POST /api/products/upload-url` 10485760 → 201, 10485761 → 400.
 - [ ] CI `quality` verde (openapi-sync incluido).
-- [ ] Runbook prod ejecutado con inventarios esperados; Ferna lista 59 productos online y 5 destacados.
+- [ ] Runbook prod ejecutado con inventarios esperados; Ferna lista 60 productos online y 5 destacados.

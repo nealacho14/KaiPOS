@@ -76,7 +76,13 @@ export const availabilityWindowSchema = z.object({
 
 const uploadContentTypeEnum = z.enum(['image/jpeg', 'image/png', 'image/webp']);
 
-const MAX_UPLOAD_SIZE = 2 * 1024 * 1024;
+/** MIME types accepted by `POST /api/products/upload-url`. */
+export const UPLOAD_CONTENT_TYPES = uploadContentTypeEnum.options;
+
+export type UploadContentType = (typeof UPLOAD_CONTENT_TYPES)[number];
+
+/** Maximum product image size accepted by the presigned upload (10 MB). */
+export const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 
 const variantsUniqueSkuRefinement = <T extends { variants?: { sku: string }[] }>(
   data: T,
@@ -180,7 +186,7 @@ export const listProductsQuerySchema = z
 export const uploadUrlSchema = z.object({
   branchId: z.string().min(1),
   contentType: uploadContentTypeEnum,
-  fileSize: z.number().int().positive().max(MAX_UPLOAD_SIZE),
+  fileSize: z.number().int().positive().max(MAX_UPLOAD_SIZE_BYTES),
 });
 
 export const productIdParamSchema = z.object({

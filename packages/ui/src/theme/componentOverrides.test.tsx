@@ -125,18 +125,25 @@ function KitchenSink() {
     </>
   );
 }
+// Rendering every MUI component once is heavy on shared CI runners (it has
+// hit the default 5 s budget with the same code that takes ~1 s locally).
+const KITCHEN_SINK_TIMEOUT_MS = 20_000;
 
 describe('componentOverrides — integration', () => {
-  it('renders a kitchen-sink of components against the kaiPOSTheme without throwing', () => {
-    expect(() =>
-      render(
-        <ThemeProvider theme={kaiPOSTheme}>
-          <CssBaseline />
-          <KitchenSink />
-        </ThemeProvider>,
-      ),
-    ).not.toThrow();
-  });
+  it(
+    'renders a kitchen-sink of components against the kaiPOSTheme without throwing',
+    () => {
+      expect(() =>
+        render(
+          <ThemeProvider theme={kaiPOSTheme}>
+            <CssBaseline />
+            <KitchenSink />
+          </ThemeProvider>,
+        ),
+      ).not.toThrow();
+    },
+    KITCHEN_SINK_TIMEOUT_MS,
+  );
 });
 
 // --- Internal-helper branches ----------------------------------------------

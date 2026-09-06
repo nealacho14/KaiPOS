@@ -158,7 +158,7 @@ ${color_green}KaiPOS is ready.${color_reset}
   Frontend (Docker): http://localhost:3001
   MinIO console:     http://localhost:9001  (login: kaipos / kaiposdev123)
 
-  Login as admin:    admin@lacocinadekai.com / admin123
+  Login as admin:    admin@mura.co / admin123
 
 Next steps:
   • \`pnpm dev\`       run backend :4000 + frontend :3000 against the same Mongo

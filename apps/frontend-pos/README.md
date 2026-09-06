@@ -17,7 +17,7 @@ backend + admin + POS together; the POS owns `:3002`, the admin owns `:3000`, th
 backend owns `:4000`.
 
 After seeding the backend (`pnpm --filter @kaipos/backend db:seed`), log in with
-`admin@lacocinadekai.com` / `admin123`.
+`admin@mura.co` / `admin123`.
 
 ## Env vars
 

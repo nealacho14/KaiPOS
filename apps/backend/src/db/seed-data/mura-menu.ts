@@ -254,10 +254,9 @@ export type MuraProductSeed = Omit<CreateProductInput, 'branchId'> & {
   featured?: boolean;
 };
 
-// Ferna (the virtual barista) is the `kiosk` channel. `online` mirrors it for now
-// because the first Ferna release filters by `availability.online`; drop it once
-// Ferna derives availability from `kiosk` (MUR-47 phase 8).
-const ONLINE: ProductAvailability = { pos: true, online: true, kiosk: true };
+// Ferna (the virtual barista) is the `kiosk` channel. Mura has no web ordering,
+// so `online` stays off everywhere.
+const KIOSK: ProductAvailability = { pos: true, online: false, kiosk: true };
 // Alcohol is sold on-site only: never surfaced or recommended by Ferna.
 const POS_ONLY: ProductAvailability = { pos: true, online: false, kiosk: false };
 
@@ -971,7 +970,7 @@ function defineProducts(): MuraProductSeed[] {
         stock: 0,
         trackStock: false,
         stockUnit: 'unit',
-        availability: { ...(spec.availability ?? ONLINE) },
+        availability: { ...(spec.availability ?? KIOSK) },
         serviceSchedules: [],
         allergens: [...(spec.allergens ?? [])],
         dietaryTags: [...(spec.dietaryTags ?? [])],

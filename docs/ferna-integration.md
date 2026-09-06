@@ -66,8 +66,7 @@ Semantics:
 
 - `isActive: false` is a soft delete. Never show those.
 - **Ferna is the `kiosk` channel.** `availability.kiosk: false` means "not offered through Ferna"
-  (today: beers and wine); `online` mirrors `kiosk` only until Ferna's first release stops filtering
-  by `online`, after which it is unused by Mura. Ferna computes
+  (today: beers and wine); `online` is unused by Mura and is `false` everywhere. Ferna computes
   `available = availability.kiosk && isWithinAvailabilityWindow(now, branch.timezone)`. Products with
   `available: false` stay in the catalog (dimmed in the menu, listed as "no disponible hoy" in the
   prompt) so Ferna can say they are not available right now, but they are never recommended and are

@@ -7,6 +7,9 @@ import {
   productVariantSchema,
   reorderProductsSchema,
   updateProductSchema,
+  uploadUrlSchema,
+  MAX_UPLOAD_SIZE_BYTES,
+  UPLOAD_CONTENT_TYPES,
 } from './products.js';
 
 const validProductBase = {
@@ -345,6 +348,34 @@ describe('featureProductSchema', () => {
 
   it('rejects non-boolean featured', () => {
     const result = featureProductSchema.safeParse({ branchId: 'b1', featured: 'yes' });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('uploadUrlSchema', () => {
+  const base = { branchId: 'branch-1', contentType: 'image/jpeg' } as const;
+
+  it('exposes a 10 MB limit and the accepted content types', () => {
+    expect(MAX_UPLOAD_SIZE_BYTES).toBe(10 * 1024 * 1024);
+    expect(UPLOAD_CONTENT_TYPES).toEqual(['image/jpeg', 'image/png', 'image/webp']);
+  });
+
+  it('accepts fileSize of exactly 10 MB', () => {
+    const result = uploadUrlSchema.safeParse({ ...base, fileSize: MAX_UPLOAD_SIZE_BYTES });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects fileSize of 10 MB + 1', () => {
+    const result = uploadUrlSchema.safeParse({ ...base, fileSize: MAX_UPLOAD_SIZE_BYTES + 1 });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects content types outside UPLOAD_CONTENT_TYPES', () => {
+    const result = uploadUrlSchema.safeParse({
+      ...base,
+      contentType: 'image/gif',
+      fileSize: 1024,
+    });
     expect(result.success).toBe(false);
   });
 });

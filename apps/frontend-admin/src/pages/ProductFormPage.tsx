@@ -11,7 +11,7 @@ import type {
   StockUnit,
 } from '@kaipos/shared';
 import { DEFAULT_CURRENCY, formatCurrency, hasPermission } from '@kaipos/shared';
-import { createProductSchema } from '@kaipos/shared/schemas/products';
+import { createProductSchema, UPLOAD_CONTENT_TYPES } from '@kaipos/shared/schemas/products';
 import {
   Alert,
   AlertTitle,
@@ -78,7 +78,6 @@ import { PageHeader } from '../components/index.js';
 import { listKitchenStations } from '../lib/kitchen-stations-api.js';
 import {
   createProduct,
-  generateUploadUrl,
   getProduct,
   listFeaturedProductIds,
   setProductFeatured,
@@ -87,6 +86,7 @@ import {
   type CreateProductPayload,
   type UpdateProductPayload,
 } from '../lib/products-api.js';
+import { UploadImageError, uploadErrorMessage, uploadProductImage } from '../lib/upload-image.js';
 import { createCategory, listCategories } from '../lib/categories-api.js';
 
 // ---------------------------------------------------------------------------
@@ -151,8 +151,7 @@ const STOCK_UNIT_LABELS: Record<StockUnit, string> = {
   L: 'Litros',
 };
 
-const UPLOAD_MIME: readonly string[] = ['image/jpeg', 'image/png', 'image/webp'] as const;
-const UPLOAD_MAX_BYTES = 2 * 1024 * 1024;
+const UPLOAD_ACCEPT = UPLOAD_CONTENT_TYPES.join(',');
 
 // Spanish single-letter labels for the seven day-of-week checkboxes used in
 // availability windows. Order is L–D (Monday-first) which matches the local
@@ -537,42 +536,15 @@ export function ProductFormPage() {
 
   const handleImagePick = useCallback(
     async (file: File) => {
-      if (!branchId) {
-        setUploadError('Selecciona una sucursal antes de subir la imagen.');
-        return;
-      }
-      if (!UPLOAD_MIME.includes(file.type)) {
-        setUploadError('Formato no soportado. Usa JPG, PNG o WEBP.');
-        return;
-      }
-      if (file.size > UPLOAD_MAX_BYTES) {
-        setUploadError('La imagen supera el máximo de 2 MB.');
-        return;
-      }
       setUploadError(null);
       setUploading(true);
       try {
-        const { uploadUrl, publicUrl } = await generateUploadUrl({
-          branchId,
-          contentType: file.type as 'image/jpeg' | 'image/png' | 'image/webp',
-          fileSize: file.size,
-        });
-        const putRes = await fetch(uploadUrl, {
-          method: 'PUT',
-          headers: { 'content-type': file.type },
-          body: file,
-        });
-        if (!putRes.ok) {
-          throw new Error(`S3 upload failed: ${putRes.status}`);
-        }
+        const publicUrl = await uploadProductImage({ branchId, file });
         updateForm({ imageUrl: publicUrl });
       } catch (err) {
-        const mapped = err instanceof ApiError ? toProductsApiError(err) : null;
-        if (mapped?.code === 'ASSETS_NOT_CONFIGURED') {
-          setUploadError('El almacenamiento de imágenes no está configurado en este entorno.');
-        } else {
-          setUploadError('No pudimos subir la imagen. Inténtalo de nuevo.');
-        }
+        setUploadError(
+          uploadErrorMessage(err instanceof UploadImageError ? err.code : 'UPLOAD_FAILED'),
+        );
       } finally {
         setUploading(false);
       }
@@ -786,29 +758,7 @@ export function ProductFormPage() {
           <VariantsCard
             variants={form.variants}
             onChange={(next) => updateForm({ variants: next })}
-            onUploadImage={async (file) => {
-              if (!branchId) throw new Error('branch required');
-              if (!UPLOAD_MIME.includes(file.type)) {
-                throw new Error('UNSUPPORTED_TYPE');
-              }
-              if (file.size > UPLOAD_MAX_BYTES) {
-                throw new Error('TOO_LARGE');
-              }
-              const { uploadUrl, publicUrl } = await generateUploadUrl({
-                branchId,
-                contentType: file.type as 'image/jpeg' | 'image/png' | 'image/webp',
-                fileSize: file.size,
-              });
-              const putRes = await fetch(uploadUrl, {
-                method: 'PUT',
-                headers: { 'content-type': file.type },
-                body: file,
-              });
-              if (!putRes.ok) {
-                throw new Error('UPLOAD_FAILED');
-              }
-              return publicUrl;
-            }}
+            onUploadImage={(file) => uploadProductImage({ branchId, file })}
           />
 
           <ModifiersCard
@@ -1628,13 +1578,8 @@ function VariantRow({
       const url = await onUploadImage(file);
       onUpdate({ imageUrl: url });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'UPLOAD_FAILED';
       setUploadError(
-        msg === 'UNSUPPORTED_TYPE'
-          ? 'Formato no soportado.'
-          : msg === 'TOO_LARGE'
-            ? 'La imagen supera el máximo de 2 MB.'
-            : 'No pudimos subir la imagen.',
+        uploadErrorMessage(err instanceof UploadImageError ? err.code : 'UPLOAD_FAILED'),
       );
     } finally {
       setUploading(false);
@@ -1749,7 +1694,7 @@ function VariantRow({
           <input
             ref={inputRef}
             type="file"
-            accept={UPLOAD_MIME.join(',')}
+            accept={UPLOAD_ACCEPT}
             onChange={handlePick}
             style={{ display: 'none' }}
           />
@@ -2143,7 +2088,10 @@ function ImageCard({
   };
 
   return (
-    <SectionCard title="Imagen" subtitle="JPG · PNG · WEBP · máx 2 MB">
+    <SectionCard
+      title="Imagen"
+      subtitle="JPG · PNG · WEBP · máx 10 MB · se comprime automáticamente"
+    >
       {imageUrl ? (
         <Stack spacing={1.5}>
           <Box
@@ -2212,7 +2160,7 @@ function ImageCard({
                 color: 'text.disabled',
               }}
             >
-              JPG / PNG / WEBP · &lt; 2 MB
+              JPG / PNG / WEBP · &lt; 10 MB
             </Typography>
           </Stack>
         </Box>
@@ -2220,7 +2168,7 @@ function ImageCard({
       <input
         ref={fileInputRef}
         type="file"
-        accept={UPLOAD_MIME.join(',')}
+        accept={UPLOAD_ACCEPT}
         onChange={handleFileChange}
         style={{ display: 'none' }}
       />

@@ -63,5 +63,5 @@ Compatibilidad de schema acordada con la sesión Ferna (sin cambiar el modelo de
 
 ## Open Questions
 
-- Dirección, teléfono y email reales de Mura / Alianza Colombo-Francesa (placeholders `TODO(mura)` en el
-  seed hasta que el usuario los confirme).
+- Resuelta: contacto de Mura tomado del footer de la app Ferna (Parque Fernández de Madrid 37-34,
+  Cartagena; +57 318 121 7576; sin email público).

@@ -53,12 +53,9 @@ export const MURA_BUSINESS = {
   _id: MURA_BUSINESS_ID,
   name: 'Mura',
   slug: MURA_SLUG,
-  // TODO(mura): confirm real contact data
-  address: 'Alianza Colombo-Francesa, Bogotá',
-  // TODO(mura): confirm real contact data
-  phone: '',
-  // TODO(mura): confirm real contact data
-  email: 'hola@mura.co',
+  // Contact data as published in the Ferna app footer (Mura has no public email).
+  address: 'Parque Fernández de Madrid 37-34, Cartagena, Colombia',
+  phone: '+57 318 121 7576',
   currency: 'COP',
 } as const;
 
@@ -66,10 +63,8 @@ export const MURA_BRANCH = {
   _id: MURA_BRANCH_ID,
   businessId: MURA_BUSINESS_ID,
   name: 'Alianza Colombo-Francesa',
-  // TODO(mura): confirm real contact data
-  address: 'Alianza Colombo-Francesa, Bogotá',
-  // TODO(mura): confirm real contact data
-  phone: '',
+  address: 'Parque Fernández de Madrid 37-34, Cartagena, Colombia',
+  phone: '+57 318 121 7576',
   timezone: 'America/Bogota',
 } as const;
 

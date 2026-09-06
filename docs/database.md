@@ -49,8 +49,7 @@ Replaces the `la-cocina-de-kai` demo business with `mura` while keeping the Cypr
 businesses and the super_admin. Order matters: seed **before** purge so the carry-over admin keeps
 its password hash.
 
-1. Deploy `main` containing the seed, purge and upload changes (`pnpm deploy:prod`). Fill the
-   `TODO(mura)` contact placeholders in `apps/backend/src/db/seed-data/mura-menu.ts` first.
+1. Deploy `main` containing the seed, purge and upload changes (`pnpm deploy:prod`).
 2. Upload the placeholder image once:
    ```bash
    aws s3 cp apps/backend/src/db/seed-data/assets/product-placeholder.webp \

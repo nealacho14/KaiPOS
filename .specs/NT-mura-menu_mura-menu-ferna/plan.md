@@ -115,7 +115,7 @@ Phase 3 ──┘
 ### Tasks
 
 - [x] Nuevo `apps/backend/src/db/seed-data/mura-menu.ts` (puro): constantes de IDs, `MURA_BUSINESS`
-      (address/phone/email con `// TODO(mura)`), `MURA_BRANCH`, `MURA_CATEGORIES` (13, en orden del docx),
+      (contacto real de Cartagena, sin email), `MURA_BRANCH`, `MURA_CATEGORIES` (13, en orden del docx),
       builders `methodGroup()`, `milkGroup()`, `syrupGroup()`, `micheladaGroup()`, `foodExtrasGroup()`,
       `MURA_PRODUCTS` (64, precios y descripciones verbatim del docx, skus canónicos, `sortOrder` 10/20/30,
       `availability {pos:true, online:true, kiosk:false}` salvo alcohol `online:false`, `trackStock:false`,

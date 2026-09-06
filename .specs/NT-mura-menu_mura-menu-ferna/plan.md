@@ -192,7 +192,7 @@ Phase 3 ──┘
 - [x] `pnpm format:check` passes
 - [x] `pnpm typecheck` / `pnpm lint` / `pnpm build` passes
 - [x] Inventario Atlas: negocios `mura`, `cypress-biz-a`, `cypress-biz-b`; 64 productos Mura; 5 featured
-- [ ] Smoke E2E post-deploy verde tras rotar `CYPRESS_USER_ADMIN_*`
+- [x] Smoke E2E post-deploy verde (run 34046866876, tras restaurar `CYPRESS_USER_ADMIN_A_PASSWORD` y limpiar `loginAttempts`)
 
 <!-- PHASE GATE — Do NOT proceed past this point until all boxes above are checked. -->
 

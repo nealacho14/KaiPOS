@@ -82,9 +82,12 @@ its password hash.
    ```
    Verify: businesses = `mura`, `cypress-biz-a`, `cypress-biz-b`; no `users` with
    `businessId …0100`; super_admin `…9000` intact.
-8. GitHub → Settings → Variables: `CYPRESS_USER_ADMIN_EMAIL=admin@mura.co`,
-   `CYPRESS_USER_ADMIN_PASSWORD=<MURA_ADMIN_PASSWORD>`. Re-run the post-deploy e2e job and confirm it
-   is green.
+8. GitHub → Settings → Variables: the post-deploy smoke logs in as tenant A through
+   `CYPRESS_USER_ADMIN_A_EMAIL` / `CYPRESS_USER_ADMIN_A_PASSWORD` (`cypress-admin-a@cypress.test` /
+   `cypress-admin-pass-1`, from `db:seed-cypress`); `cy.loginAs('admin')` never falls back to the
+   unsuffixed `CYPRESS_USER_ADMIN_*` pair while the `_A` pair exists, so those only need to point at a
+   real account (`admin@mura.co`). If a wrong password locks a fixture account (429), delete its
+   `loginAttempts` rows and re-run the E2E job.
 9. Atlas UI: create DB user `ferna-reader` (role `read` on `kaipos`), add Ferna's egress to Network
    Access, hand the URI to the Ferna side together with `pnpm --filter @kaipos/backend menu:export`
    output. Optional: delete `s3://kaipos-assets-prod/products/00000000-0000-4000-8000-00000000020{0,1,2}/`.

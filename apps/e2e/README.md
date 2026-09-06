@@ -32,12 +32,12 @@ override existing env vars), which keeps CI's `env:` block authoritative.
 Cypress strips the `CYPRESS_` prefix automatically:
 `CYPRESS_USER_ADMIN_A_EMAIL` is read as `Cypress.env('USER_ADMIN_A_EMAIL')`.
 
-| Variable                                       | Purpose                                                                  |
-| ---------------------------------------------- | ------------------------------------------------------------------------ |
-| `CYPRESS_BASE_URL`                             | Frontend URL the suite drives.                                           |
-| `CYPRESS_USER_ADMIN_EMAIL` / `..._PASSWORD`    | Pre-seeded admin from `db:seed` (used by `auth.cy.ts` only).             |
-| `CYPRESS_USER_<ROLE>_<TENANT>_EMAIL/_PASSWORD` | Per-(role × tenant) accounts from `db:seed-cypress`. See `.env.example`. |
-| `CYPRESS_USER_SUPER_ADMIN_EMAIL/_PASSWORD`     | Global super_admin from `db:seed-cypress` (no tenant suffix).            |
+| Variable                                       | Purpose                                                                    |
+| ---------------------------------------------- | -------------------------------------------------------------------------- |
+| `CYPRESS_BASE_URL`                             | Frontend URL the suite drives.                                             |
+| `CYPRESS_USER_ADMIN_EMAIL` / `..._PASSWORD`    | Pre-seeded Mura admin from `db:seed` (`admin@mura.co`; `auth.cy.ts` only). |
+| `CYPRESS_USER_<ROLE>_<TENANT>_EMAIL/_PASSWORD` | Per-(role × tenant) accounts from `db:seed-cypress`. See `.env.example`.   |
+| `CYPRESS_USER_SUPER_ADMIN_EMAIL/_PASSWORD`     | Global super_admin from `db:seed-cypress` (no tenant suffix).              |
 
 `<ROLE>` is one of `ADMIN`, `MANAGER`, `SUPERVISOR`, `CASHIER`, `WAITER`,
 `KITCHEN`. `<TENANT>` is `A` (cypress-biz-a) or `B` (cypress-biz-b).

@@ -20,7 +20,7 @@ pnpm setup        # node/docker pre-checks → .env → docker compose --wait �
 pnpm dev          # backend :4000 + frontend :3000 (against the Docker Mongo)
 ```
 
-Sign in at http://localhost:3000 with `admin@lacocinadekai.com` / `admin123`.
+Sign in at http://localhost:3000 with `admin@mura.co` / `admin123`.
 
 `pnpm setup` is idempotent — rerunning it is safe. It uses the local Docker
 stack as the database (Mongo + MinIO), so a working Docker daemon is required.
@@ -149,7 +149,8 @@ KaiPOS uses **MongoDB** with the native Node.js driver (`mongodb` package).
 Two separate scripts:
 
 - `pnpm --filter @kaipos/backend db:setup` — creates collections, `$jsonSchema` validators, and indexes. Idempotent. Safe to run against local, Docker, and (operationally) Atlas via a tunnel from a workstation.
-- `pnpm --filter @kaipos/backend db:seed` — inserts demo data (business, branch, users, categories, products, modifiers, tables). **Docker/local only**: fails fast if `MONGO_URI` contains `mongodb+srv://` or if `MONGO_SECRET_ARN` is set.
+- `pnpm --filter @kaipos/backend db:seed` — inserts the real menu of the café **Mura** (business `mura`, 1 branch, 2 admin users, 13 categories, 64 products, 5 featured preferences) from the pure data module `apps/backend/src/db/seed-data/mura-menu.ts`. Idempotent by business slug. **Docker/local only**: fails fast if `MONGO_URI` contains `mongodb+srv://` or if `MONGO_SECRET_ARN` is set. Env: `MURA_ADMIN_PASSWORD` (defaults to `admin123` locally), `MURA_KELVIN_PASSWORD`, `MURA_IMAGE_BASE_URL`.
+- `pnpm --filter @kaipos/backend menu:export` — dumps the same seed as deterministic JSON on stdout (the fixture consumed by the external app Ferna). No DB connection.
 
 Running inside Docker:
 
@@ -160,10 +161,10 @@ docker compose exec -w /app/apps/backend backend pnpm db:seed
 
 Seeded users (local/Docker only):
 
-| Role    | Email                      | Password    |
-| ------- | -------------------------- | ----------- |
-| admin   | `admin@lacocinadekai.com`  | `admin123`  |
-| cashier | `cajero@lacocinadekai.com` | `cajero123` |
+| Role  | Email                           | Password                                                                         |
+| ----- | ------------------------------- | -------------------------------------------------------------------------------- |
+| admin | `admin@mura.co`                 | `admin123` (or `MURA_ADMIN_PASSWORD`)                                            |
+| admin | `kelvin.hernandezc30@gmail.com` | Solo si hay carry-over de otro negocio o `MURA_KELVIN_PASSWORD`; si no, se omite |
 
 Passwords are hashed at runtime with bcrypt (12 rounds).
 

@@ -12,8 +12,13 @@ import { seedData } from './seed.js';
 //      a new field has been promoted to `required` in the validator, so the
 //      legacy docs become valid.
 //   2) Collection validators + indexes (src/db/setup.ts).
-//   3) Demo seed (src/db/seed.ts) — idempotent: skips if the seed business
-//      `la-cocina-de-kai` already exists.
+//   3) Mura seed (src/db/seed.ts + src/db/seed-data/mura-menu.ts) —
+//      idempotent: skips if the business with slug `mura` already exists.
+//      Requires `MURA_ADMIN_PASSWORD` (password for admin@mura.co). The
+//      kelvin.hernandezc30@gmail.com user carries its passwordHash over from an
+//      existing doc in another business; when none exists, set
+//      `MURA_KELVIN_PASSWORD` or the seed aborts. `MURA_IMAGE_BASE_URL`
+//      overrides the CDN base for the product placeholder image.
 //
 // Every step is idempotent; re-running is safe. Add future migrations either
 // as a new function in `backfills.ts` (and call it from step 1) or by
@@ -22,7 +27,7 @@ import { seedData } from './seed.js';
 // Invocation (from a workstation with AWS creds for the KaiPOS account):
 //
 //   AWS_PROFILE=personal MONGO_SECRET_ARN=arn:aws:secretsmanager:...:kaipos/prod/mongo-uri \
-//     pnpm --filter @kaipos/backend db:seed-atlas
+//     MURA_ADMIN_PASSWORD=... pnpm --filter @kaipos/backend db:seed-atlas
 //
 // The script refuses to run without `MONGO_SECRET_ARN` because that env var
 // is the only path `src/db/client.ts` accepts for an Atlas (`mongodb+srv://`)
@@ -33,6 +38,12 @@ function assertAtlasTarget(): void {
     throw new Error(
       'db:seed-atlas requires MONGO_SECRET_ARN to be set (the ARN of the Atlas URI secret). ' +
         'For local/Docker Mongo use `db:setup` + `db:seed` instead.',
+    );
+  }
+  if (!process.env.MURA_ADMIN_PASSWORD) {
+    throw new Error(
+      'db:seed-atlas requires MURA_ADMIN_PASSWORD to be set (password for admin@mura.co). ' +
+        'The Mura seed never falls back to a default password on Atlas.',
     );
   }
 }
@@ -51,7 +62,7 @@ async function main(): Promise<void> {
   logger.info('\nStep 2/3: collections, validators, indexes');
   await setupCollections(db);
 
-  logger.info('\nStep 3/3: demo seed data (idempotent)');
+  logger.info('\nStep 3/3: Mura seed data (idempotent)');
   await seedData(db);
 
   logger.info('\nDone!');

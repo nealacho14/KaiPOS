@@ -12,7 +12,9 @@
     "db:seed": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/seed.ts",
     "db:seed-cypress": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/seed-cypress.ts",
     "db:seed-atlas": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/seed-atlas.ts",
+    "db:purge-business": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/purge-business.ts",
     "db:backfill:sortorder": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/backfill-product-sort-order.ts",
+    "menu:export": "tsx scripts/export-mura-fixture.ts",
     "openapi:generate": "tsx src/openapi/generate.ts && prettier --write --log-level=warn openapi.json"
   },
   "dependencies": {

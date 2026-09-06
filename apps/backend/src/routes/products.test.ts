@@ -475,7 +475,7 @@ describe('products routes', () => {
       expect(mockProductsService.generateUploadUrl).not.toHaveBeenCalled();
     });
 
-    it('400 when fileSize exceeds 2 MB', async () => {
+    it('400 when fileSize exceeds 10 MB', async () => {
       const app = createApp();
       const res = await app.request(
         '/api/products/upload-url',
@@ -485,13 +485,41 @@ describe('products routes', () => {
           body: JSON.stringify({
             branchId: 'br-1',
             contentType: 'image/jpeg',
-            fileSize: 3 * 1024 * 1024,
+            fileSize: 11 * 1024 * 1024,
           }),
         }),
       );
 
       expect(res.status).toBe(400);
       expect(mockProductsService.generateUploadUrl).not.toHaveBeenCalled();
+    });
+
+    it('201 when fileSize is exactly 10 MB', async () => {
+      mockProductsService.generateUploadUrl.mockResolvedValue({
+        uploadUrl: 'https://bucket.s3.amazonaws.com/products/br-1/x.jpg?sig=abc',
+        publicUrl: 'https://cdn.example.com/products/br-1/x.jpg',
+        expiresIn: 60,
+      });
+
+      const app = createApp();
+      const res = await app.request(
+        '/api/products/upload-url',
+        withToken(adminPayload, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            branchId: 'br-1',
+            contentType: 'image/jpeg',
+            fileSize: 10 * 1024 * 1024,
+          }),
+        }),
+      );
+
+      expect(res.status).toBe(201);
+      expect(mockProductsService.generateUploadUrl).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ fileSize: 10 * 1024 * 1024 }),
+      );
     });
 
     it('cashier → 403 + audit', async () => {

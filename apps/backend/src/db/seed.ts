@@ -1,8 +1,21 @@
 import { fileURLToPath } from 'node:url';
 import { type Db } from 'mongodb';
+import type { Branch, Business, Category, Product, ProductPreference, User } from '@kaipos/shared';
 import { logger } from '../lib/logger.js';
 import { hashPassword } from '../lib/password.js';
 import { getDb, closeConnection } from './client.js';
+import {
+  DEFAULT_MURA_IMAGE_BASE_URL,
+  MURA_ADMIN_EMAIL,
+  MURA_ADMIN_USER_ID,
+  MURA_BRANCH_ID,
+  MURA_BUSINESS_ID,
+  MURA_CARRY_OVER_EMAIL,
+  MURA_KELVIN_USER_ID,
+  MURA_SLUG,
+  buildMuraDocuments,
+  muraPlaceholderImageUrl,
+} from './seed-data/mura-menu.js';
 
 // ---------------------------------------------------------------------------
 // Atlas guard: refuse to run against MongoDB Atlas / prod Secrets Manager
@@ -38,334 +51,151 @@ function assertLocalMongo(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Seed data (idempotent: skipped if the seed business already exists)
+// Users. Password sources, in order of precedence:
+//   admin@mura.co  → MURA_ADMIN_PASSWORD; locally falls back to 'admin123'.
+//   kelvin         → passwordHash carried over from an existing user doc with
+//                    the same email in another business (the users unique
+//                    index is {businessId, email}, so both docs coexist) →
+//                    MURA_KELVIN_PASSWORD → skipped locally.
+// On Atlas (MONGO_SECRET_ARN set) every fallback becomes a hard error so a
+// prod seed never ends up with a guessable or missing credential.
+// ---------------------------------------------------------------------------
+
+const LOCAL_ADMIN_PASSWORD = 'admin123';
+
+interface SeedEnv {
+  MONGO_SECRET_ARN?: string;
+  MURA_ADMIN_PASSWORD?: string;
+  MURA_KELVIN_PASSWORD?: string;
+  MURA_IMAGE_BASE_URL?: string;
+}
+
+async function resolveAdminPasswordHash(env: SeedEnv): Promise<string> {
+  if (env.MURA_ADMIN_PASSWORD) return hashPassword(env.MURA_ADMIN_PASSWORD);
+  if (env.MONGO_SECRET_ARN) {
+    throw new Error(
+      `Refusing to seed Mura on Atlas without MURA_ADMIN_PASSWORD (password for ${MURA_ADMIN_EMAIL}).`,
+    );
+  }
+  logger.warn(
+    { email: MURA_ADMIN_EMAIL },
+    `MURA_ADMIN_PASSWORD not set — using the local default password '${LOCAL_ADMIN_PASSWORD}'`,
+  );
+  return hashPassword(LOCAL_ADMIN_PASSWORD);
+}
+
+async function resolveKelvinPasswordHash(db: Db, env: SeedEnv): Promise<string | null> {
+  const existing = await db
+    .collection<User>('users')
+    .findOne({ email: MURA_CARRY_OVER_EMAIL, businessId: { $ne: MURA_BUSINESS_ID } });
+  if (existing?.passwordHash) {
+    logger.info(
+      { email: MURA_CARRY_OVER_EMAIL },
+      `carried over passwordHash from business ${existing.businessId}`,
+    );
+    return existing.passwordHash;
+  }
+
+  if (env.MURA_KELVIN_PASSWORD) return hashPassword(env.MURA_KELVIN_PASSWORD);
+
+  if (env.MONGO_SECRET_ARN) {
+    throw new Error(
+      `Refusing to seed Mura on Atlas without a password source for ${MURA_CARRY_OVER_EMAIL}: ` +
+        'no existing user doc to carry the passwordHash over from and MURA_KELVIN_PASSWORD is unset.',
+    );
+  }
+
+  logger.warn(
+    { email: MURA_CARRY_OVER_EMAIL },
+    'No carry-over user and MURA_KELVIN_PASSWORD not set — skipping this user',
+  );
+  return null;
+}
+
+export async function resolveMuraUsers(
+  db: Db,
+  env: SeedEnv = process.env,
+  now: Date = new Date(),
+): Promise<User[]> {
+  const base = {
+    businessId: MURA_BUSINESS_ID,
+    role: 'admin' as const,
+    branchIds: [MURA_BRANCH_ID],
+    isActive: true,
+    createdAt: now,
+    updatedAt: now,
+    createdBy: MURA_ADMIN_USER_ID,
+  };
+
+  const users: User[] = [
+    {
+      ...base,
+      _id: MURA_ADMIN_USER_ID,
+      email: MURA_ADMIN_EMAIL,
+      name: 'Mura Admin',
+      passwordHash: await resolveAdminPasswordHash(env),
+    },
+  ];
+
+  const kelvinHash = await resolveKelvinPasswordHash(db, env);
+  if (kelvinHash) {
+    users.push({
+      ...base,
+      _id: MURA_KELVIN_USER_ID,
+      email: MURA_CARRY_OVER_EMAIL,
+      name: 'Kelvin Hernández',
+      passwordHash: kelvinHash,
+    });
+  }
+
+  return users;
+}
+
+// ---------------------------------------------------------------------------
+// Seed data (idempotent: skipped if the Mura business already exists)
 // ---------------------------------------------------------------------------
 
 export async function seedData(db: Db): Promise<void> {
-  const businessesCol = db.collection('businesses');
+  const businessesCol = db.collection<Business>('businesses');
 
-  const existingBusiness = await businessesCol.findOne({ slug: 'la-cocina-de-kai' });
+  const existingBusiness = await businessesCol.findOne({ slug: MURA_SLUG });
   if (existingBusiness) {
-    logger.info('  Seed data already exists (business "la-cocina-de-kai" found). Skipping.');
+    logger.info(`  Seed data already exists (business "${MURA_SLUG}" found). Skipping.`);
     return;
   }
 
+  const env: SeedEnv = process.env;
   const now = new Date();
-  // All seed _id values are UUID v4 to match production (services mint ids with
-  // `crypto.randomUUID()`) and to satisfy the `z.string().uuid()` validators on
-  // API route params. The fixed pattern `00000000-0000-4000-8000-NNNNNNNNNNNN`
-  // keeps them stable, debuggable, and obviously non-random.
-  const businessId = '00000000-0000-4000-8000-000000000100';
-  const branchId = '00000000-0000-4000-8000-000000000200';
-  const branchIdNaco = '00000000-0000-4000-8000-000000000201';
-  const adminUserId = '00000000-0000-4000-8000-000000000301';
-  const cashierUserId = '00000000-0000-4000-8000-000000000302';
+  const imageBaseUrl = (env.MURA_IMAGE_BASE_URL ?? DEFAULT_MURA_IMAGE_BASE_URL).replace(/\/+$/, '');
+  logger.info(
+    { placeholderImageUrl: muraPlaceholderImageUrl(imageBaseUrl) },
+    '  Product images point at the Mura placeholder',
+  );
 
-  await businessesCol.insertOne({
-    _id: businessId as never,
-    name: 'La Cocina de Kai',
-    slug: 'la-cocina-de-kai',
-    address: 'Cra. 13 #85-32, Bogotá',
-    phone: '601-555-0100',
-    email: 'info@lacocinadekai.com',
-    currency: 'COP',
-    isActive: true,
-    createdAt: now,
-    updatedAt: now,
+  const users = await resolveMuraUsers(db, env, now);
+  const { business, branch, categories, products, productPreferences } = buildMuraDocuments({
+    now,
+    imageBaseUrl,
+    createdBy: MURA_ADMIN_USER_ID,
   });
-  logger.info('  Seeded business: La Cocina de Kai');
 
-  await db.collection('branches').insertMany([
-    {
-      _id: branchId as never,
-      businessId,
-      name: 'Sucursal Piantini',
-      address: 'Calle Gustavo Mejía Ricart 54, Piantini',
-      phone: '809-555-0101',
-      timezone: 'America/Bogota',
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
-    },
-    {
-      _id: branchIdNaco as never,
-      businessId,
-      name: 'Sucursal Naco',
-      address: 'Av. Tiradentes 12, Naco',
-      phone: '809-555-0102',
-      timezone: 'America/Bogota',
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
-    },
-  ]);
-  logger.info('  Seeded 2 branches: Piantini, Naco');
+  await businessesCol.insertOne(business);
+  logger.info(`  Seeded business: ${business.name}`);
 
-  const [adminHash, cashierHash] = await Promise.all([
-    hashPassword('admin123'),
-    hashPassword('cajero123'),
-  ]);
+  await db.collection<Branch>('branches').insertOne(branch);
+  logger.info(`  Seeded 1 branch: ${branch.name}`);
 
-  const users = [
-    {
-      _id: adminUserId as never,
-      businessId,
-      email: 'admin@lacocinadekai.com',
-      name: 'Carlos Méndez',
-      passwordHash: adminHash,
-      role: 'admin',
-      branchIds: [branchId, branchIdNaco],
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
-    },
-    {
-      _id: cashierUserId as never,
-      businessId,
-      email: 'cajero@lacocinadekai.com',
-      name: 'Juan Pérez',
-      passwordHash: cashierHash,
-      role: 'cashier',
-      branchIds: [branchId],
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
-    },
-  ];
-  await db.collection('users').insertMany(users);
-  logger.info('  Seeded 2 users (admin, cajero)');
+  await db.collection<User>('users').insertMany(users);
+  logger.info(`  Seeded ${users.length} user(s): ${users.map((u) => u.email).join(', ')}`);
 
-  const categories = [
-    {
-      _id: '00000000-0000-4000-8000-000000000401' as never,
-      businessId,
-      name: 'Entradas',
-      description: 'Aperitivos y entradas',
-      sortOrder: 1,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
-    },
-    {
-      _id: '00000000-0000-4000-8000-000000000402' as never,
-      businessId,
-      name: 'Platos Principales',
-      description: 'Platos fuertes',
-      sortOrder: 2,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
-    },
-    {
-      _id: '00000000-0000-4000-8000-000000000403' as never,
-      businessId,
-      name: 'Bebidas',
-      description: 'Jugos, refrescos y cócteles',
-      sortOrder: 3,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
-    },
-    {
-      _id: '00000000-0000-4000-8000-000000000404' as never,
-      businessId,
-      name: 'Postres',
-      description: 'Dulces y postres',
-      sortOrder: 4,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
-    },
-    {
-      _id: '00000000-0000-4000-8000-000000000405' as never,
-      businessId,
-      name: 'Acompañantes',
-      description: 'Arroz, ensaladas y más',
-      sortOrder: 5,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: adminUserId,
-    },
-  ];
-  await db.collection('categories').insertMany(categories);
-  logger.info('  Seeded 5 categories');
+  await db.collection<Category>('categories').insertMany(categories);
+  logger.info(`  Seeded ${categories.length} categories`);
 
-  const productDefaults = {
-    businessId,
-    branchId,
-    trackStock: true,
-    stockUnit: 'unit' as const,
-    availability: { pos: true, online: false, kiosk: false },
-    serviceSchedules: [] as string[],
-    allergens: [] as string[],
-    dietaryTags: [] as string[],
-    modifierGroups: [] as Array<Record<string, unknown>>,
-    kitchenStationIds: [] as string[],
-    sortOrder: 0,
-    isActive: true,
-    createdAt: now,
-    updatedAt: now,
-    createdBy: adminUserId,
-  };
+  await db.collection<Product>('products').insertMany(products);
+  logger.info(`  Seeded ${products.length} products`);
 
-  const products = [
-    {
-      _id: '00000000-0000-4000-8000-000000000001' as never,
-      ...productDefaults,
-      name: 'Tostones con Salami',
-      description: 'Tostones crujientes con salami frito',
-      price: 350,
-      category: 'Entradas',
-      sku: 'ENT-001',
-      stock: 100,
-    },
-    {
-      _id: '00000000-0000-4000-8000-000000000002' as never,
-      ...productDefaults,
-      name: 'Yuca Frita',
-      description: 'Yuca frita con salsa de ajo',
-      price: 250,
-      category: 'Entradas',
-      sku: 'ENT-002',
-      stock: 100,
-    },
-    {
-      _id: '00000000-0000-4000-8000-000000000003' as never,
-      ...productDefaults,
-      name: 'Pollo al Horno',
-      description: 'Medio pollo al horno con especias criollas',
-      price: 650,
-      category: 'Platos Principales',
-      sku: 'PLA-001',
-      stock: 50,
-    },
-    {
-      _id: '00000000-0000-4000-8000-000000000004' as never,
-      ...productDefaults,
-      name: 'Churrasco de Res',
-      description: 'Churrasco a la parrilla con chimichurri',
-      price: 950,
-      category: 'Platos Principales',
-      sku: 'PLA-002',
-      stock: 30,
-    },
-    {
-      _id: '00000000-0000-4000-8000-000000000005' as never,
-      ...productDefaults,
-      name: 'Mofongo de Chicharrón',
-      description: 'Mofongo relleno de chicharrón con caldo',
-      price: 550,
-      category: 'Platos Principales',
-      sku: 'PLA-003',
-      stock: 40,
-    },
-    {
-      _id: '00000000-0000-4000-8000-000000000006' as never,
-      ...productDefaults,
-      name: 'Bandera Dominicana',
-      description: 'Arroz blanco, habichuelas rojas y carne guisada',
-      price: 450,
-      category: 'Platos Principales',
-      sku: 'PLA-004',
-      stock: 60,
-    },
-    {
-      _id: '00000000-0000-4000-8000-000000000007' as never,
-      ...productDefaults,
-      name: 'Jugo de Chinola',
-      description: 'Jugo natural de chinola (maracuyá)',
-      price: 150,
-      category: 'Bebidas',
-      sku: 'BEB-001',
-      stock: 200,
-    },
-    {
-      _id: '00000000-0000-4000-8000-000000000008' as never,
-      ...productDefaults,
-      name: 'Morir Soñando',
-      description: 'Leche con jugo de naranja y azúcar',
-      price: 180,
-      category: 'Bebidas',
-      sku: 'BEB-002',
-      stock: 200,
-    },
-    {
-      _id: '00000000-0000-4000-8000-000000000009' as never,
-      ...productDefaults,
-      name: 'Habichuelas con Dulce',
-      description: 'Postre tradicional de habichuelas dulces con leche',
-      price: 200,
-      category: 'Postres',
-      sku: 'POS-001',
-      stock: 30,
-    },
-    {
-      _id: '00000000-0000-4000-8000-00000000000a' as never,
-      ...productDefaults,
-      name: 'Flan de Coco',
-      description: 'Flan cremoso de coco con caramelo',
-      price: 220,
-      category: 'Postres',
-      sku: 'POS-002',
-      stock: 25,
-    },
-    // Naco branch — a small catalog so the branch switcher is meaningful.
-    {
-      _id: '00000000-0000-4000-8000-00000000000b' as never,
-      ...productDefaults,
-      branchId: branchIdNaco,
-      name: 'Sancocho de 7 Carnes',
-      description: 'Sancocho tradicional dominicano con siete carnes',
-      price: 850,
-      category: 'Platos Principales',
-      sku: 'NAC-PLA-001',
-      stock: 20,
-    },
-    {
-      _id: '00000000-0000-4000-8000-00000000000c' as never,
-      ...productDefaults,
-      branchId: branchIdNaco,
-      name: 'Empanadas de Pollo',
-      description: 'Empanadas fritas rellenas de pollo guisado',
-      price: 120,
-      category: 'Entradas',
-      sku: 'NAC-ENT-001',
-      stock: 80,
-    },
-    {
-      _id: '00000000-0000-4000-8000-00000000000d' as never,
-      ...productDefaults,
-      branchId: branchIdNaco,
-      name: 'Mamajuana',
-      description: 'Bebida tradicional con ron, vino tinto y miel',
-      price: 300,
-      category: 'Bebidas',
-      sku: 'NAC-BEB-001',
-      stock: 40,
-    },
-  ];
-  await db.collection('products').insertMany(products);
-  logger.info('  Seeded 13 products (10 Piantini, 3 Naco)');
-
-  await db.collection('kitchenStations').insertOne({
-    _id: '00000000-0000-4000-8000-000000000701' as never,
-    businessId,
-    branchId,
-    name: 'Cocina caliente',
-    createdAt: now,
-    updatedAt: now,
-    createdBy: adminUserId,
-  });
-  logger.info('  Seeded 1 kitchen station');
+  await db.collection<ProductPreference>('productPreferences').insertMany(productPreferences);
+  logger.info(`  Seeded ${productPreferences.length} featured product preferences`);
 }
 
 // ---------------------------------------------------------------------------

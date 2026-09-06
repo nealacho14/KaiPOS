@@ -21,6 +21,32 @@ interface CollectionSetup {
   dropIndexes?: Array<Record<string, 1 | -1>>;
 }
 
+// Exported so seed fixtures (e.g. `seed-data/mura-menu.test.ts`) can assert
+// that every document they build satisfies the products validator.
+export const PRODUCT_REQUIRED_FIELDS = [
+  'businessId',
+  'branchId',
+  'name',
+  'description',
+  'price',
+  'category',
+  'sku',
+  'stock',
+  'trackStock',
+  'stockUnit',
+  'availability',
+  'serviceSchedules',
+  'allergens',
+  'dietaryTags',
+  'modifierGroups',
+  'kitchenStationIds',
+  'sortOrder',
+  'isActive',
+  'createdAt',
+  'updatedAt',
+  'createdBy',
+] as const;
+
 const collections: CollectionSetup[] = [
   // ---- businesses ----
   {
@@ -164,29 +190,7 @@ const collections: CollectionSetup[] = [
     validator: {
       $jsonSchema: {
         bsonType: 'object',
-        required: [
-          'businessId',
-          'branchId',
-          'name',
-          'description',
-          'price',
-          'category',
-          'sku',
-          'stock',
-          'trackStock',
-          'stockUnit',
-          'availability',
-          'serviceSchedules',
-          'allergens',
-          'dietaryTags',
-          'modifierGroups',
-          'kitchenStationIds',
-          'sortOrder',
-          'isActive',
-          'createdAt',
-          'updatedAt',
-          'createdBy',
-        ],
+        required: [...PRODUCT_REQUIRED_FIELDS],
         properties: {
           _id: { bsonType: 'string' },
           businessId: { bsonType: 'string' },

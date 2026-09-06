@@ -15,13 +15,14 @@ pnpm lint && pnpm typecheck && pnpm test
 pnpm format
 
 pnpm --filter @kaipos/backend db:setup      # collections + validators + indexes (idempotent)
-pnpm --filter @kaipos/backend db:seed       # demo data; Docker Mongo only — refuses mongodb+srv://
+pnpm --filter @kaipos/backend db:seed       # Mura menu; Docker Mongo only — refuses mongodb+srv://
+pnpm --filter @kaipos/backend menu:export   # Mura seed as JSON on stdout (Ferna fixture; no DB)
 
 pnpm deploy:prod                            # full two-phase deploy
 pnpm deploy:prod:api | :websocket | :frontend  # targeted
 ```
 
-Login (after seed): `admin@lacocinadekai.com` / `admin123`.
+Login (after seed): `admin@mura.co` / `admin123` (override with `MURA_ADMIN_PASSWORD`).
 
 ## Invariants (do not violate)
 
@@ -47,7 +48,8 @@ TypeScript strict, ES2022. MongoDB native driver (no Mongoose). Prettier: double
 ## Deeper docs
 
 - [docs/architecture.md](docs/architecture.md) — monorepo, backend pattern, frontend shell.
-- [docs/database.md](docs/database.md) — DB scripts and full RBAC.
+- [docs/database.md](docs/database.md) — DB scripts, Atlas runbooks and full RBAC.
+- [docs/ferna-integration.md](docs/ferna-integration.md) — read contract for Ferna (Mura menu over Mongo).
 - [docs/realtime.md](docs/realtime.md) — WebSocket (channels, auth, publish helper).
 - [docs/local-dev.md](docs/local-dev.md) — Docker, MinIO, environment variables.
 - [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) — AWS stacks, CloudFront, secrets.
